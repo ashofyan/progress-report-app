@@ -1,0 +1,725 @@
+@use '@/styles/variables' as *;
+
+/* ================================
+ * Page
+ * ================================ */
+
+.master-job-page {
+  width: 100%;
+}
+
+.master-job-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  margin-bottom: 14px;
+}
+
+.master-job-title {
+  margin: 0;
+
+  color: #484855;
+
+  font-size: 22px;
+  font-weight: 500;
+}
+
+.master-job-breadcrumb {
+  display: flex;
+  align-items: center;
+
+  gap: 6px;
+
+  color: #555563;
+
+  font-size: 14px;
+
+  .active {
+    color: $primary-color;
+  }
+}
+
+/* ================================
+ * Board
+ * ================================ */
+
+.master-job-board {
+  position: relative;
+
+  display: flex;
+  flex-direction: column;
+
+  width: 100%;
+  min-height: calc(100vh - 135px);
+
+  padding: 18px 22px;
+
+  background-color: #ffffff;
+
+  border-radius: 12px;
+}
+
+.master-job-board-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  gap: 16px;
+
+  margin-bottom: 18px;
+}
+
+.master-job-board-content {
+  flex: 1;
+}
+
+/* ================================
+ * Search
+ * ================================ */
+
+.master-job-search {
+  display: flex;
+  align-items: center;
+
+  width: 280px;
+  height: 36px;
+
+  padding: 0 12px;
+
+  background-color: #f5f6f8;
+
+  border: 1px solid #ebebef;
+  border-radius: 8px;
+
+  i {
+    margin-right: 9px;
+
+    color: #92929c;
+
+    font-size: 14px;
+  }
+
+  input {
+    width: 100%;
+
+    padding: 0;
+
+    color: #444451;
+    background: transparent;
+
+    font-size: 13px;
+
+    border: 0;
+    outline: none;
+
+    &::placeholder {
+      color: #a0a0a8;
+    }
+  }
+
+  &:focus-within {
+    border-color: rgba($primary-color, 0.5);
+  }
+}
+
+/* ================================
+ * Add Button
+ * ================================ */
+
+.master-job-add-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  min-width: 105px;
+  height: 34px;
+
+  gap: 7px;
+  padding: 0 14px;
+
+  color: #ffffff;
+  background-color: #45cfa2;
+
+  font-size: 14px;
+  font-weight: 600;
+
+  border: 0;
+  border-radius: 8px;
+
+  cursor: pointer;
+
+  transition:
+          opacity 0.2s ease,
+          transform 0.1s ease;
+
+  i {
+    font-size: 15px;
+  }
+
+  &:hover {
+    opacity: 0.9;
+  }
+
+  &:active {
+    transform: scale(0.98);
+  }
+}
+
+/* ================================
+ * Table
+ * ================================ */
+
+.master-job-table {
+  margin-bottom: 0;
+
+  font-size: 13px;
+
+  thead {
+    th {
+      padding: 12px;
+
+      color: #777781;
+      background-color: #f8f8fa;
+
+      font-size: 12px;
+      font-weight: 600;
+
+      border-bottom: 1px solid #eeeef2;
+    }
+  }
+
+  tbody {
+    td {
+      padding: 13px 12px;
+
+      color: #4c4c57;
+
+      vertical-align: middle;
+
+      border-bottom: 1px solid #f0f0f3;
+    }
+  }
+}
+
+/* ================================
+ * Actions
+ * ================================ */
+
+.master-job-actions {
+  display: flex;
+  justify-content: center;
+
+  gap: 6px;
+}
+
+.master-job-action-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  width: 34px;
+  height: 34px;
+
+  background: transparent;
+
+  border: 0;
+  border-radius: 7px;
+
+  cursor: pointer;
+
+  i {
+    font-size: 20px;
+    line-height: 1;
+  }
+
+  &.edit {
+    color: #4f6df5;
+
+    &:hover {
+      background-color: rgba(#4f6df5, 0.1);
+    }
+  }
+
+  &.delete {
+    color: #dc3545;
+
+    &:hover {
+      background-color: rgba(#dc3545, 0.1);
+    }
+  }
+}
+
+/* ================================
+ * Loading / Empty / Error
+ * ================================ */
+
+.master-job-loading,
+.master-job-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+
+  min-height: 350px;
+
+  gap: 12px;
+
+  color: #92929c;
+
+  font-size: 14px;
+}
+
+.master-job-empty {
+  i {
+    font-size: 34px;
+  }
+}
+
+.master-job-error {
+  display: flex;
+  align-items: center;
+  flex-direction: column;
+
+  padding-top: 40px;
+}
+
+/* ================================
+ * Pagination
+ * ================================ */
+
+.master-job-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+
+  gap: 11px;
+
+  padding: 20px 20px 0 0;
+}
+
+.master-job-page-info {
+  min-width: 55px;
+
+  color: #555560;
+
+  font-size: 13px;
+  text-align: center;
+}
+
+.pagination-arrow {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  width: 25px;
+  height: 36px;
+
+  padding: 0;
+
+  color: #4f505d;
+  background-color: transparent;
+
+  font-size: 12px;
+
+  border: 0;
+  border-radius: 50%;
+
+  cursor: pointer;
+
+  &:hover:not(:disabled) {
+    color: $primary-color;
+  }
+
+  &:disabled {
+    opacity: 0.35;
+    cursor: not-allowed;
+  }
+}
+
+/* ================================
+ * Modal Backdrop
+ * ================================ */
+
+.master-job-modal-backdrop {
+  position: fixed;
+  inset: 0;
+
+  z-index: 2000;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  padding: 20px;
+
+  background-color: rgba(20, 20, 25, 0.45);
+}
+
+/* ================================
+ * Form Modal
+ * ================================ */
+
+.master-job-modal {
+  width: 100%;
+  max-width: 680px;
+  max-height: 90vh;
+
+  overflow-y: auto;
+
+  background-color: #ffffff;
+
+  border-radius: 12px;
+
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.18);
+}
+
+.master-job-delete-modal {
+  width: 100%;
+  max-width: 450px;
+
+  background-color: #ffffff;
+
+  border-radius: 12px;
+
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.18);
+}
+
+.master-job-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  padding: 18px 20px;
+
+  border-bottom: 1px solid #eeeef2;
+
+  h2 {
+    margin: 0;
+
+    color: #40404b;
+
+    font-size: 18px;
+    font-weight: 600;
+  }
+}
+
+.master-job-modal-close {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  width: 30px;
+  height: 30px;
+
+  color: #777781;
+  background: transparent;
+
+  border: 0;
+  border-radius: 6px;
+
+  cursor: pointer;
+
+  &:hover {
+    background-color: #f2f2f5;
+  }
+}
+
+.master-job-modal-body {
+  padding: 20px;
+}
+
+.master-job-modal-footer {
+  display: flex;
+  justify-content: flex-end;
+
+  gap: 8px;
+
+  padding: 14px 20px;
+
+  border-top: 1px solid #eeeef2;
+}
+
+/* ================================
+ * Task
+ * ================================ */
+
+.master-job-task-section {
+  padding-top: 5px;
+}
+
+.master-job-task-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  margin-bottom: 12px;
+
+  h3 {
+    margin: 0;
+
+    color: #454550;
+
+    font-size: 15px;
+    font-weight: 600;
+  }
+}
+
+.master-job-task-empty {
+  padding: 20px;
+
+  color: #96969e;
+  background-color: #f8f8fa;
+
+  font-size: 13px;
+  text-align: center;
+
+  border-radius: 8px;
+}
+
+.master-job-task-card {
+  padding: 12px;
+
+  margin-bottom: 10px;
+
+  background-color: #f8f8fa;
+
+  border: 1px solid #eeeef2;
+  border-radius: 8px;
+}
+
+.master-job-task-row {
+  display: flex;
+
+  gap: 8px;
+}
+
+/* ================================
+ * Sub Task
+ * ================================ */
+
+.master-job-subtasks {
+  display: flex;
+  flex-direction: column;
+
+  gap: 7px;
+
+  padding-top: 9px;
+  padding-left: 22px;
+}
+
+.master-job-subtask-row {
+  display: flex;
+  align-items: center;
+
+  gap: 8px;
+
+  > i {
+    color: #9b9ba4;
+
+    font-size: 13px;
+  }
+}
+
+.master-job-add-subtask {
+  align-self: flex-start;
+
+  display: inline-flex;
+  align-items: center;
+
+  gap: 5px;
+
+  padding: 4px 7px;
+
+  color: $primary-color;
+  background: transparent;
+
+  font-size: 12px;
+
+  border: 0;
+
+  cursor: pointer;
+}
+
+/* ================================
+ * Service Select
+ * ================================ */
+
+.service-select {
+  position: relative;
+
+  width: 100%;
+}
+
+.service-select-trigger {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  width: 100%;
+  min-height: 40px;
+
+  padding: 0 12px;
+
+  color: #40404b;
+  background-color: #ffffff;
+
+  font-size: 13px;
+  text-align: left;
+
+  border: 1px solid #dedee4;
+  border-radius: 7px;
+
+  cursor: pointer;
+
+  .placeholder {
+    color: #8d8d96;
+    background: transparent;
+  }
+
+  .selected-value {
+    display: inline-block;
+
+    color: #40404b;
+    background: transparent;
+
+    font-size: 13px;
+    font-weight: 400;
+  }
+
+  i {
+    color: #85858e;
+    background: transparent;
+
+    font-size: 11px;
+  }
+}
+
+
+.service-select-dropdown {
+  position: absolute;
+  top: calc(100% + 2px);
+  right: 0;
+  left: 0;
+
+  z-index: 2100;
+
+  overflow: hidden;
+
+  background-color: #ffffff;
+
+  border: 1px solid #dedee4;
+  border-radius: 7px;
+
+  box-shadow:
+          0 8px 24px
+          rgba(0, 0, 0, 0.1);
+}
+
+.service-select-search {
+  display: flex;
+  align-items: center;
+
+  height: 38px;
+
+  padding: 0 12px;
+
+  border-bottom: 1px solid #eeeeF2;
+
+  i {
+    margin-right: 8px;
+
+    color: #8b8b95;
+
+    font-size: 13px;
+  }
+
+  input {
+    width: 100%;
+
+    padding: 0;
+
+    color: #444451;
+    background: transparent;
+
+    font-size: 13px;
+
+    border: 0;
+    outline: none;
+
+    &::placeholder {
+      color: #92929c;
+    }
+  }
+}
+
+.service-select-options {
+  max-height: 250px;
+
+  padding: 5px 0;
+
+  overflow-y: auto;
+
+  scrollbar-width: thin;
+}
+
+.service-select-option {
+  display: flex;
+  align-items: center;
+
+  width: 100%;
+  min-height: 36px;
+
+  padding: 7px 14px 7px 44px;
+
+  color: #454550;
+  background-color: transparent;
+
+  font-size: 13px;
+  text-align: left;
+
+  border: 0;
+
+  cursor: pointer;
+
+  &:hover {
+    background-color: #f6f6f8;
+  }
+
+  &.selected {
+    color: $primary-color;
+    background-color:
+            rgba($primary-color, 0.07);
+  }
+}
+
+.service-select-code {
+  margin-left: 4px;
+
+  color: #666671;
+}
+
+.service-select-option.selected {
+  .service-select-code {
+    color: $primary-color;
+  }
+}
+
+.service-select-state {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  min-height: 60px;
+
+  gap: 8px;
+  padding: 12px;
+
+  color: #888892;
+
+  font-size: 12px;
+
+  &.error {
+    color: #dc3545;
+  }
+}
