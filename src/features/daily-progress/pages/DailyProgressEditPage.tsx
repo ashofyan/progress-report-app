@@ -25,6 +25,8 @@ interface DetailFormData {
     id: number
     label: string
     isChecked: boolean
+    isAlreadyCompleted: boolean
+    isMasterSubtask: boolean
     notes: NoteFormData[]
     documents: DailyProgressDocument[]
 }
@@ -136,15 +138,27 @@ const DailyProgressEditPage = () => {
 
                     setProgress(result.data)
                     setDetails(
-                        result.data.details.map((detail) => ({
-                            id: detail.id,
-                            label: getDetailLabel(detail),
-                            isChecked:
-                                detail.status === 'selesai',
-                            notes: getNotes(detail.catatan),
-                            documents:
-                                detail.documents ?? [],
-                        })),
+                        result.data.details.map((detail) => {
+                            const isMasterSubtask =
+                                detail.als_job_task_id !== null ||
+                                (detail.task !== null &&
+                                    detail.task !== undefined &&
+                                    detail.task.parent !== undefined &&
+                                    detail.task.parent !== null)
+                            const isAlreadyCompleted =
+                                detail.status === 'selesai'
+
+                            return {
+                                id: detail.id,
+                                label: getDetailLabel(detail),
+                                isChecked: isAlreadyCompleted,
+                                isAlreadyCompleted,
+                                isMasterSubtask,
+                                notes: getNotes(detail.catatan),
+                                documents:
+                                    detail.documents ?? [],
+                            }
+                        }),
                     )
                 }
 
@@ -155,95 +169,85 @@ const DailyProgressEditPage = () => {
     const isTodayProgress =
         progress?.tanggal === getTodayDate()
 
-    const handleNoteChange = (
-        detailId: number,
-        noteIndex: number,
-        value: string,
-    ): void => {
-        setDetails((previous) =>
-            previous.map((detail) =>
-                detail.id === detailId
-                    ? {
-                        ...detail,
-                        notes: detail.notes.map(
-                            (note, currentIndex) =>
-                                currentIndex === noteIndex
-                                    ? {
-                                        ...note,
-                                        text: value,
-                                    }
-                                    : note,
-                        ),
-                    }
-                    : detail,
-            ),
-        )
-    }
-
     const handleToggleDetail = (
         detailId: number,
     ): void => {
+        if (!isTodayProgress) {
+            return
+        }
+
         setDetails((previous) =>
-            previous.map((detail) =>
-                detail.id === detailId
-                    ? {
-                        ...detail,
-                        isChecked: !detail.isChecked,
-                    }
-                    : detail,
-            ),
+            previous.map((item) => {
+                if (item.id !== detailId) {
+                    return item
+                }
+
+                // Jika subtask dari master task statusnya sudah selesai, batasi dengan tidak dapat di unchecklist
+                if (
+                    item.isMasterSubtask &&
+                    item.isAlreadyCompleted
+                ) {
+                    return item
+                }
+
+                return {
+                    ...item,
+                    isChecked: !item.isChecked,
+                }
+            }),
         )
     }
 
-    const handleAddNote = (
-        detailId: number,
-    ): void => {
+    const handleAddNote = (detailId: number): void => {
+        if (!isTodayProgress) {
+            return
+        }
+
         setDetails((previous) =>
-            previous.map((detail) =>
-                detail.id === detailId
+            previous.map((item) =>
+                item.id === detailId
                     ? {
-                        ...detail,
+                        ...item,
                         notes: [
-                            ...detail.notes,
+                            ...item.notes,
                             {
                                 text: '',
                                 file: null,
                             },
                         ],
                     }
-                    : detail,
+                    : item,
             ),
         )
     }
 
-    const handleRemoveNote = (
+    const handleNoteChange = (
         detailId: number,
         noteIndex: number,
+        text: string,
     ): void => {
+        if (!isTodayProgress) {
+            return
+        }
+
         setDetails((previous) =>
-            previous.map((detail) =>
-                detail.id === detailId
-                    ? {
-                        ...detail,
-                        notes:
-                            detail.notes.length === 1
-                                ? [
-                                    {
-                                        text: '',
-                                        file: null,
-                                    },
-                                ]
-                                : detail.notes.filter(
-                                    (
-                                        _,
-                                        currentIndex,
-                                    ) =>
-                                        currentIndex !==
-                                        noteIndex,
-                                ),
-                    }
-                    : detail,
-            ),
+            previous.map((item) => {
+                if (item.id !== detailId) {
+                    return item
+                }
+
+                const updatedNotes = [...item.notes]
+
+                updatedNotes[noteIndex] = {
+                    ...updatedNotes[noteIndex],
+                    text,
+                }
+
+                return {
+                    ...item,
+                    notes: updatedNotes,
+                }
+            }),
         )
     }
 
@@ -252,23 +256,62 @@ const DailyProgressEditPage = () => {
         noteIndex: number,
         file: File | null,
     ): void => {
+        if (!isTodayProgress) {
+            return
+        }
+
         setDetails((previous) =>
-            previous.map((detail) =>
-                detail.id === detailId
-                    ? {
-                        ...detail,
-                        notes: detail.notes.map(
-                            (note, currentIndex) =>
-                                currentIndex === noteIndex
-                                    ? {
-                                        ...note,
-                                        file,
-                                    }
-                                    : note,
-                        ),
-                    }
-                    : detail,
-            ),
+            previous.map((item) => {
+                if (item.id !== detailId) {
+                    return item
+                }
+
+                const updatedNotes = [...item.notes]
+
+                updatedNotes[noteIndex] = {
+                    ...updatedNotes[noteIndex],
+                    file,
+                }
+
+                return {
+                    ...item,
+                    notes: updatedNotes,
+                }
+            }),
+        )
+    }
+
+    const handleRemoveNote = (
+        detailId: number,
+        noteIndex: number,
+    ): void => {
+        if (!isTodayProgress) {
+            return
+        }
+
+        setDetails((previous) =>
+            previous.map((item) => {
+                if (item.id !== detailId) {
+                    return item
+                }
+
+                const filteredNotes = item.notes.filter(
+                    (_, index) => index !== noteIndex,
+                )
+
+                return {
+                    ...item,
+                    notes:
+                        filteredNotes.length === 0
+                            ? [
+                                {
+                                    text: '',
+                                    file: null,
+                                },
+                            ]
+                            : filteredNotes,
+                }
+            }),
         )
     }
 
@@ -276,7 +319,7 @@ const DailyProgressEditPage = () => {
         detailId: number,
         documentId: number,
     ): Promise<void> => {
-        if (progress === null) {
+        if (!isTodayProgress || progress === null) {
             return
         }
 
@@ -298,19 +341,19 @@ const DailyProgressEditPage = () => {
         }
 
         setDetails((previous) =>
-            previous.map((detail) =>
-                detail.id === detailId
-                    ? {
-                        ...detail,
-                        documents:
-                            detail.documents.filter(
-                                (document) =>
-                                    document.id !==
-                                    documentId,
-                            ),
-                    }
-                    : detail,
-            ),
+            previous.map((detail) => {
+                if (detail.id !== detailId) {
+                    return detail
+                }
+
+                return {
+                    ...detail,
+                    documents: detail.documents.filter(
+                        (document) =>
+                            document.id !== documentId,
+                    ),
+                }
+            }),
         )
     }
 
@@ -321,9 +364,6 @@ const DailyProgressEditPage = () => {
         setErrorMessage(null)
 
         if (progress === null) {
-            setErrorMessage(
-                'Daily Progress belum berhasil dimuat.',
-            )
             return
         }
 
@@ -334,49 +374,47 @@ const DailyProgressEditPage = () => {
             return
         }
 
-        if (details.length === 0) {
-            setErrorMessage(
-                'Daily Progress belum memiliki detail.',
-            )
-            return
-        }
-
         setIsSubmitting(true)
 
-        const result = await dailyProgressApi.update(
-            progress.id,
-            {
-                no_spk: progress.no_spk,
-                details: details.map((detail) => ({
-                    id: detail.id,
-                    status: detail.isChecked
-                        ? 'selesai'
-                        : 'open',
-                    catatan:
-                        detail.notes
-                            .map((note) =>
-                                note.text.trim(),
-                            )
-                            .filter(
-                                (note) => note !== '',
-                            )
-                            .join('\n') || null,
-                })),
-            },
-        )
+        const updateResult =
+            await dailyProgressApi.update(
+                progress.id,
+                {
+                    no_spk: progress.no_spk,
+                    details: details.map((detail) => {
+                        const noteText = detail.notes
+                            .map((note) => note.text.trim())
+                            .filter((note) => note !== '')
+                            .join('\n')
 
-        if (!result.success) {
+                        return {
+                            id: detail.id,
+                            status: detail.isChecked
+                                ? 'selesai'
+                                : 'open',
+                            catatan:
+                                noteText === ''
+                                    ? null
+                                    : noteText,
+                        }
+                    }),
+                },
+            )
+
+        if (!updateResult.success) {
             setIsSubmitting(false)
-            setErrorMessage(result.message)
+            setErrorMessage(updateResult.message)
             return
         }
 
         for (const detail of details) {
-            const files = detail.notes
+            const filesToUpload = detail.notes
                 .map((note) => note.file)
-                .filter((file): file is File => file !== null)
+                .filter(
+                    (file): file is File => file !== null,
+                )
 
-            if (files.length === 0) {
+            if (filesToUpload.length === 0) {
                 continue
             }
 
@@ -384,7 +422,7 @@ const DailyProgressEditPage = () => {
                 await dailyProgressApi.uploadDocuments(
                     progress.id,
                     detail.id,
-                    files,
+                    filesToUpload,
                 )
 
             if (!uploadResult.success) {
@@ -401,23 +439,42 @@ const DailyProgressEditPage = () => {
     return (
         <div className="daily-progress-page">
             <div className="daily-progress-heading">
-                <h1 className="daily-progress-title">
-                    Edit Daily Progress
-                </h1>
+                <div>
+                    <h1 className="daily-progress-title">
+                        Edit Daily Progress
+                    </h1>
 
-                <div className="daily-progress-breadcrumb">
-                    <span className="active">
-                        Progress
-                    </span>
+                    <div className="daily-progress-breadcrumb">
+                        <span className="active">
+                            Progress
+                        </span>
 
-                    <span>/</span>
+                        <span>/</span>
 
-                    <span>Daily Progress</span>
+                        <span>Daily Progress</span>
 
-                    <span>/</span>
+                        <span>/</span>
 
-                    <span>Edit</span>
+                        <span>Edit</span>
+                    </div>
                 </div>
+
+                {progress !== null && (
+                    <div className="d-flex align-items-center gap-2">
+                        <button
+                            type="button"
+                            className="btn btn-outline-primary btn-sm"
+                            onClick={() =>
+                                navigate(
+                                    `/daily-progress/${progress.id}/edit-form`,
+                                )
+                            }
+                        >
+                            <i className="bi bi-pencil-square me-1" />
+                            Edit Data Lengkap (SPK / Pekerjaan)
+                        </button>
+                    </div>
+                )}
             </div>
 
             <section className="daily-progress-form-page">
@@ -486,10 +543,24 @@ const DailyProgressEditPage = () => {
                         {progress !== null &&
                             !isTodayProgress && (
                                 <div
-                                    className="alert alert-warning"
+                                    className="alert alert-warning d-flex align-items-center justify-content-between"
                                     role="alert"
                                 >
-                                    Daily Progress ini bukan tanggal hari ini.
+                                    <span>
+                                        Daily Progress ini bukan tanggal hari ini. Checklist status penyelesaian hanya dapat diperbarui pada hari berjalan.
+                                    </span>
+                                    <button
+                                        type="button"
+                                        className="btn btn-outline-warning btn-sm ms-2 text-nowrap"
+                                        onClick={() =>
+                                            navigate(
+                                                `/daily-progress/${progress.id}/edit-form`,
+                                            )
+                                        }
+                                    >
+                                        <i className="bi bi-pencil-square me-1" />
+                                        Edit Data Form
+                                    </button>
                                 </div>
                             )}
 
@@ -529,185 +600,253 @@ const DailyProgressEditPage = () => {
                                 </div>
                             )}
 
-                        <div className="daily-progress-detail-list">
-                            {details.map((detail) => (
-                                <div
-                                    className="daily-progress-detail-card"
-                                    key={detail.id}
-                                >
-                                    <div className="daily-progress-completion-row">
-                                        <label className="daily-progress-completion-check">
-                                            <input
-                                                type="checkbox"
-                                                checked={
-                                                    detail.isChecked
-                                                }
-                                                disabled={!isTodayProgress}
-                                                onChange={() =>
-                                                    handleToggleDetail(
-                                                        detail.id,
-                                                    )
-                                                }
-                                            />
-
-                                            <span>
-                                                {detail.label}
-                                            </span>
-                                        </label>
+                        {progress !== null &&
+                            (progress.temuans ?? []).length > 0 && (
+                                <div className="daily-progress-document-section mb-4">
+                                    <div className="daily-progress-document-heading">
+                                        <span>Temuan Global</span>
                                     </div>
 
-                                    <div className="daily-progress-note-section">
-                                        <div className="daily-progress-note-heading">
-                                            <span>Catatan</span>
+                                    {(progress.temuans ?? []).map(
+                                        (temuan) => (
+                                            <div
+                                                className="daily-progress-document-row"
+                                                key={temuan.id}
+                                            >
+                                                <div>
+                                                    <strong>
+                                                        {temuan.nomor}{' '}
+                                                        /{' '}
+                                                        {temuan.tanggal}
+                                                    </strong>
 
-                                            <button
-                                                type="button"
-                                                className="daily-progress-note-add"
-                                                disabled={!isTodayProgress}
-                                                onClick={() =>
-                                                    handleAddNote(
-                                                        detail.id,
-                                                    )
+                                                    <span>
+                                                        {(temuan.notes ?? [])
+                                                            .map(
+                                                                (note) =>
+                                                                    note.note,
+                                                            )
+                                                            .join('\n') ||
+                                                            'Tanpa catatan.'}
+                                                    </span>
+                                                </div>
+
+                                                <span
+                                                    className={`daily-progress-status ${temuan.status}`}
+                                                >
+                                                    {temuan.status}
+                                                </span>
+                                            </div>
+                                        ),
+                                    )}
+                                </div>
+                            )}
+
+                        <div className="daily-progress-detail-list">
+                            {details.map((detail) => {
+                                const isLockedCompleted =
+                                    detail.isMasterSubtask &&
+                                    detail.isAlreadyCompleted
+
+                                return (
+                                    <div
+                                        className="daily-progress-detail-card"
+                                        key={detail.id}
+                                    >
+                                        <div className="daily-progress-completion-row">
+                                            <label
+                                                className={`daily-progress-completion-check ${
+                                                    isLockedCompleted
+                                                        ? 'disabled'
+                                                        : ''
+                                                }`}
+                                                title={
+                                                    isLockedCompleted
+                                                        ? 'Subtask master task sudah selesai dan tidak dapat di-unchecklist'
+                                                        : undefined
                                                 }
                                             >
-                                                <i className="bi bi-plus-lg" />
-                                                Tambah Catatan
-                                            </button>
+                                                <input
+                                                    type="checkbox"
+                                                    checked={
+                                                        detail.isChecked
+                                                    }
+                                                    disabled={
+                                                        !isTodayProgress ||
+                                                        isLockedCompleted
+                                                    }
+                                                    onChange={() =>
+                                                        handleToggleDetail(
+                                                            detail.id,
+                                                        )
+                                                    }
+                                                />
+
+                                                <span>
+                                                    {detail.label}
+                                                </span>
+
+                                                {isLockedCompleted && (
+                                                    <span className="daily-progress-status selesai ms-2">
+                                                        Selesai
+                                                    </span>
+                                                )}
+                                            </label>
                                         </div>
 
-                                        {detail.notes.map(
-                                            (
-                                                note,
-                                                noteIndex,
-                                            ) => (
-                                                <div
-                                                    className="daily-progress-note-row"
-                                                    key={`${detail.id}-note-${noteIndex}`}
-                                                >
-                                                    <input
-                                                        type="text"
-                                                        className="form-control"
-                                                        value={note.text}
-                                                        placeholder="Catatan"
-                                                        disabled={!isTodayProgress}
-                                                        onChange={(
-                                                            event,
-                                                        ) =>
-                                                            handleNoteChange(
-                                                                detail.id,
-                                                                noteIndex,
-                                                                event
-                                                                    .target
-                                                                    .value,
-                                                            )
-                                                        }
-                                                    />
+                                        <div className="daily-progress-note-section">
+                                            <div className="daily-progress-note-heading">
+                                                <span>Catatan</span>
 
-                                                    <label className="daily-progress-note-file">
-                                                        <i className="bi bi-paperclip" />
-                                                        <span>
-                                                            {note.file === null
-                                                                ? 'Dokumen'
-                                                                : note.file.name}
-                                                        </span>
+                                                <button
+                                                    type="button"
+                                                    className="daily-progress-note-add"
+                                                    disabled={!isTodayProgress}
+                                                    onClick={() =>
+                                                        handleAddNote(
+                                                            detail.id,
+                                                        )
+                                                    }
+                                                >
+                                                    <i className="bi bi-plus-lg" />
+                                                    Tambah Catatan
+                                                </button>
+                                            </div>
+
+                                            {detail.notes.map(
+                                                (
+                                                    note,
+                                                    noteIndex,
+                                                ) => (
+                                                    <div
+                                                        className="daily-progress-note-row"
+                                                        key={`${detail.id}-note-${noteIndex}`}
+                                                    >
                                                         <input
-                                                            type="file"
+                                                            type="text"
+                                                            className="form-control"
+                                                            value={note.text}
+                                                            placeholder="Catatan"
                                                             disabled={!isTodayProgress}
                                                             onChange={(
                                                                 event,
-                                                            ) => {
-                                                                handleNoteFileChange(
+                                                            ) =>
+                                                                handleNoteChange(
                                                                     detail.id,
                                                                     noteIndex,
                                                                     event
                                                                         .target
-                                                                        .files?.[0] ??
-                                                                    null,
+                                                                        .value,
                                                                 )
-                                                            }}
+                                                            }
                                                         />
-                                                    </label>
 
-                                                    <button
-                                                        type="button"
-                                                        className="btn btn-outline-danger"
-                                                        disabled={!isTodayProgress}
-                                                        onClick={() =>
-                                                            handleRemoveNote(
-                                                                detail.id,
-                                                                noteIndex,
-                                                            )
-                                                        }
-                                                    >
-                                                        <i className="bi bi-x-lg" />
-                                                    </button>
-                                                </div>
-                                            ),
-                                        )}
-                                    </div>
+                                                        <label className="daily-progress-note-file">
+                                                            <i className="bi bi-paperclip" />
+                                                            <span>
+                                                                {note.file === null
+                                                                    ? 'Dokumen'
+                                                                    : note.file.name}
+                                                            </span>
+                                                            <input
+                                                                type="file"
+                                                                disabled={!isTodayProgress}
+                                                                onChange={(
+                                                                    event,
+                                                                ) => {
+                                                                    handleNoteFileChange(
+                                                                        detail.id,
+                                                                        noteIndex,
+                                                                        event
+                                                                            .target
+                                                                            .files?.[0] ??
+                                                                        null,
+                                                                    )
+                                                                }}
+                                                            />
+                                                        </label>
 
-                                    <div className="daily-progress-document-section">
-                                        <div className="daily-progress-document-heading">
-                                            <span>Dokumen Tersimpan</span>
+                                                        <button
+                                                            type="button"
+                                                            className="btn btn-outline-danger"
+                                                            disabled={!isTodayProgress}
+                                                            onClick={() =>
+                                                                handleRemoveNote(
+                                                                    detail.id,
+                                                                    noteIndex,
+                                                                )
+                                                            }
+                                                        >
+                                                            <i className="bi bi-x-lg" />
+                                                        </button>
+                                                    </div>
+                                                ),
+                                            )}
                                         </div>
 
-                                        {detail.documents.length ===
-                                            0 && (
-                                            <div className="daily-progress-document-empty">
-                                                Belum ada dokumen.
+                                        <div className="daily-progress-document-section">
+                                            <div className="daily-progress-document-heading">
+                                                <span>Dokumen Tersimpan</span>
                                             </div>
-                                        )}
 
-                                        {detail.documents.map(
-                                            (document) => (
-                                                <div
-                                                    className="daily-progress-document-row"
-                                                    key={document.id}
-                                                >
-                                                    <div>
-                                                        <strong>
-                                                            {
-                                                                document.original_name
-                                                            }
-                                                        </strong>
-
-                                                        <span>
-                                                            {Math.ceil(
-                                                                document.size /
-                                                                1024,
-                                                            )}{' '}
-                                                            KB
-                                                        </span>
-                                                    </div>
-
-                                                    <button
-                                                        type="button"
-                                                        className="btn btn-sm btn-outline-danger"
-                                                        disabled={
-                                                            !isTodayProgress ||
-                                                            deletingDocumentId ===
-                                                            document.id
-                                                        }
-                                                        onClick={() =>
-                                                            void handleDeleteDocument(
-                                                                detail.id,
-                                                                document.id,
-                                                            )
-                                                        }
-                                                    >
-                                                        {deletingDocumentId ===
-                                                        document.id ? (
-                                                            <span className="spinner-border spinner-border-sm" />
-                                                        ) : (
-                                                            <i className="bi bi-trash3" />
-                                                        )}
-                                                    </button>
+                                            {detail.documents.length ===
+                                                0 && (
+                                                <div className="daily-progress-document-empty">
+                                                    Belum ada dokumen.
                                                 </div>
-                                            ),
-                                        )}
+                                            )}
+
+                                            {detail.documents.map(
+                                                (document) => (
+                                                    <div
+                                                        className="daily-progress-document-row"
+                                                        key={document.id}
+                                                    >
+                                                        <div>
+                                                            <strong>
+                                                                {
+                                                                    document.original_name
+                                                                }
+                                                            </strong>
+
+                                                            <span>
+                                                                {Math.ceil(
+                                                                    document.size /
+                                                                    1024,
+                                                                )}{' '}
+                                                                KB
+                                                            </span>
+                                                        </div>
+
+                                                        <button
+                                                            type="button"
+                                                            className="btn btn-sm btn-outline-danger"
+                                                            disabled={
+                                                                !isTodayProgress ||
+                                                                deletingDocumentId ===
+                                                                document.id
+                                                            }
+                                                            onClick={() =>
+                                                                void handleDeleteDocument(
+                                                                    detail.id,
+                                                                    document.id,
+                                                                )
+                                                            }
+                                                        >
+                                                            {deletingDocumentId ===
+                                                            document.id ? (
+                                                                <span className="spinner-border spinner-border-sm" />
+                                                            ) : (
+                                                                <i className="bi bi-trash3" />
+                                                            )}
+                                                        </button>
+                                                    </div>
+                                                ),
+                                            )}
+                                        </div>
                                     </div>
-                                </div>
-                            ))}
+                                )
+                            })}
                         </div>
 
                         <div className="daily-progress-form-page-footer">
@@ -716,7 +855,9 @@ const DailyProgressEditPage = () => {
                                 className="btn btn-light"
                                 disabled={isSubmitting}
                                 onClick={() =>
-                                    navigate('/daily-progress')
+                                    navigate(
+                                        '/daily-progress',
+                                    )
                                 }
                             >
                                 Batal
@@ -726,8 +867,8 @@ const DailyProgressEditPage = () => {
                                 type="submit"
                                 className="btn btn-primary"
                                 disabled={
-                                    isSubmitting ||
-                                    !isTodayProgress
+                                    !isTodayProgress ||
+                                    isSubmitting
                                 }
                             >
                                 {isSubmitting && (

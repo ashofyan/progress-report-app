@@ -13,6 +13,7 @@ import type {
 interface DailyProgressDetailModalProps {
     progress: DailyProgress | null
     onClose: () => void
+    onEditForm?: (progress: DailyProgress) => void
 }
 
 const statusLabels: Record<DailyProgressStatus, string> = {
@@ -36,6 +37,7 @@ const getDetailLabel = (
 const DailyProgressDetailModal = ({
                                       progress,
                                       onClose,
+                                      onEditForm,
                                   }: DailyProgressDetailModalProps) => {
     const [detailProgress, setDetailProgress] =
         useState<DailyProgress | null>(null)
@@ -86,98 +88,182 @@ const DailyProgressDetailModal = ({
     return (
         <div className="daily-progress-modal-backdrop">
             <div className="daily-progress-modal">
-                <div className="daily-progress-modal-header">
+                <div className="daily-progress-modal-header sticky-top bg-white">
                     <h2>Detail Daily Progress</h2>
 
-                    <button
-                        type="button"
-                        className="daily-progress-modal-close"
-                        onClick={onClose}
-                    >
-                        <i className="bi bi-x-lg" />
-                    </button>
+                    <div className="d-flex align-items-center gap-2">
+                        {onEditForm !== undefined && (
+                            <button
+                                type="button"
+                                className="btn btn-outline-primary btn-sm"
+                                onClick={() => {
+                                    onClose()
+                                    onEditForm(currentProgress)
+                                }}
+                            >
+                                <i className="bi bi-pencil me-1" />
+                                Edit Data
+                            </button>
+                        )}
+
+                        <button
+                            type="button"
+                            className="daily-progress-modal-close"
+                            onClick={onClose}
+                        >
+                            <i className="bi bi-x-lg" />
+                        </button>
+                    </div>
                 </div>
 
                 <div className="daily-progress-modal-body">
                     {isLoading && (
-                        <div className="daily-progress-task-empty">
-                            Memuat detail...
+                        <div className="daily-progress-loading">
+                            <div
+                                className="spinner-border"
+                                role="status"
+                            />
+                            <span>Memuat detail...</span>
                         </div>
                     )}
 
                     {errorMessage !== null && (
-                        <div className="alert alert-danger">
+                        <div
+                            className="alert alert-danger"
+                            role="alert"
+                        >
                             {errorMessage}
                         </div>
                     )}
 
                     <div className="row g-3 mb-4">
-                        <div className="col-md-4">
+                        <div className="col-md-3">
                             <label className="form-label">
                                 Nomor
                             </label>
                             <input
+                                type="text"
                                 className="form-control"
-                                value={currentProgress.nomor}
+                                value={
+                                    currentProgress.nomor
+                                }
                                 disabled
                             />
                         </div>
 
-                        <div className="col-md-4">
+                        <div className="col-md-3">
                             <label className="form-label">
                                 Tanggal
                             </label>
                             <input
+                                type="date"
                                 className="form-control"
-                                value={currentProgress.tanggal}
+                                value={
+                                    currentProgress.tanggal
+                                }
                                 disabled
                             />
                         </div>
 
-                        <div className="col-md-4">
+                        <div className="col-md-3">
                             <label className="form-label">
-                                Kode Client
+                                Client
                             </label>
                             <input
+                                type="text"
                                 className="form-control"
-                                value={currentProgress.client_code}
+                                value={
+                                    currentProgress.client_code
+                                }
+                                disabled
+                            />
+                        </div>
+
+                        <div className="col-md-3">
+                            <label className="form-label">
+                                SPK
+                            </label>
+                            <input
+                                type="text"
+                                className="form-control"
+                                value={
+                                    currentProgress.no_spk ??
+                                    '-'
+                                }
                                 disabled
                             />
                         </div>
                     </div>
 
-                    {currentProgress.details.length === 0 && (
-                        <div className="daily-progress-task-empty">
-                            Belum ada detail.
+                    <div className="row g-3 mb-4">
+                        <div className="col-md-6">
+                            <label className="form-label">
+                                Dibuat Oleh
+                            </label>
+                            <input
+                                type="text"
+                                className="form-control"
+                                value={
+                                    currentProgress.created_by
+                                }
+                                disabled
+                            />
                         </div>
-                    )}
+
+                        <div className="col-md-6">
+                            <label className="form-label">
+                                Tingkat Pembuat
+                            </label>
+                            <input
+                                type="text"
+                                className="form-control"
+                                value={
+                                    currentProgress.created_by_level
+                                }
+                                disabled
+                            />
+                        </div>
+                    </div>
 
                     {currentProgress.details.map((detail) => (
                         <div
                             className="daily-progress-detail-card"
                             key={detail.id}
                         >
-                            <div className="daily-progress-detail-title">
-                                {getDetailLabel(detail)}
-                            </div>
+                            <div className="flex flex-row">
+                                <div className="daily-progress-detail-heading">
+                                    <strong>
+                                        {getDetailLabel(detail)}
+                                    </strong>
+                                </div>
 
-                            <div className="daily-progress-readonly-grid">
-                                <span
-                                    className={`daily-progress-status ${detail.status}`}
-                                >
-                                    {statusLabels[detail.status]}
+                                <div>
+                                    <span
+                                        className={`daily-progress-status ${detail.status}`}
+                                    >
+                                    {
+                                        statusLabels[
+                                            detail.status
+                                            ]
+                                    }
                                 </span>
-
-                                <p>{detail.catatan ?? '-'}</p>
+                                </div>
                             </div>
+
+                            <p className="daily-progress-detail-note">
+                                {detail.catatan ??
+                                    'Tidak ada catatan.'}
+                            </p>
 
                             <div className="daily-progress-document-section">
                                 <div className="daily-progress-document-heading">
-                                    <span>Dokumen</span>
+                                    <span>
+                                        Dokumen Tersimpan
+                                    </span>
                                 </div>
 
-                                {(detail.documents ?? []).length ===
-                                    0 && (
+                                {(detail.documents ?? [])
+                                    .length === 0 && (
                                     <div className="daily-progress-document-empty">
                                         Belum ada dokumen.
                                     </div>
@@ -242,16 +328,45 @@ const DailyProgressDetailModal = ({
                             )}
                         </div>
                     )}
-                </div>
 
-                <div className="daily-progress-modal-footer">
-                    <button
-                        type="button"
-                        className="btn btn-light"
-                        onClick={onClose}
-                    >
-                        Tutup
-                    </button>
+                    {(currentProgress.temuans ?? []).length > 0 && (
+                        <div className="daily-progress-document-section">
+                            <div className="daily-progress-document-heading">
+                                <span>Temuan Global</span>
+                            </div>
+
+                            {(currentProgress.temuans ?? []).map(
+                                (temuan) => (
+                                    <div
+                                        className="daily-progress-document-row"
+                                        key={temuan.id}
+                                    >
+                                        <div>
+                                            <strong>
+                                                {temuan.nomor} /{' '}
+                                                {temuan.tanggal}
+                                            </strong>
+                                            <span>
+                                                {(temuan.notes ?? [])
+                                                    .map(
+                                                        (note) =>
+                                                            note.note,
+                                                    )
+                                                    .join('\n') ||
+                                                    'Tanpa catatan.'}
+                                            </span>
+                                        </div>
+
+                                        <span
+                                            className={`daily-progress-status ${temuan.status}`}
+                                        >
+                                            {temuan.status}
+                                        </span>
+                                    </div>
+                                ),
+                            )}
+                        </div>
+                    )}
                 </div>
             </div>
         </div>

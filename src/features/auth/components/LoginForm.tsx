@@ -3,16 +3,15 @@ import {
     type ChangeEvent,
     type FormEvent,
 } from 'react'
-
 import { useNavigate } from 'react-router-dom'
 
 import { useAuth } from '@/features/auth/hooks/useAuth'
-
 import FormInput from '@/shared/components/form/FormInput'
 
 interface LoginFormData {
     username: string
     password: string
+    rememberMe: boolean
 }
 
 interface LoginFormErrors {
@@ -25,36 +24,32 @@ const LoginForm = () => {
     const navigate = useNavigate()
     const { login } = useAuth()
 
-    const [formData, setFormData] =
-        useState<LoginFormData>({
-            username: '',
-            password: '',
-        })
+    const [formData, setFormData] = useState<LoginFormData>({
+        username: '',
+        password: '',
+        rememberMe: true,
+    })
 
-    const [errors, setErrors] =
-        useState<LoginFormErrors>({})
-
-    const [isSubmitting, setIsSubmitting] =
-        useState<boolean>(false)
+    const [showPassword, setShowPassword] = useState<boolean>(false)
+    const [errors, setErrors] = useState<LoginFormErrors>({})
+    const [isSubmitting, setIsSubmitting] = useState<boolean>(false)
 
     const handleChange = (
         event: ChangeEvent<HTMLInputElement>,
     ): void => {
-        const { name, value } = event.target
+        const { name, value, type, checked } = event.target
 
-        if (name === 'username') {
-            setFormData((previous) => ({
+        setFormData((previous) => ({
+            ...previous,
+            [name]: type === 'checkbox' ? checked : value,
+        }))
+
+        // Clear field error on change
+        if (errors[name as keyof LoginFormErrors]) {
+            setErrors((previous) => ({
                 ...previous,
-                username: value,
-            }))
-
-            return
-        }
-
-        if (name === 'password') {
-            setFormData((previous) => ({
-                ...previous,
-                password: value,
+                [name]: undefined,
+                general: undefined,
             }))
         }
     }
@@ -63,13 +58,11 @@ const LoginForm = () => {
         const validationErrors: LoginFormErrors = {}
 
         if (formData.username.trim() === '') {
-            validationErrors.username =
-                'Email wajib diisi.'
+            validationErrors.username = 'Alamat email atau ID pengguna wajib diisi.'
         }
 
         if (formData.password.trim() === '') {
-            validationErrors.password =
-                'Password wajib diisi.'
+            validationErrors.password = 'Kata sandi akun wajib diisi.'
         }
 
         setErrors(validationErrors)
@@ -84,7 +77,6 @@ const LoginForm = () => {
         event: FormEvent<HTMLFormElement>,
     ): Promise<void> => {
         event.preventDefault()
-
         setErrors({})
 
         if (!validateForm()) {
@@ -102,9 +94,8 @@ const LoginForm = () => {
 
         if (!result.success) {
             setErrors({
-                general: result.message,
+                general: result.message || 'Gagal masuk. Periksa kembali email dan kata sandi Anda.',
             })
-
             return
         }
 
@@ -114,65 +105,86 @@ const LoginForm = () => {
     }
 
     return (
-        <form
-            onSubmit={handleSubmit}
-            noValidate
-        >
+        <form onSubmit={handleSubmit} noValidate className="login-form">
             {errors.general !== undefined && (
-                <div
-                    className="alert alert-danger"
-                    role="alert"
-                >
-                    {errors.general}
+                <div className="login-alert-danger" role="alert">
+                    <i className="bi bi-exclamation-triangle-fill login-alert-icon" />
+                    <div className="login-alert-text">{errors.general}</div>
                 </div>
             )}
 
             <FormInput
                 id="username"
-                label="Email Address"
-                type="email"
+                label="Email / Username"
+                type="text"
                 name="username"
                 value={formData.username}
-                placeholder="you@email.com"
+                placeholder="nama@alsholdings.com"
                 icon="bi-envelope-at"
                 autoComplete="username"
+                disabled={isSubmitting}
                 error={errors.username}
                 onChange={handleChange}
             />
 
             <FormInput
                 id="password"
-                label="Password"
-                type="password"
+                label="Kata Sandi"
+                type={showPassword ? 'text' : 'password'}
                 name="password"
                 value={formData.password}
-                placeholder="Enter your password"
-                icon="bi-key"
+                placeholder="Masukkan kata sandi akun"
+                icon="bi-shield-lock"
                 autoComplete="current-password"
+                disabled={isSubmitting}
                 error={errors.password}
                 onChange={handleChange}
+                endAction={
+                    <button
+                        type="button"
+                        className="login-password-toggle"
+                        onClick={() => setShowPassword((prev) => !prev)}
+                        tabIndex={-1}
+                        aria-label={showPassword ? 'Sembunyikan kata sandi' : 'Tampilkan kata sandi'}
+                    >
+                        <i className={`bi ${showPassword ? 'bi-eye-slash' : 'bi-eye'}`} />
+                    </button>
+                }
             />
+
+            <div className="login-form-options">
+                <label className="login-remember-checkbox">
+                    <input
+                        type="checkbox"
+                        name="rememberMe"
+                        checked={formData.rememberMe}
+                        onChange={handleChange}
+                        disabled={isSubmitting}
+                    />
+                    <span className="login-checkbox-custom" />
+                    <span className="login-checkbox-label">Ingat sesi saya</span>
+                </label>
+            </div>
 
             <button
                 type="submit"
-                className="login-button"
+                className="login-submit-button"
                 disabled={isSubmitting}
             >
                 {isSubmitting ? (
                     <>
-            <span
-                className="
-                spinner-border
-                spinner-border-sm
-                me-2
-              "
-                aria-hidden="true"
-            />
-
-                        Logging in...
+                        <span
+                            className="spinner-border spinner-border-sm me-2"
+                            role="status"
+                            aria-hidden="true"
+                        />
+                        <span>Memproses Masuk...</span>
                     </>
                 ) : (
-                    'Login'
+                    <>
+                        <span>Masuk ke Dashboard</span>
+                        <i className="bi bi-arrow-right ms-2" />
+                    </>
                 )}
             </button>
         </form>

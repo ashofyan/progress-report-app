@@ -88,6 +88,7 @@ export interface ProgressReportFormTask {
     daily_progress_catatan: string | null
     allowed_progress_report_statuses: ProgressReportStatus[]
     default_progress_report_status: ProgressReportStatus | null
+    is_already_reported?: boolean
     history: ProgressReportHistory[]
 }
 
@@ -205,7 +206,7 @@ export interface ProgressReportHistoryFilters {
 
 export interface CreateProgressReportDetailRequest {
     daily_progress_detail_id: number
-    status: ProgressReportStatus
+    status?: ProgressReportStatus
     notes?: Array<{
         catatan: string
     }>

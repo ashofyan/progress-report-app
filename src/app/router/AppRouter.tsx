@@ -11,12 +11,20 @@ import ProtectedRoute from '@/app/router/ProtectedRoute'
 import LoginPage from '@/features/auth/pages/LoginPage'
 import AdditionalTaskCreatePage from '@/features/additional-task/pages/AdditionalTaskCreatePage'
 import AdditionalTaskPage from '@/features/additional-task/pages/AdditionalTaskPage'
+import DailyProgressCorrectionPage from '@/features/daily-progress/pages/DailyProgressCorrectionPage'
 import DailyProgressCreatePage from '@/features/daily-progress/pages/DailyProgressCreatePage'
 import DailyProgressEditPage from '@/features/daily-progress/pages/DailyProgressEditPage'
 import DailyProgressPage from '@/features/daily-progress/pages/DailyProgressPage'
 import MasterJobPage from '@/features/master-job/pages/MasterJobPage'
 import ProgressReportCreatePage from '@/features/progress-report/pages/ProgressReportCreatePage'
 import ProgressReportPage from '@/features/progress-report/pages/ProgressReportPage'
+import RepresentativeLetterCreatePage from '@/features/representative-letter/pages/RepresentativeLetterCreatePage'
+import RepresentativeLetterEditorPage from '@/features/representative-letter/pages/RepresentativeLetterEditorPage'
+import RepresentativeLetterHeaderListPage from '@/features/representative-letter/pages/RepresentativeLetterHeaderListPage'
+import RepresentativeLetterListPage from '@/features/representative-letter/pages/RepresentativeLetterListPage'
+import SolusiFormPage from '@/features/solusi/pages/SolusiFormPage'
+import TemuanFormPage from '@/features/temuan/pages/TemuanFormPage'
+import TemuanPage from '@/features/temuan/pages/TemuanPage'
 
 import DashboardLayout from '@/layouts/dashboard/DashboardLayout'
 import UnderDevelopmentPage from '@/shared/components/UnderDevelopmentPage'
@@ -89,6 +97,16 @@ const AppRouter = () => {
                     />
 
                     <Route
+                        path="/daily-progress/:id/edit-form"
+                        element={<DailyProgressCorrectionPage />}
+                    />
+
+                    <Route
+                        path="/daily-progress/:id/koreksi"
+                        element={<DailyProgressCorrectionPage />}
+                    />
+
+                    <Route
                         path="/progress-report"
                         element={<ProgressReportPage />}
                     />
@@ -99,10 +117,53 @@ const AppRouter = () => {
                     />
 
                     <Route
+                        path="/temuan"
+                        element={<TemuanPage />}
+                    />
+
+                    <Route
+                        path="/temuan/tambah"
+                        element={<TemuanFormPage />}
+                    />
+
+                    <Route
+                        path="/temuan/:id/edit"
+                        element={<TemuanFormPage />}
+                    />
+
+                    <Route
+                        path="/solusi"
+                        element={<Navigate to="/temuan" replace />}
+                    />
+
+                    <Route
+                        path="/solusi/tambah"
+                        element={<SolusiFormPage />}
+                    />
+
+                    <Route
+                        path="/solusi/:id/edit"
+                        element={<SolusiFormPage />}
+                    />
+
+                    <Route
                         path="/representative-letter"
-                        element={
-                            <UnderDevelopmentPage title="Representative Letter" />
-                        }
+                        element={<RepresentativeLetterListPage />}
+                    />
+
+                    <Route
+                        path="/representative-letter/create"
+                        element={<RepresentativeLetterCreatePage />}
+                    />
+
+                    <Route
+                        path="/representative-letter/header"
+                        element={<RepresentativeLetterHeaderListPage />}
+                    />
+
+                    <Route
+                        path="/representative-letter/:id"
+                        element={<RepresentativeLetterEditorPage />}
                     />
                 </Route>
 

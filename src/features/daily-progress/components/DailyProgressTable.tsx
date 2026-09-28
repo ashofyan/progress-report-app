@@ -6,6 +6,7 @@ interface DailyProgressTableProps {
     progresses: DailyProgress[]
     onView: (progress: DailyProgress) => void
     onEdit: (progress: DailyProgress) => void
+    onEditForm?: (progress: DailyProgress) => void
     onDelete: (progress: DailyProgress) => void
 }
 
@@ -22,6 +23,7 @@ const DailyProgressTable = ({
                                 progresses,
                                 onView,
                                 onEdit,
+                                onEditForm,
                                 onDelete,
                             }: DailyProgressTableProps) => {
     const today = getTodayDate()
@@ -82,13 +84,27 @@ const DailyProgressTable = ({
                                     <button
                                         type="button"
                                         className="daily-progress-action-button edit"
-                                        title="Edit"
+                                        title="Update"
                                         onClick={(event) => {
                                             event.stopPropagation()
                                             onEdit(progress)
                                         }}
                                     >
-                                        <i className="bi bi-pencil-square" />
+                                        <i className="bi bi-arrow-repeat" />
+                                    </button>
+                                )}
+
+                                {onEditForm !== undefined && (
+                                    <button
+                                        type="button"
+                                        className="daily-progress-action-button modify"
+                                        title="Edit"
+                                        onClick={(event) => {
+                                            event.stopPropagation()
+                                            onEditForm(progress)
+                                        }}
+                                    >
+                                        <i className="bi bi-pencil" />
                                     </button>
                                 )}
 

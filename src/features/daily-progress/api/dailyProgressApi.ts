@@ -17,6 +17,7 @@ import type {
     DailyProgressFilters,
     DailyProgressListResponse,
     DailyProgressMutationResponse,
+    EditDailyProgressRequest,
     LaravelValidationErrorResponse,
     PendingDailyProgressFilters,
     PendingDailyProgress,
@@ -183,6 +184,39 @@ const update = async (
     return httpClient
         .put<DailyProgressMutationResponse | ProgressError>(
             `/daily-progress/${id}`,
+            payload,
+        )
+        .then((response) => {
+            if (
+                'status' in response.data &&
+                response.data.status
+            ) {
+                return {
+                    success: true,
+                    status: response.status,
+                    message: response.data.message,
+                    data: response.data.data,
+                }
+            }
+
+            return getErrorResult(
+                response as AxiosResponse<ProgressError>,
+            )
+        })
+        .catch(() => ({
+            success: false,
+            status: 0,
+            message: 'Tidak dapat terhubung ke server.',
+        }))
+}
+
+const edit = async (
+    id: number,
+    payload: EditDailyProgressRequest,
+): Promise<DailyProgressApiResult<DailyProgress>> => {
+    return httpClient
+        .put<DailyProgressMutationResponse | ProgressError>(
+            `/daily-progress/${id}/edit`,
             payload,
         )
         .then((response) => {
@@ -395,6 +429,7 @@ export const dailyProgressApi = {
     getById,
     create,
     update,
+    edit,
     remove,
     getPending,
     deleteDetail,

@@ -1,5 +1,11 @@
 # React + TypeScript + Vite
 
+## API Documentation
+
+- [Daily Progress API](public/daily-progress-api.md)
+- [Temuan API](public/temuan-api.md)
+- [Solusi API](public/solusi-api.md)
+
 This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
 
 Currently, two official plugins are available:

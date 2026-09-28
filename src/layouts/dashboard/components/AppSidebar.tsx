@@ -4,7 +4,12 @@ import {
     useLocation,
 } from 'react-router-dom'
 
-const AppSidebar = () => {
+interface AppSidebarProps {
+    isOpen?: boolean
+    onClose?: () => void
+}
+
+const AppSidebar = ({ isOpen = false, onClose }: AppSidebarProps) => {
     const location = useLocation()
 
     const isMasterDataActive =
@@ -13,15 +18,48 @@ const AppSidebar = () => {
     const [isMasterDataOpen, setIsMasterDataOpen] =
         useState<boolean>(isMasterDataActive)
 
+    const isRepresentativeLetterActive =
+        location.pathname.startsWith('/representative-letter')
+
+    const [
+        isRepresentativeLetterOpen,
+        setIsRepresentativeLetterOpen,
+    ] = useState<boolean>(isRepresentativeLetterActive)
+
     const handleToggleMasterData = (): void => {
         setIsMasterDataOpen((previous) => !previous)
     }
 
+    const handleToggleRepresentativeLetter = (): void => {
+        setIsRepresentativeLetterOpen((previous) => !previous)
+    }
+
+    const handleLinkClick = (): void => {
+        if (onClose) {
+            onClose()
+        }
+    }
+
     return (
-        <aside className="app-sidebar">
+        <aside className={`app-sidebar ${isOpen ? 'open' : ''}`}>
+            <div className="app-sidebar-header-mobile">
+                <span className="app-sidebar-mobile-title">Menu Navigasi</span>
+                {onClose && (
+                    <button
+                        type="button"
+                        className="app-sidebar-close-button"
+                        onClick={onClose}
+                        aria-label="Tutup menu"
+                    >
+                        <i className="bi bi-x-lg" />
+                    </button>
+                )}
+            </div>
+
             <nav className="app-sidebar-nav">
                 <NavLink
                     to="/dashboard"
+                    onClick={handleLinkClick}
                     className={({ isActive }) =>
                         `app-sidebar-link ${
                             isActive ? 'active' : ''
@@ -29,7 +67,6 @@ const AppSidebar = () => {
                     }
                 >
                     <i className="bi bi-speedometer2" />
-
                     <span>Dashboard</span>
                 </NavLink>
 
@@ -43,15 +80,14 @@ const AppSidebar = () => {
                     >
                         <div className="app-sidebar-link-content">
                             <i className="bi bi-database-gear" />
-
                             <span>Master Data</span>
                         </div>
 
                         <i
                             className={`bi ${
                                 isMasterDataOpen
-                                    ? 'bi-caret-down-fill'
-                                    : 'bi-caret-right-fill'
+                                    ? 'bi-chevron-down'
+                                    : 'bi-chevron-right'
                             } app-sidebar-arrow`}
                         />
                     </button>
@@ -60,6 +96,7 @@ const AppSidebar = () => {
                         <div className="app-sidebar-submenu">
                             <NavLink
                                 to="/master-data/pekerjaan"
+                                onClick={handleLinkClick}
                                 className={({ isActive }) =>
                                     `app-sidebar-submenu-link ${
                                         isActive ? 'active' : ''
@@ -71,6 +108,7 @@ const AppSidebar = () => {
 
                             <NavLink
                                 to="/master-data/task"
+                                onClick={handleLinkClick}
                                 className={({ isActive }) =>
                                     `app-sidebar-submenu-link ${
                                         isActive ? 'active' : ''
@@ -85,6 +123,7 @@ const AppSidebar = () => {
 
                 <NavLink
                     to="/daily-progress"
+                    onClick={handleLinkClick}
                     className={({ isActive }) =>
                         `app-sidebar-link ${
                             isActive ? 'active' : ''
@@ -92,12 +131,12 @@ const AppSidebar = () => {
                     }
                 >
                     <i className="bi bi-calendar3" />
-
                     <span>Daily Progress</span>
                 </NavLink>
 
                 <NavLink
                     to="/progress-report"
+                    onClick={handleLinkClick}
                     className={({ isActive }) =>
                         `app-sidebar-link ${
                             isActive ? 'active' : ''
@@ -105,22 +144,77 @@ const AppSidebar = () => {
                     }
                 >
                     <i className="bi bi-clipboard-data" />
-
                     <span>Progress Report</span>
                 </NavLink>
 
                 <NavLink
-                    to="/representative-letter"
+                    to="/temuan"
+                    onClick={handleLinkClick}
                     className={({ isActive }) =>
                         `app-sidebar-link ${
-                            isActive ? 'active' : ''
+                            isActive || location.pathname.startsWith('/solusi')
+                                ? 'active'
+                                : ''
                         }`
                     }
                 >
-                    <i className="bi bi-file-earmark-text-fill" />
-
-                    <span>Representative Letter</span>
+                    <i className="bi bi-check2-square" />
+                    <span>Temuan & Solusi</span>
                 </NavLink>
+
+                <div className="app-sidebar-group">
+                    <button
+                        type="button"
+                        className={`app-sidebar-link app-sidebar-button ${
+                            isRepresentativeLetterActive
+                                ? 'active'
+                                : ''
+                        }`}
+                        onClick={handleToggleRepresentativeLetter}
+                    >
+                        <div className="app-sidebar-link-content">
+                            <i className="bi bi-file-earmark-text-fill" />
+                            <span>Representative Letter</span>
+                        </div>
+
+                        <i
+                            className={`bi ${
+                                isRepresentativeLetterOpen
+                                    ? 'bi-chevron-down'
+                                    : 'bi-chevron-right'
+                            } app-sidebar-arrow`}
+                        />
+                    </button>
+
+                    {isRepresentativeLetterOpen && (
+                        <div className="app-sidebar-submenu">
+                            <NavLink
+                                to="/representative-letter"
+                                end
+                                onClick={handleLinkClick}
+                                className={({ isActive }) =>
+                                    `app-sidebar-submenu-link ${
+                                        isActive ? 'active' : ''
+                                    }`
+                                }
+                            >
+                                Dokumen
+                            </NavLink>
+
+                            <NavLink
+                                to="/representative-letter/header"
+                                onClick={handleLinkClick}
+                                className={({ isActive }) =>
+                                    `app-sidebar-submenu-link ${
+                                        isActive ? 'active' : ''
+                                    }`
+                                }
+                            >
+                                Header Kop Surat
+                            </NavLink>
+                        </div>
+                    )}
+                </div>
             </nav>
         </aside>
     )

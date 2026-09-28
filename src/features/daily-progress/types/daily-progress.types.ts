@@ -70,9 +70,25 @@ export interface DailyProgressFormFinding {
     progress_report_id: number
     nomor_pr: string
     tanggal: string
-    source_type: 'finding'
+    source_type: DailyProgressDetailType
     keterangan: string
     status: string
+    spk_id?: number
+    als_spk_id?: number
+}
+
+export interface DailyProgressTemuanNote {
+    id: number
+    task?: DailyProgressTaskParent | null
+    note: string
+}
+
+export interface DailyProgressTemuan {
+    id: number
+    nomor: string
+    tanggal: string
+    status: string
+    notes?: DailyProgressTemuanNote[]
     spk_id?: number
     als_spk_id?: number
 }
@@ -92,6 +108,7 @@ export interface DailyProgressFormSpk {
     note: string | null
     job: DailyProgressFormJob | null
     findings?: DailyProgressFormFinding[]
+    temuans?: DailyProgressTemuan[]
 }
 
 export interface DailyProgressFormEmployee {
@@ -105,6 +122,8 @@ export interface DailyProgressFormData {
     employee: DailyProgressFormEmployee
     spks: DailyProgressFormSpk[]
     findings?: DailyProgressFormFinding[]
+    temuans?: DailyProgressTemuan[]
+    daily_progresses?: DailyProgress[]
 }
 
 export interface DailyProgressDocument {
@@ -123,7 +142,7 @@ export interface DailyProgressFinding {
     progress_report_id: number
     nomor_pr: string
     tanggal: string
-    source_type: 'finding'
+    source_type: DailyProgressDetailType
     keterangan: string
     status: string
 }
@@ -148,6 +167,8 @@ export interface DailyProgress {
     nomor: string
     tanggal: string
     client_code: string
+    als_spk_id?: number | null
+    spk_id?: number | null
     no_spk: string | null
     bulan: number
     tahun: number
@@ -155,6 +176,7 @@ export interface DailyProgress {
     created_by_level: number
     details: DailyProgressDetail[]
     findings?: DailyProgressFinding[]
+    temuans?: DailyProgressTemuan[]
     created_at: string
     updated_at: string
 }
@@ -168,6 +190,7 @@ export interface DailyProgressFilters {
 
 export interface DailyProgressFormDataFilters {
     client_code: string
+    tanggal?: string
     bulan?: number
     tahun?: number
 }
@@ -196,8 +219,8 @@ export interface PendingDailyProgress {
         | 'client_code'
         | 'no_spk'
     > & {
-        spk_id?: number
         als_spk_id?: number
+        spk_id?: number
     }
     client?: {
         code: string
@@ -233,6 +256,7 @@ export interface CreateDailyProgressRequest {
     bulan: number
     tahun: number
     finding_ids?: number[] | null
+    temuan_ids?: number[] | null
     details: CreateDailyProgressDetailRequest[]
 }
 
@@ -243,9 +267,30 @@ export interface UpdateDailyProgressDetailRequest {
 }
 
 export interface UpdateDailyProgressRequest {
-    no_spk: string | null
+    no_spk?: string | null
     finding_ids?: number[] | null
+    temuan_ids?: number[] | null
     details: UpdateDailyProgressDetailRequest[]
+}
+
+export interface EditDailyProgressDetailRequest {
+    id?: number | null
+    als_job_id: number
+    als_job_task_id?: number | null
+    als_task_additional_detail_id?: number | null
+    status: DailyProgressStatus
+    catatan?: string | null
+}
+
+export interface EditDailyProgressRequest {
+    tanggal: string
+    client_code: string
+    als_spk_id: number
+    bulan: number
+    tahun: number
+    finding_ids?: number[] | null
+    temuan_ids?: number[] | null
+    details: EditDailyProgressDetailRequest[]
 }
 
 export interface DailyProgressListResponse {

@@ -37,7 +37,7 @@ interface GeneralNoteForm extends NoteForm {
 }
 
 interface SelectedDetail {
-    isCompleted: boolean
+    isSelected: boolean
     notes: NoteForm[]
 }
 
@@ -113,18 +113,24 @@ const getSpkLabel = (spk: DailyProgressFormSpk): string => {
     return `${spk.no_spk} - ${description}`
 }
 
+const isTaskLockedByProgressReport = (
+    task: ProgressReportFormTask,
+): boolean => {
+    return (
+        task.is_already_reported === true ||
+        task.history.some(
+            (history) => history.status === 'selesai',
+        )
+    )
+}
+
 const getDefaultDetailState = (
     task: ProgressReportFormTask,
 ): SelectedDetail => {
-    const isCompleted =
-        task.daily_progress_status === 'selesai' ||
-        task.default_progress_report_status === 'selesai' ||
-        !task.allowed_progress_report_statuses.includes(
-            'pending',
-        )
+    const isLocked = isTaskLockedByProgressReport(task)
 
     return {
-        isCompleted,
+        isSelected: !isLocked,
         notes: [
             {
                 catatan: task.daily_progress_catatan ?? '',
@@ -162,14 +168,6 @@ const getNoteFiles = (notes: NoteForm[]): File[] => {
 const hasFilledNote = (notes: NoteForm[]): boolean => {
     return notes.some(
         (note) => note.catatan.trim() !== '',
-    )
-}
-
-const isTaskLockedByProgressReport = (
-    task: ProgressReportFormTask,
-): boolean => {
-    return task.history.some(
-        (history) => history.status === 'selesai',
     )
 }
 
@@ -471,20 +469,36 @@ const ProgressReportCreatePage = () => {
     const handleToggleDetail = (
         task: ProgressReportFormTask,
     ): void => {
-        if (
-            isTaskLockedByProgressReport(task) ||
-            task.daily_progress_status === 'selesai' ||
-            !task.allowed_progress_report_statuses.includes(
-                'pending',
-            )
-        ) {
+        if (isTaskLockedByProgressReport(task)) {
             return
         }
 
         updateDetailState(task, (current) => ({
             ...current,
-            isCompleted: !current.isCompleted,
+            isSelected: !current.isSelected,
         }))
+    }
+
+    const handleSelectAll = (select: boolean): void => {
+        if (formData === null) {
+            return
+        }
+
+        setDetailState((previous) => {
+            const next = { ...previous }
+            formData.tasks.forEach((task) => {
+                if (!isTaskLockedByProgressReport(task)) {
+                    const current =
+                        next[task.daily_progress_detail_id] ??
+                        getDefaultDetailState(task)
+                    next[task.daily_progress_detail_id] = {
+                        ...current,
+                        isSelected: select,
+                    }
+                }
+            })
+            return next
+        })
     }
 
     const handleDetailNoteChange = (
@@ -665,10 +679,11 @@ const ProgressReportCreatePage = () => {
         }))
     }
 
-    const getSubmittableDetails = () => {
+    const getSelectedDetails = () => {
         return getPreparedDetails().filter(
-            ({ task }) =>
-                !isTaskLockedByProgressReport(task),
+            ({ task, state }) =>
+                !isTaskLockedByProgressReport(task) &&
+                state.isSelected,
         )
     }
 
@@ -680,29 +695,16 @@ const ProgressReportCreatePage = () => {
             return false
         }
 
-        const details = getSubmittableDetails()
+        const selectedDetails = getSelectedDetails()
 
-        if (details.length === 0) {
+        if (selectedDetails.length === 0) {
             setErrorMessage(
-                'Minimal satu detail Daily Progress wajib tersedia.',
+                'Pilih minimal satu pekerjaan yang sudah selesai untuk dimasukkan ke Progress Report.',
             )
             return false
         }
 
-        const pendingWithoutNote = details.some(
-            ({ state }) =>
-                !state.isCompleted &&
-                !hasFilledNote(state.notes),
-        )
-
-        if (pendingWithoutNote) {
-            setErrorMessage(
-                'Minimal satu catatan wajib diisi jika status Progress Report pending.',
-            )
-            return false
-        }
-
-        const hasTooManyFiles = details.some(
+        const hasTooManyFiles = selectedDetails.some(
             ({ state }) =>
                 getNoteFiles(state.notes).length > 10,
         )
@@ -810,7 +812,7 @@ const ProgressReportCreatePage = () => {
             return
         }
 
-        const details = getSubmittableDetails()
+        const selectedDetails = getSelectedDetails()
 
         const submittedFindings = findings.filter((finding) =>
             hasFilledNote(finding.notes),
@@ -859,12 +861,10 @@ const ProgressReportCreatePage = () => {
                 payloadNotes.length === 0
                     ? undefined
                     : payloadNotes,
-            details: details.map(({ task, state }) => ({
+            details: selectedDetails.map(({ task, state }) => ({
                 daily_progress_detail_id:
                     task.daily_progress_detail_id,
-                status: state.isCompleted
-                    ? 'selesai'
-                    : 'pending',
+                status: 'selesai',
                 notes: state.notes
                     .filter(
                         (note) => note.catatan.trim() !== '',
@@ -911,7 +911,7 @@ const ProgressReportCreatePage = () => {
             }
         }
 
-        for (const { task, state } of details) {
+        for (const { task, state } of selectedDetails) {
             const files = getNoteFiles(state.notes)
 
             if (files.length === 0) {
@@ -1191,155 +1191,202 @@ const ProgressReportCreatePage = () => {
         )
     }
 
-    const renderDetailsStep = () => (
-        <div className="progress-report-section">
-            <h2 className="progress-report-section-title">
-                Detail Daily Progress
-            </h2>
+    const renderDetailsStep = () => {
+        const availableTasks =
+            formData?.tasks.filter(
+                (task) => !isTaskLockedByProgressReport(task),
+            ) ?? []
 
-            {selectedSpkId === '' && (
-                <div className="progress-report-state">
-                    Pilih SPK terlebih dahulu.
-                </div>
-            )}
-
-            {selectedSpkId !== '' && isLoadingForm && (
-                <div className="progress-report-state">
-                    Memuat data form...
-                </div>
-            )}
-
-            {selectedSpkId !== '' &&
-                !isLoadingForm &&
-                formErrorMessage !== null && (
-                    <div className="progress-report-state error">
-                        {formErrorMessage}
-                    </div>
-                )}
-
-            {formData !== null &&
-                !isLoadingForm &&
-                formData.tasks.length === 0 && (
-                    <div className="progress-report-state">
-                        Tidak ada detail Daily Progress pada tanggal ini.
-                    </div>
-                )}
-
-            {formData?.tasks.map((task) => {
+        const selectedCount =
+            formData?.tasks.filter((task) => {
+                if (isTaskLockedByProgressReport(task)) {
+                    return false
+                }
                 const state =
-                    detailState[
-                        task.daily_progress_detail_id
-                    ] ?? getDefaultDetailState(task)
+                    detailState[task.daily_progress_detail_id] ??
+                    getDefaultDetailState(task)
+                return state.isSelected
+            }).length ?? 0
 
-                const lockedByProgressReport =
-                    isTaskLockedByProgressReport(task)
+        return (
+            <div className="progress-report-section">
+                <div className="d-flex align-items-center justify-content-between mb-3 flex-wrap gap-2">
+                    <div>
+                        <h2 className="progress-report-section-title mb-1">
+                            Pilih Pekerjaan Daily Progress (Selesai)
+                        </h2>
+                        <span className="text-muted" style={{ fontSize: '12px' }}>
+                            Checklist pekerjaan selesai dari Daily Progress yang akan dimasukkan ke nomor Progress Report ini
+                            {formData !== null && ` (${selectedCount}/${availableTasks.length} dipilih)`}.
+                        </span>
+                    </div>
 
-                const forceCompleted =
-                    lockedByProgressReport ||
-                    task.daily_progress_status ===
-                    'selesai' ||
-                    !task.allowed_progress_report_statuses.includes(
-                        'pending',
-                    )
+                    {availableTasks.length > 0 && (
+                        <div className="d-flex gap-2">
+                            <button
+                                type="button"
+                                className="btn btn-outline-primary btn-sm"
+                                onClick={() => handleSelectAll(true)}
+                            >
+                                Pilih Semua
+                            </button>
+                            <button
+                                type="button"
+                                className="btn btn-outline-secondary btn-sm"
+                                onClick={() => handleSelectAll(false)}
+                            >
+                                Batal Pilih
+                            </button>
+                        </div>
+                    )}
+                </div>
 
-                const progressReportStatus =
-                    state.isCompleted
-                        ? 'selesai'
-                        : 'pending'
+                {selectedSpkId === '' && (
+                    <div className="progress-report-state">
+                        Pilih SPK terlebih dahulu.
+                    </div>
+                )}
 
-                return (
-                    <div
-                        className="progress-report-task-card"
-                        key={task.daily_progress_detail_id}
-                    >
-                        <div className="progress-report-task-main">
-                            <input
-                                type="checkbox"
-                                className="form-check-input mt-2"
-                                checked={state.isCompleted}
-                                disabled={forceCompleted}
-                                onChange={() =>
-                                    handleToggleDetail(task)
-                                }
-                            />
+                {selectedSpkId !== '' && isLoadingForm && (
+                    <div className="progress-report-state">
+                        Memuat data form...
+                    </div>
+                )}
 
-                            <div className="progress-report-task-title">
-                                <strong>
-                                    {task.task.parent
-                                        ?.task_name ??
-                                        'Task'}
-                                    {' / '}
-                                    {task.task.task_name}
-                                </strong>
-                                <span>
-                                    Daily Progress #{' '}
-                                    {task.daily_progress_id} /
-                                    Status:{' '}
-                                    {
-                                        task.daily_progress_status
+                {selectedSpkId !== '' &&
+                    !isLoadingForm &&
+                    formErrorMessage !== null && (
+                        <div className="progress-report-state error">
+                            {formErrorMessage}
+                        </div>
+                    )}
+
+                {formData !== null &&
+                    !isLoadingForm &&
+                    formData.tasks.length === 0 && (
+                        <div className="progress-report-state">
+                            Tidak ada detail Daily Progress berstatus selesai pada tanggal ini.
+                        </div>
+                    )}
+
+                {formData?.tasks.map((task) => {
+                    const state =
+                        detailState[
+                            task.daily_progress_detail_id
+                        ] ?? getDefaultDetailState(task)
+
+                    const lockedByProgressReport =
+                        isTaskLockedByProgressReport(task)
+
+                    return (
+                        <div
+                            className={`progress-report-task-card ${
+                                !state.isSelected && !lockedByProgressReport
+                                    ? 'opacity-75'
+                                    : ''
+                            }`}
+                            key={task.daily_progress_detail_id}
+                        >
+                            <div className="progress-report-task-main">
+                                <input
+                                    type="checkbox"
+                                    className="form-check-input mt-2"
+                                    checked={
+                                        !lockedByProgressReport &&
+                                        state.isSelected
                                     }
-                                </span>
-                                {task.daily_progress_catatan !==
-                                    null && (
+                                    disabled={lockedByProgressReport}
+                                    onChange={() =>
+                                        handleToggleDetail(task)
+                                    }
+                                />
+
+                                <div className="progress-report-task-title">
+                                    <strong>
+                                        {task.task.parent
+                                            ?.task_name ??
+                                            'Task'}
+                                        {' / '}
+                                        {task.task.task_name}
+                                    </strong>
                                     <span>
-                                        {
-                                            task.daily_progress_catatan
-                                        }
+                                        Daily Progress #{' '}
+                                        {task.daily_progress_id} /
+                                        Status DP:{' '}
+                                        <span className="text-success fw-semibold">
+                                            {task.daily_progress_status}
+                                        </span>
                                     </span>
-                                )}
-                                {lockedByProgressReport && (
-                                    <span className="progress-report-locked-text">
-                                        Sudah selesai di Progress Report sebelumnya.
-                                    </span>
-                                )}
+                                    {task.daily_progress_catatan !==
+                                        null && (
+                                        <span>
+                                            {
+                                                task.daily_progress_catatan
+                                            }
+                                        </span>
+                                    )}
+                                    {lockedByProgressReport && (
+                                        <span className="progress-report-locked-text">
+                                            Sudah dimasukkan ke Progress Report sebelumnya.
+                                        </span>
+                                    )}
+                                </div>
+
+                                <div>
+                                    {lockedByProgressReport ? (
+                                        <span className="badge bg-secondary">
+                                            Sudah Dilaporkan
+                                        </span>
+                                    ) : state.isSelected ? (
+                                        <span className="progress-report-status selesai">
+                                            Selesai (Dipilih)
+                                        </span>
+                                    ) : (
+                                        <span className="badge bg-light text-muted border">
+                                            Tidak Dipilih
+                                        </span>
+                                    )}
+                                </div>
                             </div>
 
-                            <span
-                                className={`progress-report-status ${progressReportStatus}`}
-                            >
-                                {
-                                    statusLabels[
-                                        progressReportStatus
-                                    ]
-                                }
-                            </span>
+                            {state.isSelected && !lockedByProgressReport && (
+                                renderNoteRows(state.notes, {
+                                    placeholder: 'Catatan pekerjaan untuk Progress Report (opsional)',
+                                    onAdd: () => addDetailNote(task),
+                                    onRemove: (noteIndex) =>
+                                        removeDetailNote(
+                                            task,
+                                            noteIndex,
+                                        ),
+                                    onNoteChange: (
+                                        noteIndex,
+                                        value,
+                                    ) =>
+                                        handleDetailNoteChange(
+                                            task,
+                                            noteIndex,
+                                            value,
+                                        ),
+                                    onDocumentChange: (
+                                        noteIndex,
+                                        file,
+                                    ) =>
+                                        handleDetailDocumentChange(
+                                            task,
+                                            noteIndex,
+                                            file,
+                                        ),
+                                    disabled: false,
+                                })
+                            )}
+
+                            {renderTaskHistory(task)}
                         </div>
-
-                        {renderNoteRows(state.notes, {
-                            placeholder: 'Catatan detail',
-                            onAdd: () => addDetailNote(task),
-                            onRemove: (noteIndex) =>
-                                removeDetailNote(
-                                    task,
-                                    noteIndex,
-                                ),
-                            onNoteChange: (
-                                noteIndex,
-                                value,
-                            ) =>
-                                handleDetailNoteChange(
-                                    task,
-                                    noteIndex,
-                                    value,
-                                ),
-                            onDocumentChange: (
-                                noteIndex,
-                                file,
-                            ) =>
-                                handleDetailDocumentChange(
-                                    task,
-                                    noteIndex,
-                                    file,
-                                ),
-                            disabled: lockedByProgressReport,
-                        })}
-
-                        {renderTaskHistory(task)}
-                    </div>
-                )
-            })}
-        </div>
-    )
+                    )
+                })}
+            </div>
+        )
+    }
 
     const renderFindingsStep = () => (
         <div className="progress-report-section">

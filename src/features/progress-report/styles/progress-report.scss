@@ -24,10 +24,11 @@
 .progress-report-title {
   margin: 0;
 
-  color: #484855;
+  color: #374151;
 
-  font-size: 22px;
-  font-weight: 500;
+  font-size: 18px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
 }
 
 .progress-report-breadcrumb {
@@ -36,12 +37,13 @@
 
   gap: 6px;
 
-  color: #555563;
+  color: #6b7280;
 
-  font-size: 14px;
+  font-size: 12.5px;
 
   .active {
     color: $primary-color;
+    font-weight: 500;
   }
 }
 
@@ -49,11 +51,13 @@
 .progress-report-form-page {
   min-height: calc(100vh - 135px);
 
-  padding: 18px 22px;
+  padding: 16px 20px;
 
   background-color: #ffffff;
 
-  border-radius: 12px;
+  border: 1px solid #edf0f4;
+  border-radius: 10px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
 }
 
 .progress-report-board-header {
@@ -61,27 +65,28 @@
 
   gap: 12px;
 
-  margin-bottom: 18px;
+  margin-bottom: 16px;
 }
 
 .progress-report-search {
   display: flex;
   align-items: center;
 
-  width: min(100%, 360px);
+  width: min(100%, 320px);
   height: 36px;
 
   padding: 0 12px;
 
-  background-color: #f5f6f8;
+  background-color: #ffffff;
 
-  border: 1px solid #ebebef;
+  border: 1px solid #e2e4e9;
   border-radius: 8px;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
 
   i {
-    margin-right: 9px;
+    margin-right: 8px;
 
-    color: #92929c;
+    color: #9ca3af;
 
     font-size: 14px;
   }
@@ -91,13 +96,22 @@
 
     padding: 0;
 
-    color: #444451;
+    color: #374151;
     background: transparent;
 
     font-size: 13px;
 
     border: 0;
     outline: none;
+
+    &::placeholder {
+      color: #9ca3af;
+    }
+  }
+
+  &:focus-within {
+    border-color: rgba($primary-color, 0.5);
+    box-shadow: 0 0 0 3px rgba($primary-color, 0.08);
   }
 }
 
@@ -106,20 +120,31 @@
   align-items: center;
   justify-content: center;
 
-  min-width: 105px;
-  height: 34px;
+  min-width: 100px;
+  height: 36px;
 
-  gap: 7px;
+  gap: 6px;
   padding: 0 14px;
 
   color: #ffffff;
-  background-color: #45cfa2;
+  background-color: #10b981;
 
-  font-size: 14px;
-  font-weight: 600;
+  font-size: 13px;
+  font-weight: 500;
 
   border: 0;
   border-radius: 8px;
+
+  cursor: pointer;
+  transition: background-color 0.15s ease, transform 0.1s ease;
+
+  &:hover {
+    background-color: #059669;
+  }
+
+  &:active {
+    transform: scale(0.98);
+  }
 }
 
 .progress-report-table {
@@ -128,25 +153,25 @@
   font-size: 13px;
 
   thead th {
-    padding: 12px;
+    padding: 10px 12px;
 
-    color: #777781;
-    background-color: #f8f8fa;
+    color: #6b7280;
+    background-color: #f9fafb;
 
     font-size: 12px;
     font-weight: 600;
 
-    border-bottom: 1px solid #eeeef2;
+    border-bottom: 1px solid #edf0f4;
   }
 
   tbody td {
-    padding: 13px 12px;
+    padding: 11px 12px;
 
-    color: #4c4c57;
+    color: #374151;
 
     vertical-align: middle;
 
-    border-bottom: 1px solid #f0f0f3;
+    border-bottom: 1px solid #f3f4f6;
   }
 }
 
@@ -154,7 +179,7 @@
   cursor: pointer;
 
   &:hover td {
-    background-color: #fbfcff;
+    background-color: #f9fafb;
   }
 }
 
@@ -163,14 +188,19 @@
   align-items: center;
   justify-content: center;
 
-  width: 34px;
-  height: 34px;
+  width: 32px;
+  height: 32px;
 
   color: $primary-color;
   background: transparent;
 
   border: 0;
-  border-radius: 7px;
+  border-radius: 6px;
+  transition: background-color 0.15s ease;
+
+  &:hover {
+    background-color: rgba($primary-color, 0.08);
+  }
 }
 
 .progress-report-loading,
@@ -184,23 +214,26 @@
 
   min-height: 220px;
 
-  gap: 12px;
+  gap: 10px;
 
-  color: #92929c;
+  color: #9ca3af;
 
-  font-size: 14px;
+  font-size: 13px;
 }
 
 .progress-report-state {
   min-height: 0;
-  padding: 16px;
+  padding: 14px;
 
-  background-color: #f8f8fa;
+  background-color: #f9fafb;
 
+  border: 1px solid #edf0f4;
   border-radius: 8px;
 
   &.error {
-    color: #dc3545;
+    color: #dc2626;
+    background-color: #fef2f2;
+    border-color: #fecaca;
   }
 }
 
@@ -209,22 +242,22 @@
   align-items: center;
   justify-content: flex-end;
 
-  gap: 11px;
+  gap: 10px;
 
-  padding-top: 18px;
+  padding-top: 16px;
 }
 
 .progress-report-page-info {
   min-width: 55px;
 
-  color: #555560;
+  color: #6b7280;
 
-  font-size: 13px;
+  font-size: 12.5px;
   text-align: center;
 }
 
 .progress-report-section {
-  margin-top: 18px;
+  margin-top: 16px;
 }
 
 .progress-report-stepper {
@@ -233,7 +266,7 @@
 
   gap: 8px;
 
-  margin-top: 18px;
+  margin-top: 16px;
 }
 
 .progress-report-step {
@@ -241,32 +274,34 @@
   align-items: center;
   justify-content: center;
 
-  min-height: 40px;
+  min-height: 38px;
 
   gap: 8px;
-  padding: 8px 10px;
+  padding: 6px 10px;
 
-  color: #74747d;
-  background-color: #f8f8fa;
+  color: #6b7280;
+  background-color: #f9fafb;
 
-  font-size: 13px;
-  font-weight: 600;
+  font-size: 12.5px;
+  font-weight: 500;
 
-  border: 1px solid #eeeef2;
+  border: 1px solid #edf0f4;
   border-radius: 8px;
+  transition: all 0.15s ease;
 
   span {
     display: inline-flex;
     align-items: center;
     justify-content: center;
 
-    width: 22px;
-    height: 22px;
+    width: 20px;
+    height: 20px;
 
     color: #ffffff;
-    background-color: #b8b8c3;
+    background-color: #9ca3af;
 
-    font-size: 12px;
+    font-size: 11px;
+    font-weight: 600;
 
     border-radius: 50%;
   }
@@ -283,10 +318,10 @@
   }
 
   &.done {
-    color: #16855c;
+    color: #047857;
 
     span {
-      background-color: #16a36f;
+      background-color: #10b981;
     }
   }
 
@@ -299,28 +334,28 @@
 .progress-report-section-title {
   margin: 0 0 10px;
 
-  color: #454550;
+  color: #374151;
 
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 600;
 }
 
 .progress-report-task-card,
 .progress-report-finding-card,
 .progress-report-detail-card {
-  padding: 12px;
+  padding: 12px 14px;
 
   margin-bottom: 10px;
 
-  background-color: #f8f8fa;
+  background-color: #f9fafb;
 
-  border: 1px solid #eeeef2;
+  border: 1px solid #edf0f4;
   border-radius: 8px;
 }
 
 .progress-report-task-main {
   display: grid;
-  grid-template-columns: 28px minmax(180px, 1fr) 150px minmax(180px, 1fr);
+  grid-template-columns: 28px minmax(180px, 1fr) auto;
   align-items: start;
 
   gap: 10px;
@@ -334,45 +369,45 @@
   display: flex;
   flex-direction: column;
 
-  gap: 3px;
+  gap: 2px;
 
   strong {
-    color: #454550;
+    color: #374151;
 
     font-size: 13px;
   }
 
   span {
-    color: #74747d;
+    color: #6b7280;
 
-    font-size: 12px;
+    font-size: 11.5px;
   }
 }
 
 .progress-report-history {
-  margin-top: 10px;
+  margin-top: 8px;
   padding: 8px 10px;
 
   background-color: #ffffff;
 
-  border: 1px solid #eeeef2;
-  border-radius: 7px;
+  border: 1px solid #edf0f4;
+  border-radius: 6px;
 
   font-size: 12px;
 
   p {
     margin: 4px 0 0;
 
-    color: #74747d;
+    color: #6b7280;
     white-space: pre-line;
   }
 }
 
 .progress-report-history-item {
-  padding-top: 8px;
-  margin-top: 8px;
+  padding-top: 6px;
+  margin-top: 6px;
 
-  border-top: 1px solid #eeeef2;
+  border-top: 1px solid #edf0f4;
 
   &:first-of-type {
     padding-top: 0;
@@ -388,15 +423,15 @@
   gap: 8px;
 
   span {
-    color: #74747d;
+    color: #6b7280;
 
-    font-size: 12px;
+    font-size: 11.5px;
   }
 }
 
 .progress-report-history-documents {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
 
   gap: 8px;
 
@@ -407,37 +442,37 @@
   display: flex;
   flex-direction: column;
 
-  gap: 5px;
+  gap: 4px;
 
   min-width: 0;
-  padding: 8px;
+  padding: 6px;
 
   background-color: #ffffff;
 
-  border: 1px solid #eeeef2;
-  border-radius: 7px;
+  border: 1px solid #edf0f4;
+  border-radius: 6px;
 
   img {
     width: 100%;
-    height: 82px;
+    height: 76px;
 
     object-fit: cover;
 
-    border-radius: 6px;
+    border-radius: 4px;
   }
 
   a,
   span {
-    color: #454550;
+    color: #374151;
 
-    font-size: 12px;
-    font-weight: 600;
+    font-size: 11.5px;
+    font-weight: 500;
     overflow-wrap: anywhere;
   }
 }
 
 .progress-report-locked-text {
-  color: #b7791f !important;
+  color: #b45309 !important;
   font-weight: 600;
 }
 
@@ -448,7 +483,7 @@
 
   gap: 8px;
 
-  margin-top: 10px;
+  margin-top: 8px;
 
   &.compact {
     margin-top: 0;
@@ -459,58 +494,75 @@
   display: flex;
   flex-direction: column;
 
-  gap: 8px;
+  gap: 6px;
 
-  margin-top: 10px;
+  margin-top: 8px;
 }
 
 .progress-report-note-row {
   display: grid;
-  grid-template-columns: minmax(220px, 1fr) minmax(170px, 240px) 42px;
+  grid-template-columns: minmax(220px, 1fr) minmax(170px, 240px) 38px;
   align-items: start;
 
   gap: 8px;
 
-  margin-top: 10px;
+  margin-top: 8px;
 
   &.no-action {
     grid-template-columns: minmax(220px, 1fr) minmax(170px, 240px);
+  }
+
+  .btn {
+    width: 38px;
+    min-height: 38px;
+    padding: 0;
   }
 }
 
 .progress-report-general-note-grid {
   display: grid;
-  grid-template-columns: minmax(220px, 1fr) 42px;
+  grid-template-columns: minmax(220px, 1fr) 38px;
 
   gap: 8px;
+
+  .btn {
+    width: 38px;
+    min-height: 38px;
+    padding: 0;
+  }
 }
 
 .progress-report-document-input {
   display: inline-flex;
   align-items: center;
 
-  min-height: 34px;
+  min-height: 36px;
   max-width: 100%;
 
-  gap: 7px;
-  padding: 7px 11px;
+  gap: 6px;
+  padding: 6px 10px;
 
   color: $primary-color;
   background-color: #ffffff;
 
   font-size: 12px;
-  font-weight: 600;
+  font-weight: 500;
 
-  border: 1px solid rgba($primary-color, 0.28);
+  border: 1px solid #e2e4e9;
   border-radius: 8px;
 
   cursor: pointer;
+  transition: border-color 0.15s ease;
+
+  &:hover {
+    border-color: rgba($primary-color, 0.5);
+  }
 
   &.disabled {
-    color: #92929c;
-    background-color: #f2f2f5;
+    color: #9ca3af;
+    background-color: #f9fafb;
 
-    border-color: #e1e1e7;
+    border-color: #e5e7eb;
 
     cursor: not-allowed;
   }
@@ -532,16 +584,16 @@
   display: flex;
   flex-direction: column;
 
-  gap: 6px;
+  gap: 4px;
 }
 
 .progress-report-selected-documents {
   width: 100%;
 
   span {
-    color: #74747d;
+    color: #6b7280;
 
-    font-size: 12px;
+    font-size: 11.5px;
     overflow-wrap: anywhere;
   }
 }
@@ -552,12 +604,12 @@
   justify-content: space-between;
 
   gap: 10px;
-  padding: 8px 10px;
+  padding: 6px 8px;
 
   background-color: #ffffff;
 
-  border: 1px solid #eeeef2;
-  border-radius: 7px;
+  border: 1px solid #edf0f4;
+  border-radius: 6px;
 
   div {
     display: flex;
@@ -568,61 +620,67 @@
 
   strong,
   a {
-    color: #454550;
+    color: #374151;
 
     font-size: 12px;
-    font-weight: 600;
+    font-weight: 500;
     overflow-wrap: anywhere;
   }
 
   span {
-    color: #74747d;
+    color: #6b7280;
 
     font-size: 11px;
   }
 }
 
 .progress-report-document-empty {
-  padding: 9px 10px;
+  padding: 8px 10px;
 
-  color: #92929c;
+  color: #9ca3af;
   background-color: #ffffff;
 
   font-size: 12px;
 
-  border: 1px dashed #dddde5;
-  border-radius: 7px;
+  border: 1px dashed #e2e4e9;
+  border-radius: 6px;
 }
 
 .progress-report-finding-heading {
   justify-content: space-between;
 
-  margin-bottom: 10px;
+  margin-bottom: 8px;
 }
 
 .progress-report-finding-grid {
   display: grid;
-  grid-template-columns: 160px minmax(180px, 1fr) 42px;
+  grid-template-columns: 150px minmax(180px, 1fr) 38px;
 
   gap: 8px;
+
+  .btn {
+    width: 38px;
+    min-height: 38px;
+    padding: 0;
+  }
 }
 
 .progress-report-finding-parent {
   display: flex;
   flex-direction: column;
 
-  gap: 3px;
+  gap: 2px;
 
   span {
-    color: #92929c;
+    color: #9ca3af;
 
-    font-size: 12px;
+    font-size: 11.5px;
   }
 
   strong {
-    color: #454550;
+    color: #374151;
 
-    font-size: 14px;
+    font-size: 13px;
     font-weight: 600;
   }
 }
@@ -632,23 +690,26 @@
   align-items: center;
 
   width: fit-content;
-  min-height: 24px;
+  min-height: 22px;
 
-  padding: 3px 8px;
+  padding: 2px 8px;
 
-  font-size: 12px;
-  font-weight: 600;
+  font-size: 11.5px;
+  font-weight: 500;
 
   border-radius: 999px;
+  border: 1px solid transparent;
 
   &.pending {
-    color: #b7791f;
-    background-color: rgba(#f59e0b, 0.16);
+    color: #b45309;
+    background-color: #fef3c7;
+    border-color: #fde68a;
   }
 
   &.selesai {
-    color: #16855c;
-    background-color: rgba(#16a36f, 0.12);
+    color: #047857;
+    background-color: #d1fae5;
+    border-color: #a7f3d0;
   }
 }
 
@@ -657,10 +718,10 @@
 
   gap: 8px;
 
-  margin-top: 18px;
-  padding-top: 16px;
+  margin-top: 16px;
+  padding-top: 14px;
 
-  border-top: 1px solid #eeeef2;
+  border-top: 1px solid #edf0f4;
 }
 
 .progress-report-modal-backdrop {
@@ -673,54 +734,67 @@
   align-items: center;
   justify-content: center;
 
-  padding: 20px;
+  padding: 16px;
 
-  background-color: rgba(20, 20, 25, 0.45);
+  background-color: rgba(17, 24, 39, 0.5);
+  backdrop-filter: blur(2px);
 }
 
 .progress-report-modal {
   width: 100%;
-  max-width: 820px;
+  max-width: 800px;
   max-height: 90vh;
 
   overflow-y: auto;
 
   background-color: #ffffff;
 
+  border: 1px solid #edf0f4;
   border-radius: 12px;
 
-  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.18);
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
 }
 
 .progress-report-modal-header,
 .progress-report-modal-footer {
   justify-content: space-between;
 
-  padding: 16px 20px;
+  padding: 14px 18px;
 
-  border-bottom: 1px solid #eeeef2;
+  border-bottom: 1px solid #edf0f4;
 }
 
 .progress-report-modal-footer {
   justify-content: flex-end;
 
-  border-top: 1px solid #eeeef2;
+  border-top: 1px solid #edf0f4;
   border-bottom: 0;
 }
 
 .progress-report-modal-body {
-  padding: 20px;
+  padding: 18px;
 }
 
 .progress-report-modal-close {
-  width: 30px;
-  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 
-  color: #777781;
+  width: 28px;
+  height: 28px;
+
+  color: #6b7280;
   background: transparent;
 
   border: 0;
   border-radius: 6px;
+
+  cursor: pointer;
+
+  &:hover {
+    color: #1f2937;
+    background-color: #f3f4f6;
+  }
 }
 
 @media (max-width: 768px) {

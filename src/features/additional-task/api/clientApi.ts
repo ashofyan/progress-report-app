@@ -11,7 +11,7 @@ export interface ClientSearchResult {
 }
 
 const CLIENT_SEARCH_URL =
-    'https://marketingbackend.als.today/public/api/client/search-by'
+    'https://marketingapi.icso.biz.id/public/api/client/search-by'
 
 const normalizeClients = (
     responseData: MarketingClient | MarketingClient[],

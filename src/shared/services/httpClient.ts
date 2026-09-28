@@ -31,4 +31,25 @@ httpClient.interceptors.request.use(
     },
 )
 
+httpClient.interceptors.response.use(
+    (response) => {
+        if (response.status === 401) {
+            authStorage.removeToken()
+            if (!window.location.pathname.includes('/login')) {
+                window.location.href = '/login'
+            }
+        }
+        return response
+    },
+    (error) => {
+        if (error.response?.status === 401) {
+            authStorage.removeToken()
+            if (!window.location.pathname.includes('/login')) {
+                window.location.href = '/login'
+            }
+        }
+        return Promise.reject(error)
+    },
+)
+
 export default httpClient

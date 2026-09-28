@@ -26,14 +26,111 @@ body {
           -apple-system,
           BlinkMacSystemFont,
           'Segoe UI',
+          Roboto,
+          Helvetica,
+          Arial,
           sans-serif;
+  font-size: 13.5px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 button,
 input,
-select {
+select,
+textarea {
   font: inherit;
 }
+
+/* ================================
+ * Global Custom Scrollbars
+ * ================================ */
+
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #d1d5db;
+  border-radius: 999px;
+
+  &:hover {
+    background: #9ca3af;
+  }
+}
+
+/* ================================
+ * Global Form Controls Refinement
+ * ================================ */
+
+.form-control,
+.form-select {
+  font-size: 13px;
+  min-height: 38px;
+  border-color: #e2e4e9;
+  border-radius: 8px;
+  color: #374151;
+  background-color: #ffffff;
+  transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+
+  &:focus {
+    border-color: rgba($primary-color, 0.5);
+    box-shadow: 0 0 0 3px rgba($primary-color, 0.1);
+  }
+
+  &::placeholder {
+    color: #9ca3af;
+  }
+
+  &:disabled,
+  &[readonly] {
+    background-color: #f9fafb;
+    color: #6b7280;
+  }
+}
+
+.form-label {
+  margin-bottom: 6px;
+  color: #374151;
+  font-size: 12.5px;
+  font-weight: 500;
+}
+
+.btn {
+  font-size: 13px;
+  font-weight: 500;
+  border-radius: 8px;
+  padding: 6px 14px;
+  min-height: 36px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  transition: all 0.15s ease;
+
+  &.btn-sm {
+    font-size: 12px;
+    min-height: 30px;
+    padding: 3px 10px;
+    border-radius: 6px;
+  }
+}
+
+.alert {
+  font-size: 13px;
+  border-radius: 8px;
+  padding: 10px 14px;
+}
+
+/* ================================
+ * Under Development Placeholder
+ * ================================ */
 
 .under-development-page {
   display: flex;
@@ -47,6 +144,7 @@ select {
   background-color: #ffffff;
 
   border-radius: 12px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
 }
 
 .under-development-content {
@@ -63,18 +161,18 @@ select {
   h1 {
     margin: 6px 0 0;
 
-    color: #484855;
+    color: #374151;
 
-    font-size: 22px;
+    font-size: 18px;
     font-weight: 600;
   }
 
   p {
     margin: 0;
 
-    color: #85858f;
+    color: #6b7280;
 
-    font-size: 14px;
+    font-size: 13px;
   }
 }
 
@@ -83,15 +181,15 @@ select {
   align-items: center;
   justify-content: center;
 
-  width: 64px;
-  height: 64px;
+  width: 56px;
+  height: 56px;
 
-  color: #4f6df5;
-  background-color: rgba(#4f6df5, 0.1);
+  color: $primary-color;
+  background-color: rgba($primary-color, 0.08);
 
   border-radius: 50%;
 
   i {
-    font-size: 30px;
+    font-size: 26px;
   }
 }

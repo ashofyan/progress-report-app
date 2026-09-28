@@ -175,6 +175,11 @@ const DailyProgressBoard = () => {
                                             `/daily-progress/${progress.id}/edit`,
                                         )
                                     }
+                                    onEditForm={(progress) =>
+                                        navigate(
+                                            `/daily-progress/${progress.id}/edit-form`,
+                                        )
+                                    }
                                     onDelete={
                                         (progress) =>
                                             setProgressToDelete(
@@ -250,6 +255,11 @@ const DailyProgressBoard = () => {
             <DailyProgressDetailModal
                 progress={progressToView}
                 onClose={() => setProgressToView(null)}
+                onEditForm={(progress) =>
+                    navigate(
+                        `/daily-progress/${progress.id}/edit-form`,
+                    )
+                }
             />
 
         </>
