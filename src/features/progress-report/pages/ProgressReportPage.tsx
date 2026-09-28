@@ -62,7 +62,15 @@ const formatDocumentSize = (
         return '-'
     }
 
-    return `${Math.ceil(size / 1024)} KB`
+    if (size < 1024) {
+        return `${size} B`
+    }
+
+    if (size < 1024 * 1024) {
+        return `${Math.ceil(size / 1024)} KB`
+    }
+
+    return `${(size / (1024 * 1024)).toFixed(1)} MB`
 }
 
 const getDocumentName = (
@@ -98,6 +106,18 @@ const getDocumentUrl = (
     }
 }
 
+const isImageDocument = (
+    document: ProgressReportDocument,
+): boolean => {
+    if (document.mime_type?.startsWith('image/') === true) {
+        return true
+    }
+
+    return /\.(jpe?g|png|webp)$/i.test(
+        document.original_name ?? document.path ?? '',
+    )
+}
+
 interface ProgressReportDocumentListProps {
     documents: ProgressReportDocument[]
     emptyText?: string
@@ -123,37 +143,75 @@ const ProgressReportDocumentList = ({
         <div className="progress-report-document-list">
             {documents.map((document) => {
                 const url = getDocumentUrl(document)
+                const name = getDocumentName(document)
+                const isImage = isImageDocument(document)
 
                 return (
                     <div
                         className="progress-report-document-row"
                         key={document.id}
                     >
-                        <div>
-                            {url === null ? (
-                                <strong>
-                                    {getDocumentName(document)}
-                                </strong>
-                            ) : (
+                        <div className="d-flex align-items-center gap-2 flex-row flex-grow-1 min-w-0">
+                            {url !== null && isImage ? (
                                 <a
                                     href={url}
                                     target="_blank"
                                     rel="noreferrer"
+                                    className="flex-shrink-0"
+                                    title={`Buka gambar ${name}`}
                                 >
-                                    {getDocumentName(document)}
+                                    <img
+                                        src={url}
+                                        alt={name}
+                                        style={{
+                                            width: '42px',
+                                            height: '42px',
+                                            objectFit: 'cover',
+                                            borderRadius: '6px',
+                                            border: '1px solid #edf0f4',
+                                        }}
+                                    />
                                 </a>
+                            ) : (
+                                <div
+                                    className="flex-shrink-0 d-flex align-items-center justify-content-center bg-light text-secondary rounded"
+                                    style={{
+                                        width: '42px',
+                                        height: '42px',
+                                        border: '1px solid #edf0f4',
+                                    }}
+                                >
+                                    <i className="bi bi-file-earmark-text fs-5" />
+                                </div>
                             )}
-                            <span>
-                                {formatDocumentSize(
-                                    document.size,
+
+                            <div className="d-flex flex-column min-w-0">
+                                {url === null ? (
+                                    <strong title={name}>
+                                        {name}
+                                    </strong>
+                                ) : (
+                                    <a
+                                        href={url}
+                                        target="_blank"
+                                        rel="noreferrer"
+                                        title={`Buka file ${name}`}
+                                    >
+                                        {name}
+                                    </a>
                                 )}
-                            </span>
+                                <span>
+                                    {formatDocumentSize(
+                                        document.size,
+                                    )}
+                                </span>
+                            </div>
                         </div>
 
                         {onDelete !== undefined && (
                             <button
                                 type="button"
-                                className="progress-report-action-button"
+                                className="progress-report-action-button flex-shrink-0"
                                 title="Hapus dokumen"
                                 disabled={deletingDocumentIds?.has(
                                     document.id,
@@ -534,69 +592,105 @@ const ProgressReportDetailModal = ({
                                                 key={item.id}
                                             >
                                                 <div className="progress-report-task-title">
-                                                    <strong>
-                                                        {item.task
-                                                            .parent
-                                                            ?.task_name ??
-                                                            'Task'}
-                                                        {' / '}
-                                                        {
-                                                            item.task
-                                                                .task_name
-                                                        }
-                                                    </strong>
-                                                    <span
-                                                        className={`progress-report-status ${item.status}`}
-                                                    >
-                                                        {
-                                                            statusLabels[
-                                                                item
-                                                                    .status
-                                                            ]
-                                                        }
-                                                    </span>
-                                                    {getDetailNotesText(
-                                                        item,
-                                                    ) !== null && (
-                                                        <span>
+                                                    <div className="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-1">
+                                                        <strong>
+                                                            {item.task
+                                                                .parent
+                                                                ?.task_name ??
+                                                                'Task'}
+                                                            {' / '}
                                                             {
-                                                                getDetailNotesText(
-                                                                    item,
-                                                                )
+                                                                item.task
+                                                                    .task_name
+                                                            }
+                                                        </strong>
+                                                        <span
+                                                            className={`progress-report-status ${item.status}`}
+                                                        >
+                                                            {
+                                                                statusLabels[
+                                                                    item
+                                                                        .status
+                                                                ]
+                                                            }
+                                                        </span>
+                                                    </div>
+
+                                                    {item.daily_progress_detail_id !==
+                                                        undefined && (
+                                                        <span
+                                                            className="text-muted"
+                                                            style={{
+                                                                fontSize:
+                                                                    '11.5px',
+                                                            }}
+                                                        >
+                                                            Daily Progress Detail
+                                                            #{' '}
+                                                            {
+                                                                item.daily_progress_detail_id
                                                             }
                                                         </span>
                                                     )}
-                                                    {(item.documents
-                                                        ?.length ??
-                                                        0) >
-                                                        0 && (
-                                                        <span>
-                                                            {
-                                                                item
-                                                                    .documents
-                                                                    ?.length
-                                                                    ?? 0
-                                                            }{' '}
-                                                            dokumen
-                                                        </span>
+
+                                                    {getDetailNotesText(
+                                                        item,
+                                                    ) !== null && (
+                                                        <div
+                                                            className="mt-1"
+                                                            style={{
+                                                                fontSize:
+                                                                    '12px',
+                                                                color: '#4b5563',
+                                                            }}
+                                                        >
+                                                            <strong>
+                                                                Catatan:
+                                                            </strong>{' '}
+                                                            {getDetailNotesText(
+                                                                item,
+                                                            )}
+                                                        </div>
                                                     )}
-                                                    <ProgressReportDocumentList
-                                                        documents={
-                                                            item.documents ??
-                                                            []
-                                                        }
-                                                        deletingDocumentIds={
-                                                            deletingDocumentIds
-                                                        }
-                                                        onDelete={(
-                                                            document,
-                                                        ) => {
-                                                            void handleDeleteDetailDocument(
-                                                                item.id,
+
+                                                    <div className="mt-2">
+                                                        <div
+                                                            className="d-flex align-items-center gap-1 text-muted mb-1"
+                                                            style={{
+                                                                fontSize:
+                                                                    '11.5px',
+                                                                fontWeight: 600,
+                                                            }}
+                                                        >
+                                                            <i className="bi bi-paperclip" />
+                                                            <span>
+                                                                Dokumen (
+                                                                {item
+                                                                    .documents
+                                                                    ?.length ??
+                                                                    0}
+                                                                ):
+                                                            </span>
+                                                        </div>
+                                                        <ProgressReportDocumentList
+                                                            documents={
+                                                                item.documents ??
+                                                                []
+                                                            }
+                                                            emptyText="Tidak ada dokumen terlampir pada detail ini."
+                                                            deletingDocumentIds={
+                                                                deletingDocumentIds
+                                                            }
+                                                            onDelete={(
                                                                 document,
-                                                            )
-                                                        }}
-                                                    />
+                                                            ) => {
+                                                                void handleDeleteDetailDocument(
+                                                                    item.id,
+                                                                    document,
+                                                                )
+                                                            }}
+                                                        />
+                                                    </div>
                                                 </div>
                                             </div>
                                         ),

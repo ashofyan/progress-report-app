@@ -1,81 +1,156 @@
-# React + TypeScript + Vite
+# Progress Report App
 
-## API Documentation
+Aplikasi web frontend berbasis **React 19**, **TypeScript**, dan **Vite** untuk manajemen dan pelaporan progres kerja harian (*Daily Progress*), laporan kemajuan berkala (*Progress Report*), pencatatan kendala (*Temuan*) & solusi (*Solusi*), penugasan tambahan (*Additional Task*), master pekerjaan (*Master Job*), serta pembuatan surat perwakilan (*Representative Letter*).
 
-- [Daily Progress API](public/daily-progress-api.md)
-- [Temuan API](public/temuan-api.md)
-- [Solusi API](public/solusi-api.md)
+---
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+## 🚀 Fitur Utama
 
-Currently, two official plugins are available:
+- **Autentikasi & Multi-Tenant**: Sistem autentikasi token berbasis karyawan/tenant dengan proteksi route (`GuestRoute` dan `ProtectedRoute`).
+- **Master Data Pekerjaan**: Manajemen data master pekerjaan (*Master Job*) dan penugasan sub-task lapangan.
+- **Additional Task**: Pengelolaan penugasan pekerjaan tambahan di luar master task rutin.
+- **Daily Progress (DP)**:
+  - Pencatatan laporan progres harian per client dan SPK.
+  - Tracking status pekerjaan (`open`, `pending`, `selesai`, `batal`).
+  - Monitoring dan pelaporan pekerjaan berstatus pending.
+  - Koreksi dan penyuntingan form laporan harian (*edit total*).
+  - Upload dan manajemen lampiran/dokumen bukti progres kerja.
+- **Progress Report (PR)**:
+  - Pembuatan laporan kemajuan resmi dari rekapitulasi Daily Progress yang telah divalidasi `selesai`.
+  - Integrasi catatan umum, catatan per pekerjaan, serta dokumen lampiran pendukung.
+  - Pelacakan riwayat pekerjaan (*history*).
+- **Temuan & Solusi**:
+  - Pencatatan temuan/kendala lapangan (baik dari *master task* maupun *additional task*).
+  - Penautan temuan ke Daily Progress untuk proses penyelesaian.
+  - Dokumentasi solusi tindakan perbaikan lapangan.
+- **Surat Perwakilan (Representative Letter)**:
+  - Pembuatan dan editor surat perwakilan resmi terformat (kop surat, watermark, tabel ringkasan pekerjaan, dan tanda tangan).
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+---
 
-## React Compiler
+## 🛠️ Tech Stack
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+- **Framework**: [React 19](https://react.dev/)
+- **Build Tool**: [Vite](https://vite.dev/)
+- **Language**: [TypeScript](https://www.typescriptlang.org/)
+- **Routing**: [React Router v7](https://reactrouter.com/)
+- **Styling**: [Bootstrap 5](https://getbootstrap.com/), [Bootstrap Icons](https://icons.getbootstrap.com/), [Sass (SCSS)](https://sass-lang.com/)
+- **HTTP Client**: [Axios](https://axios-http.com/) dengan interceptor token dan error handling otomatis
+- **Linter**: [ESLint 9](https://eslint.org/)
 
-## Expanding the ESLint configuration
+---
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+## 📁 Struktur Direktori
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-
+```text
+progress-report-app/
+├── docs/                     # Dokumentasi teknis & spesifikasi API
+│   ├── daily-progress-api.md
+│   └── progress-report-api.md
+├── public/                   # Static assets (logo, watermark, favicon, svg icons)
+│   └── document/
+├── src/
+│   ├── app/                  # Inisialisasi App, provider, dan routing
+│   │   ├── providers/
+│   │   └── router/
+│   ├── assets/               # Asset statis gambar/icon internal
+│   ├── features/             # Modul fitur berbasis domain
+│   │   ├── additional-task/  # Fitur tugas tambahan
+│   │   ├── auth/             # Autentikasi & login
+│   │   ├── daily-progress/   # Fitur progress harian & koreksi
+│   │   ├── master-job/       # Fitur master pekerjaan
+│   │   ├── progress-report/  # Fitur laporan kemajuan
+│   │   ├── representative-letter/ # Fitur surat perwakilan
+│   │   ├── solusi/           # Fitur solusi temuan
+│   │   └── temuan/           # Fitur temuan lapangan
+│   ├── layouts/              # Komponen layout (DashboardLayout, sidebar, navbar)
+│   ├── pages/                # Halaman level view / dashboard
+│   ├── shared/               # Komponen, service, dan utilitas bersama
+│   │   ├── components/
+│   │   ├── constants/
+│   │   └── services/         # HTTP client & interceptor
+│   ├── styles/               # Styling global SCSS & variable overrides
+│   ├── main.tsx              # Entry point aplikasi
+│   └── vite-env.d.ts
+├── .env.example              # Template variabel lingkungan
+├── package.json
+├── tsconfig.json
+└── vite.config.ts
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+---
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+## ⚙️ Persyaratan Sistem
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+- **Node.js**: versi `18.x` atau lebih baru
+- **Package Manager**: `npm` (atau `yarn` / `pnpm`)
 
+---
+
+## 📦 Instalasi & Menjalankan Proyek
+
+### 1. Clone Repositori
+
+```bash
+git clone <url-repositori>
+cd progress-report-app
 ```
+
+### 2. Instalasi Dependensi
+
+```bash
+npm install
+```
+
+### 3. Konfigurasi Environment Variable
+
+Salin file `.env.example` menjadi `.env`:
+
+```bash
+cp .env.example .env
+```
+
+Buka file `.env` dan konfigurasikan `VITE_API_BASE_URL` sesuai alamat backend API Anda:
+
+```env
+# Alamat dasar backend API (sesuaikan dengan endpoint backend Anda)
+VITE_API_BASE_URL=http://localhost:8000/api
+```
+
+> [!IMPORTANT]
+> Pastikan file `.env` tidak di-commit atau dipublikasikan ke repositori publik untuk menjaga kerahasiaan endpoint dan kredensial server. Gunakan file `.env.example` sebagai referensi format variabel lingkungan.
+
+### 4. Menjalankan Server Pengembangan (Dev)
+
+```bash
+npm run dev
+```
+
+Aplikasi dapat diakses melalui browser pada alamat default: `http://localhost:5173`.
+
+---
+
+## 📜 Skrip yang Tersedia
+
+| Skrip | Deskripsi |
+| --- | --- |
+| `npm run dev` | Menjalankan Vite development server dengan Hot Module Replacement (HMR). |
+| `npm run build` | Menjalankan type-checking TypeScript (`tsc -b`) dan membuat build produksi pada folder `dist/`. |
+| `npm run preview` | Menjalankan preview lokal dari hasil build produksi di folder `dist/`. |
+| `npm run lint` | Menjalankan ESLint untuk mengecek kualitas dan format kode. |
+
+---
+
+## 📖 Dokumentasi API
+
+Panduan integrasi dan spesifikasi endpoint backend tersedia pada direktori `docs/`:
+
+- [Dokumentasi API Daily Progress](docs/daily-progress-api.md)
+- [Dokumentasi API Progress Report](docs/progress-report-api.md)
+
+---
+
+## 🔒 Catatan Keamanan
+
+- Jangan mempublikasikan nilai asli endpoint internal dari `.env` ke repositori publik.
+- Token autentikasi disimpan pada client-side storage melalui modul `authStorage` dan disertakan secara otomatis via header `Authorization: Bearer <token>` pada setiap request HTTP.

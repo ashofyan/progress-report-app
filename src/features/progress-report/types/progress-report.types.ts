@@ -90,6 +90,7 @@ export interface ProgressReportFormTask {
     default_progress_report_status: ProgressReportStatus | null
     is_already_reported?: boolean
     history: ProgressReportHistory[]
+    documents?: ProgressReportDocument[]
 }
 
 export interface ProgressReportFindingAdditionalTask {
@@ -120,7 +121,10 @@ export interface ProgressReportFormData {
 
 export interface ProgressReportDocument {
     id: number
+    als_progress_report_id?: number
+    als_progress_report_detail_id?: number
     als_progress_report_finding_id?: number
+    als_daily_progress_detail_id?: number
     path?: string
     url?: string
     original_name?: string

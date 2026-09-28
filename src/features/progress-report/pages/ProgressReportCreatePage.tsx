@@ -133,7 +133,7 @@ const getDefaultDetailState = (
         isSelected: !isLocked,
         notes: [
             {
-                catatan: task.daily_progress_catatan ?? '',
+                catatan: '',
                 document: null,
             },
         ],
@@ -214,6 +214,24 @@ const isImageDocument = (
     return /\.(jpe?g|png|webp)$/i.test(
         document.original_name ?? document.path ?? '',
     )
+}
+
+const formatDocumentSize = (
+    sizeInBytes?: number,
+): string => {
+    if (sizeInBytes === undefined || Number.isNaN(sizeInBytes)) {
+        return '-'
+    }
+
+    if (sizeInBytes < 1024) {
+        return `${sizeInBytes} B`
+    }
+
+    if (sizeInBytes < 1024 * 1024) {
+        return `${Math.ceil(sizeInBytes / 1024)} KB`
+    }
+
+    return `${(sizeInBytes / (1024 * 1024)).toFixed(1)} MB`
 }
 
 const getFindingKey = (finding: FindingForm): string => {
@@ -861,18 +879,23 @@ const ProgressReportCreatePage = () => {
                 payloadNotes.length === 0
                     ? undefined
                     : payloadNotes,
-            details: selectedDetails.map(({ task, state }) => ({
-                daily_progress_detail_id:
-                    task.daily_progress_detail_id,
-                status: 'selesai',
-                notes: state.notes
-                    .filter(
-                        (note) => note.catatan.trim() !== '',
-                    )
+            details: selectedDetails.map(({ task, state }) => {
+                const notes = state.notes
+                    .filter((note) => note.catatan.trim() !== '')
                     .map((note) => ({
                         catatan: note.catatan.trim(),
-                    })),
-            })),
+                    }))
+
+                return {
+                    daily_progress_detail_id:
+                        task.daily_progress_detail_id,
+                    status: 'selesai' as const,
+                    notes:
+                        notes.length > 0
+                            ? notes
+                            : undefined,
+                }
+            }),
             findings:
                 payloadFindings.length === 0
                     ? undefined
@@ -912,32 +935,27 @@ const ProgressReportCreatePage = () => {
         }
 
         for (const { task, state } of selectedDetails) {
-            const files = getNoteFiles(state.notes)
+            const detailFiles = getNoteFiles(state.notes)
 
-            if (files.length === 0) {
+            if (detailFiles.length === 0) {
                 continue
             }
 
-            const createdDetail =
-                createdReport.details.find(
-                    (detail) =>
-                        detail.daily_progress_detail_id ===
-                        task.daily_progress_detail_id,
-                )
+            const createdDetail = createdReport.details.find(
+                (item) =>
+                    item.daily_progress_detail_id ===
+                    task.daily_progress_detail_id,
+            )
 
             if (createdDetail === undefined) {
-                setIsSubmitting(false)
-                setErrorMessage(
-                    'Progress Report berhasil dibuat, tetapi detail dokumen tidak dapat dicocokkan.',
-                )
-                return
+                continue
             }
 
             const uploadResult =
                 await progressReportApi.uploadDetailDocuments(
                     createdReport.id,
                     createdDetail.id,
-                    files,
+                    detailFiles,
                 )
 
             if (!uploadResult.success) {
@@ -947,31 +965,23 @@ const ProgressReportCreatePage = () => {
             }
         }
 
-        for (const [
-            findingIndex,
-            finding,
-        ] of submittedFindings.entries()) {
-            const files = getNoteFiles(finding.notes)
+        for (const finding of submittedFindings) {
+            const findingFiles = getNoteFiles(finding.notes)
 
-            if (files.length === 0) {
+            if (findingFiles.length === 0) {
                 continue
             }
 
             const createdFinding =
                 createdReport.findings.find((item) => {
-                    const keterangan = finding.notes
-                        .map((note) => note.catatan.trim())
-                        .filter((note) => note !== '')
-                        .join('\n')
-
                     if (
-                        item.source_type !== finding.source_type ||
-                        item.keterangan !== keterangan
+                        item.source_type !==
+                        finding.source_type
                     ) {
                         return false
                     }
 
-                    if (finding.source_type === 'master') {
+                    if (item.source_type === 'master') {
                         return (
                             item.master_task?.id ===
                             finding.als_job_task_id
@@ -982,21 +992,17 @@ const ProgressReportCreatePage = () => {
                         item.additional_task?.id ===
                         finding.als_task_additional_detail_id
                     )
-                }) ?? createdReport.findings[findingIndex]
+                })
 
             if (createdFinding === undefined) {
-                setIsSubmitting(false)
-                setErrorMessage(
-                    'Progress Report berhasil dibuat, tetapi temuan dokumen tidak dapat dicocokkan.',
-                )
-                return
+                continue
             }
 
             const uploadResult =
                 await progressReportApi.uploadFindingDocuments(
                     createdReport.id,
                     createdFinding.id,
-                    files,
+                    findingFiles,
                 )
 
             if (!uploadResult.success) {
@@ -1079,8 +1085,9 @@ const ProgressReportCreatePage = () => {
                             onClick={() =>
                                 options.onRemove(noteIndex)
                             }
+                            title="Hapus catatan"
                         >
-                            <i className="bi bi-x-lg" />
+                            <i className="bi bi-trash" />
                         </button>
                     </div>
                 ))}
@@ -1113,40 +1120,134 @@ const ProgressReportCreatePage = () => {
                 {documents.map((document) => {
                     const url = getDocumentUrl(document)
                     const name = getDocumentName(document)
+                    const isImage = isImageDocument(document)
 
                     return (
                         <div
                             className="progress-report-history-document"
                             key={document.id}
                         >
-                            {url !== null &&
-                            isImageDocument(document) ? (
+                            {url !== null && isImage ? (
                                 <a
                                     href={url}
                                     target="_blank"
                                     rel="noreferrer"
+                                    title={`Buka gambar ${name}`}
                                 >
                                     <img
                                         src={url}
                                         alt={name}
                                     />
                                 </a>
-                            ) : null}
+                            ) : (
+                                <div className="file-placeholder">
+                                    <i className="bi bi-file-earmark-text" />
+                                </div>
+                            )}
 
                             {url === null ? (
-                                <span>{name}</span>
+                                <span title={name}>{name}</span>
                             ) : (
                                 <a
                                     href={url}
                                     target="_blank"
                                     rel="noreferrer"
+                                    title={`Buka file ${name}`}
                                 >
                                     {name}
                                 </a>
                             )}
+
+                            {document.size !== undefined && (
+                                <span
+                                    className="text-muted"
+                                    style={{ fontSize: '10.5px' }}
+                                >
+                                    {formatDocumentSize(document.size)}
+                                </span>
+                            )}
                         </div>
                     )
                 })}
+            </div>
+        )
+    }
+
+    const renderTaskDocuments = (
+        documents: ProgressReportDocument[] | undefined,
+    ) => {
+        if (documents === undefined || documents.length === 0) {
+            return (
+                <div
+                    className="text-muted mt-2"
+                    style={{ fontSize: '11.5px', fontStyle: 'italic' }}
+                >
+                    <i className="bi bi-info-circle me-1" />
+                    Belum ada dokumen hasil pekerjaan dari Daily Progress.
+                </div>
+            )
+        }
+
+        return (
+            <div className="progress-report-dp-documents mt-2">
+                <div className="progress-report-dp-documents-title">
+                    <i className="bi bi-paperclip" />
+                    <span>Dokumen Hasil Daily Progress ({documents.length}):</span>
+                </div>
+                <div className="progress-report-history-documents">
+                    {documents.map((document) => {
+                        const url = getDocumentUrl(document)
+                        const name = getDocumentName(document)
+                        const isImage = isImageDocument(document)
+
+                        return (
+                            <div
+                                className="progress-report-history-document"
+                                key={document.id}
+                            >
+                                {url !== null && isImage ? (
+                                    <a
+                                        href={url}
+                                        target="_blank"
+                                        rel="noreferrer"
+                                        title={`Buka gambar ${name}`}
+                                    >
+                                        <img
+                                            src={url}
+                                            alt={name}
+                                        />
+                                    </a>
+                                ) : (
+                                    <div className="file-placeholder">
+                                        <i className="bi bi-file-earmark-text" />
+                                    </div>
+                                )}
+
+                                {url === null ? (
+                                    <span title={name}>{name}</span>
+                                ) : (
+                                    <a
+                                        href={url}
+                                        target="_blank"
+                                        rel="noreferrer"
+                                        title={`Buka file ${name}`}
+                                    >
+                                        {name}
+                                    </a>
+                                )}
+
+                                {document.size !== undefined && (
+                                    <span
+                                        className="text-muted"
+                                        style={{ fontSize: '10.5px' }}
+                                    >
+                                        {formatDocumentSize(document.size)}
+                                    </span>
+                                )}
+                            </div>
+                        )
+                    })}
+                </div>
             </div>
         )
     }
@@ -1309,24 +1410,43 @@ const ProgressReportCreatePage = () => {
                                         {' / '}
                                         {task.task.task_name}
                                     </strong>
-                                    <span>
-                                        Daily Progress #{' '}
-                                        {task.daily_progress_id} /
-                                        Status DP:{' '}
-                                        <span className="text-success fw-semibold">
-                                            {task.daily_progress_status}
+                                    <div
+                                        className="d-flex align-items-center gap-2 flex-wrap text-muted"
+                                        style={{ fontSize: '11.5px' }}
+                                    >
+                                        <span>
+                                            Daily Progress #{' '}
+                                            {task.daily_progress_id}
                                         </span>
-                                    </span>
+                                        <span>&bull;</span>
+                                        <span>
+                                            Status DP:{' '}
+                                            <span className="badge bg-success-subtle text-success border border-success-subtle">
+                                                {task.daily_progress_status}
+                                            </span>
+                                        </span>
+                                    </div>
                                     {task.daily_progress_catatan !==
                                         null && (
-                                        <span>
-                                            {
-                                                task.daily_progress_catatan
-                                            }
-                                        </span>
+                                        <div
+                                            className="mt-1"
+                                            style={{
+                                                fontSize: '12px',
+                                                color: '#4b5563',
+                                            }}
+                                        >
+                                            <strong>
+                                                Catatan Daily Progress:
+                                            </strong>{' '}
+                                            <span>
+                                                {
+                                                    task.daily_progress_catatan
+                                                }
+                                            </span>
+                                        </div>
                                     )}
                                     {lockedByProgressReport && (
-                                        <span className="progress-report-locked-text">
+                                        <span className="progress-report-locked-text mt-1">
                                             Sudah dimasukkan ke Progress Report sebelumnya.
                                         </span>
                                     )}
@@ -1349,35 +1469,50 @@ const ProgressReportCreatePage = () => {
                                 </div>
                             </div>
 
+                            {/* Dokumen Hasil Pekerjaan dari Daily Progress */}
+                            {renderTaskDocuments(task.documents)}
+
                             {state.isSelected && !lockedByProgressReport && (
-                                renderNoteRows(state.notes, {
-                                    placeholder: 'Catatan pekerjaan untuk Progress Report (opsional)',
-                                    onAdd: () => addDetailNote(task),
-                                    onRemove: (noteIndex) =>
-                                        removeDetailNote(
-                                            task,
-                                            noteIndex,
-                                        ),
-                                    onNoteChange: (
-                                        noteIndex,
-                                        value,
-                                    ) =>
-                                        handleDetailNoteChange(
-                                            task,
+                                <div className="mt-2 pt-2 border-top">
+                                    <span
+                                        className="text-muted d-block mb-1"
+                                        style={{
+                                            fontSize: '11.5px',
+                                            fontWeight: 500,
+                                        }}
+                                    >
+                                        Catatan & dokumen tambahan Progress Report (opsional):
+                                    </span>
+                                    {renderNoteRows(state.notes, {
+                                        placeholder:
+                                            'Catatan pekerjaan untuk Progress Report (opsional)',
+                                        onAdd: () => addDetailNote(task),
+                                        onRemove: (noteIndex) =>
+                                            removeDetailNote(
+                                                task,
+                                                noteIndex,
+                                            ),
+                                        onNoteChange: (
                                             noteIndex,
                                             value,
-                                        ),
-                                    onDocumentChange: (
-                                        noteIndex,
-                                        file,
-                                    ) =>
-                                        handleDetailDocumentChange(
-                                            task,
+                                        ) =>
+                                            handleDetailNoteChange(
+                                                task,
+                                                noteIndex,
+                                                value,
+                                            ),
+                                        onDocumentChange: (
                                             noteIndex,
                                             file,
-                                        ),
-                                    disabled: false,
-                                })
+                                        ) =>
+                                            handleDetailDocumentChange(
+                                                task,
+                                                noteIndex,
+                                                file,
+                                            ),
+                                        disabled: false,
+                                    })}
+                                </div>
                             )}
 
                             {renderTaskHistory(task)}
@@ -1431,9 +1566,7 @@ const ProgressReportCreatePage = () => {
                             updateFindingNote(
                                 index,
                                 noteIndex,
-                                {
-                                    catatan: value,
-                                },
+                                { catatan: value },
                             ),
                         onDocumentChange: (
                             noteIndex,
@@ -1442,9 +1575,7 @@ const ProgressReportCreatePage = () => {
                             updateFindingNote(
                                 index,
                                 noteIndex,
-                                {
-                                    document: file,
-                                },
+                                { document: file },
                             ),
                     })}
                 </div>
@@ -1455,47 +1586,56 @@ const ProgressReportCreatePage = () => {
     const renderInfoStep = () => (
         <div className="progress-report-section">
             <h2 className="progress-report-section-title">
-                Informasi Lain
+                Informasi Lain & Dokumen Umum
             </h2>
 
-            {generalNotes.map((note, index) => (
-                <div
-                    className="progress-report-finding-card"
-                    key={index}
-                >
-                    <div className="progress-report-general-note-grid">
+            {selectedSpk !== null && (
+                <div className="progress-report-state mb-3">
+                    <strong>{selectedSpk.no_spk}</strong>
+                    <span>
+                        {selectedSpk.note ??
+                            selectedSpk.job?.description ??
+                            'SPK terpilih'}
+                    </span>
+                </div>
+            )}
+
+            <div className="progress-report-note-list">
+                {generalNotes.map((note, noteIndex) => (
+                    <div
+                        className="progress-report-note-row"
+                        key={noteIndex}
+                    >
                         <input
+                            type="text"
                             className="form-control"
+                            placeholder="Judul catatan (opsional)"
                             value={note.judul}
-                            placeholder="Judul catatan"
                             onChange={(event) =>
-                                updateGeneralNote(index, {
-                                    judul: event.target.value,
-                                })
+                                updateGeneralNote(
+                                    noteIndex,
+                                    {
+                                        judul: event.target
+                                            .value,
+                                    },
+                                )
                             }
                         />
 
-                        <button
-                            type="button"
-                            className="btn btn-outline-danger"
-                            onClick={() =>
-                                removeGeneralNote(index)
-                            }
-                        >
-                            <i className="bi bi-x-lg" />
-                        </button>
-                    </div>
-
-                    <div className="progress-report-note-row no-action">
                         <textarea
                             className="form-control"
                             rows={2}
-                            value={note.catatan}
                             placeholder="Catatan umum Progress Report"
+                            value={note.catatan}
                             onChange={(event) =>
-                                updateGeneralNote(index, {
-                                    catatan: event.target.value,
-                                })
+                                updateGeneralNote(
+                                    noteIndex,
+                                    {
+                                        catatan:
+                                            event.target
+                                                .value,
+                                    },
+                                )
                             }
                         />
 
@@ -1510,36 +1650,41 @@ const ProgressReportCreatePage = () => {
                                 type="file"
                                 accept={documentAccept}
                                 onChange={(event) =>
-                                    updateGeneralNote(index, {
-                                        document:
-                                            getFilesFromEvent(
-                                                event,
-                                            ),
-                                    })
+                                    updateGeneralNote(
+                                        noteIndex,
+                                        {
+                                            document:
+                                                getFilesFromEvent(
+                                                    event,
+                                                ),
+                                        },
+                                    )
                                 }
                             />
                         </label>
+
+                        <button
+                            type="button"
+                            className="btn btn-outline-danger"
+                            onClick={() =>
+                                removeGeneralNote(noteIndex)
+                            }
+                            title="Hapus catatan"
+                        >
+                            <i className="bi bi-trash" />
+                        </button>
                     </div>
-                </div>
-            ))}
+                ))}
 
-            <button
-                type="button"
-                className="btn btn-outline-primary btn-sm"
-                onClick={addGeneralNote}
-            >
-                <i className="bi bi-plus-lg me-1" />
-                Tambah Informasi
-            </button>
-
-            {selectedSpk !== null && (
-                <div className="form-text mt-2">
-                    {selectedSpk.no_spk} /{' '}
-                    {selectedSpk.job?.description ??
-                        selectedSpk.kode_product_jasa ??
-                        '-'}
-                </div>
-            )}
+                <button
+                    type="button"
+                    className="btn btn-outline-primary btn-sm"
+                    onClick={addGeneralNote}
+                >
+                    <i className="bi bi-plus-lg me-1" />
+                    Tambah Catatan Umum
+                </button>
+            </div>
         </div>
     )
 
