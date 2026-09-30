@@ -8,6 +8,7 @@ import DailyProgressDeleteModal from '@/features/daily-progress/components/Daily
 import DailyProgressDetailModal from '@/features/daily-progress/components/DailyProgressDetailModal'
 import DailyProgressTable from '@/features/daily-progress/components/DailyProgressTable'
 import { useDailyProgresses } from '@/features/daily-progress/hooks/useDailyProgresses'
+import { getPeriodeLabel } from '@/features/daily-progress/utils/dailyProgressPeriod'
 
 import type {
     DailyProgress,
@@ -33,7 +34,7 @@ const DailyProgressBoard = () => {
         useState<number>(1)
 
     const [progressToDelete, setProgressToDelete] =
-        useState<Parameters<typeof deleteProgress>[0] | null>(null)
+        useState<DailyProgress | null>(null)
 
     const [progressToView, setProgressToView] =
         useState<DailyProgress | null>(null)
@@ -47,6 +48,12 @@ const DailyProgressBoard = () => {
         }
 
         return progresses.filter((progress) => {
+            const periode = getPeriodeLabel(
+                progress.bulan,
+                progress.tahun,
+                progress.tanggal,
+            ).toLowerCase()
+
             return (
                 progress.nomor
                     .toLowerCase()
@@ -57,7 +64,8 @@ const DailyProgressBoard = () => {
                 (progress.no_spk ?? '')
                     .toLowerCase()
                     .includes(query) ||
-                progress.tanggal.includes(query)
+                progress.tanggal.includes(query) ||
+                periode.includes(query)
             )
         })
     }, [progresses, searchQuery])
@@ -150,16 +158,6 @@ const DailyProgressBoard = () => {
                                     >
                                         {errorMessage}
                                     </div>
-
-                                    <button
-                                        type="button"
-                                        className="btn btn-outline-primary btn-sm"
-                                        onClick={() =>
-                                            void fetchProgresses()
-                                        }
-                                    >
-                                        Coba Lagi
-                                    </button>
                                 </div>
                             )}
 
@@ -169,22 +167,25 @@ const DailyProgressBoard = () => {
                                     progresses={
                                         paginatedProgresses
                                     }
-                                    onView={setProgressToView}
-                                    onEdit={(progress) =>
+                                    onView={
+                                        setProgressToView
+                                    }
+                                    onEdit={(
+                                        progress,
+                                    ) =>
+                                        navigate(
+                                            `/daily-progress/${progress.id}`,
+                                        )
+                                    }
+                                    onEditForm={(
+                                        progress,
+                                    ) =>
                                         navigate(
                                             `/daily-progress/${progress.id}/edit`,
                                         )
                                     }
-                                    onEditForm={(progress) =>
-                                        navigate(
-                                            `/daily-progress/${progress.id}/edit-form`,
-                                        )
-                                    }
                                     onDelete={
-                                        (progress) =>
-                                            setProgressToDelete(
-                                                progress.id,
-                                            )
+                                        setProgressToDelete
                                     }
                                 />
                             )}
@@ -192,49 +193,52 @@ const DailyProgressBoard = () => {
 
                     {!isLoading &&
                         errorMessage === null &&
-                        filteredProgresses.length > 0 && (
+                        totalPages > 1 && (
                             <div className="daily-progress-pagination">
                                 <button
                                     type="button"
-                                    className="pagination-arrow"
+                                    className="btn btn-outline-secondary btn-sm"
                                     disabled={
                                         currentPage === 1
                                     }
                                     onClick={() =>
                                         setCurrentPage(
-                                            (previous) =>
+                                            (prev) =>
                                                 Math.max(
                                                     1,
-                                                    previous - 1,
+                                                    prev -
+                                                        1,
                                                 ),
                                         )
                                     }
                                 >
-                                    <i className="bi bi-caret-left-fill" />
+                                    Sebelumnya
                                 </button>
 
                                 <span className="daily-progress-page-info">
-                                    {currentPage} / {totalPages}
+                                    {currentPage} /{' '}
+                                    {totalPages}
                                 </span>
 
                                 <button
                                     type="button"
-                                    className="pagination-arrow"
+                                    className="btn btn-outline-secondary btn-sm"
                                     disabled={
                                         currentPage ===
                                         totalPages
                                     }
                                     onClick={() =>
                                         setCurrentPage(
-                                            (previous) =>
+                                            (prev) =>
                                                 Math.min(
                                                     totalPages,
-                                                    previous + 1,
+                                                    prev +
+                                                        1,
                                                 ),
                                         )
                                     }
                                 >
-                                    <i className="bi bi-caret-right-fill" />
+                                    Berikutnya
                                 </button>
                             </div>
                         )}
@@ -242,26 +246,29 @@ const DailyProgressBoard = () => {
             </div>
 
             <DailyProgressDeleteModal
-                progress={
-                    progresses.find(
-                        (progress) =>
-                            progress.id === progressToDelete,
-                    ) ?? null
+                progress={progressToDelete}
+                onClose={() =>
+                    setProgressToDelete(null)
                 }
-                onClose={() => setProgressToDelete(null)}
                 onDelete={deleteProgress}
+                onSuccess={() => {
+                    setProgressToDelete(null)
+                    void fetchProgresses()
+                }}
             />
 
             <DailyProgressDetailModal
                 progress={progressToView}
-                onClose={() => setProgressToView(null)}
-                onEditForm={(progress) =>
-                    navigate(
-                        `/daily-progress/${progress.id}/edit-form`,
-                    )
+                onClose={() =>
+                    setProgressToView(null)
                 }
+                onEditForm={(progress) => {
+                    setProgressToView(null)
+                    navigate(
+                        `/daily-progress/${progress.id}/edit`,
+                    )
+                }}
             />
-
         </>
     )
 }

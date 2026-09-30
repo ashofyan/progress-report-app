@@ -912,6 +912,38 @@ const DailyProgressCreatePage = () => {
                     </div>
 
                     <div className="row g-3 mb-4">
+
+                        <div className="col">
+                            <label className="form-label">
+                                SPK
+                            </label>
+
+                            <select
+                                className="form-select"
+                                value={selectedSpkId}
+                                disabled={
+                                    clientCode.trim() === '' ||
+                                    periodeBulan === '' ||
+                                    periodeTahun === '' ||
+                                    isLoadingFormData ||
+                                    formData === null
+                                }
+                                onChange={handleSpkChange}
+                            >
+                                <option value="">
+                                    Pilih SPK
+                                </option>
+
+                                {formData?.spks.map((spk) => (
+                                    <option
+                                        key={spk.spk_id}
+                                        value={spk.spk_id}
+                                    >
+                                        {getSpkLabel(spk)}
+                                    </option>
+                                ))}
+                            </select>
+                        </div>
                         <div className="col-md-3">
                             <label className="form-label">
                                 Periode Bulan
@@ -956,37 +988,7 @@ const DailyProgressCreatePage = () => {
                             />
                         </div>
 
-                        <div className="col">
-                            <label className="form-label">
-                                SPK
-                            </label>
 
-                            <select
-                                className="form-select"
-                                value={selectedSpkId}
-                                disabled={
-                                    clientCode.trim() === '' ||
-                                    periodeBulan === '' ||
-                                    periodeTahun === '' ||
-                                    isLoadingFormData ||
-                                    formData === null
-                                }
-                                onChange={handleSpkChange}
-                            >
-                                <option value="">
-                                    Pilih SPK
-                                </option>
-
-                                {formData?.spks.map((spk) => (
-                                    <option
-                                        key={spk.spk_id}
-                                        value={spk.spk_id}
-                                    >
-                                        {getSpkLabel(spk)}
-                                    </option>
-                                ))}
-                            </select>
-                        </div>
 
                     </div>
 

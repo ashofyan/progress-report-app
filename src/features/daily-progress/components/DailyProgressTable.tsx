@@ -1,6 +1,7 @@
 import type {
     DailyProgress,
 } from '@/features/daily-progress/types/daily-progress.types'
+import { getPeriodeLabel } from '@/features/daily-progress/utils/dailyProgressPeriod'
 
 interface DailyProgressTableProps {
     progresses: DailyProgress[]
@@ -10,15 +11,6 @@ interface DailyProgressTableProps {
     onDelete: (progress: DailyProgress) => void
 }
 
-const getTodayDate = (): string => {
-    const date = new Date()
-    const year = date.getFullYear()
-    const month = String(date.getMonth() + 1).padStart(2, '0')
-    const day = String(date.getDate()).padStart(2, '0')
-
-    return `${year}-${month}-${day}`
-}
-
 const DailyProgressTable = ({
                                 progresses,
                                 onView,
@@ -26,8 +18,6 @@ const DailyProgressTable = ({
                                 onEditForm,
                                 onDelete,
                             }: DailyProgressTableProps) => {
-    const today = getTodayDate()
-
     if (progresses.length === 0) {
         return (
             <div className="daily-progress-empty">
@@ -48,6 +38,7 @@ const DailyProgressTable = ({
                     <th>No</th>
                     <th>Nomor</th>
                     <th>Tanggal</th>
+                    <th>Periode</th>
                     <th>Client</th>
                     <th>No SPK</th>
                     <th>Detail</th>
@@ -72,6 +63,8 @@ const DailyProgressTable = ({
 
                         <td>{progress.tanggal}</td>
 
+                        <td>{getPeriodeLabel(progress.bulan, progress.tahun, progress.tanggal)}</td>
+
                         <td>{progress.client_code}</td>
 
                         <td>{progress.no_spk ?? '-'}</td>
@@ -80,19 +73,17 @@ const DailyProgressTable = ({
 
                         <td>
                             <div className="daily-progress-actions">
-                                {progress.tanggal === today && (
-                                    <button
-                                        type="button"
-                                        className="daily-progress-action-button edit"
-                                        title="Update"
-                                        onClick={(event) => {
-                                            event.stopPropagation()
-                                            onEdit(progress)
-                                        }}
-                                    >
-                                        <i className="bi bi-arrow-repeat" />
-                                    </button>
-                                )}
+                                <button
+                                    type="button"
+                                    className="daily-progress-action-button edit"
+                                    title="Update"
+                                    onClick={(event) => {
+                                        event.stopPropagation()
+                                        onEdit(progress)
+                                    }}
+                                >
+                                    <i className="bi bi-arrow-repeat" />
+                                </button>
 
                                 {onEditForm !== undefined && (
                                     <button

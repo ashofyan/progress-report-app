@@ -31,15 +31,6 @@ interface DetailFormData {
     documents: DailyProgressDocument[]
 }
 
-const getTodayDate = (): string => {
-    const date = new Date()
-    const year = date.getFullYear()
-    const month = String(date.getMonth() + 1).padStart(2, '0')
-    const day = String(date.getDate()).padStart(2, '0')
-
-    return `${year}-${month}-${day}`
-}
-
 const getDetailLabel = (
     detail: DailyProgress['details'][number],
 ): string => {
@@ -166,16 +157,9 @@ const DailyProgressEditPage = () => {
         })
     }, [id])
 
-    const isTodayProgress =
-        progress?.tanggal === getTodayDate()
-
     const handleToggleDetail = (
         detailId: number,
     ): void => {
-        if (!isTodayProgress) {
-            return
-        }
-
         setDetails((previous) =>
             previous.map((item) => {
                 if (item.id !== detailId) {
@@ -199,10 +183,6 @@ const DailyProgressEditPage = () => {
     }
 
     const handleAddNote = (detailId: number): void => {
-        if (!isTodayProgress) {
-            return
-        }
-
         setDetails((previous) =>
             previous.map((item) =>
                 item.id === detailId
@@ -226,10 +206,6 @@ const DailyProgressEditPage = () => {
         noteIndex: number,
         text: string,
     ): void => {
-        if (!isTodayProgress) {
-            return
-        }
-
         setDetails((previous) =>
             previous.map((item) => {
                 if (item.id !== detailId) {
@@ -256,10 +232,6 @@ const DailyProgressEditPage = () => {
         noteIndex: number,
         file: File | null,
     ): void => {
-        if (!isTodayProgress) {
-            return
-        }
-
         setDetails((previous) =>
             previous.map((item) => {
                 if (item.id !== detailId) {
@@ -285,10 +257,6 @@ const DailyProgressEditPage = () => {
         detailId: number,
         noteIndex: number,
     ): void => {
-        if (!isTodayProgress) {
-            return
-        }
-
         setDetails((previous) =>
             previous.map((item) => {
                 if (item.id !== detailId) {
@@ -319,7 +287,7 @@ const DailyProgressEditPage = () => {
         detailId: number,
         documentId: number,
     ): Promise<void> => {
-        if (!isTodayProgress || progress === null) {
+        if (progress === null) {
             return
         }
 
@@ -364,13 +332,6 @@ const DailyProgressEditPage = () => {
         setErrorMessage(null)
 
         if (progress === null) {
-            return
-        }
-
-        if (!isTodayProgress) {
-            setErrorMessage(
-                'Daily Progress hanya bisa diedit untuk tanggal hari ini.',
-            )
             return
         }
 
@@ -484,7 +445,7 @@ const DailyProgressEditPage = () => {
                             className="spinner-border"
                             role="status"
                         />
-                        <span>Memuat Daily Progress...</span>
+                        <span>Memuat data...</span>
                     </div>
                 )}
 
@@ -539,30 +500,6 @@ const DailyProgressEditPage = () => {
                                 />
                             </div>
                         </div>
-
-                        {progress !== null &&
-                            !isTodayProgress && (
-                                <div
-                                    className="alert alert-warning d-flex align-items-center justify-content-between"
-                                    role="alert"
-                                >
-                                    <span>
-                                        Daily Progress ini bukan tanggal hari ini. Checklist status penyelesaian hanya dapat diperbarui pada hari berjalan.
-                                    </span>
-                                    <button
-                                        type="button"
-                                        className="btn btn-outline-warning btn-sm ms-2 text-nowrap"
-                                        onClick={() =>
-                                            navigate(
-                                                `/daily-progress/${progress.id}/edit-form`,
-                                            )
-                                        }
-                                    >
-                                        <i className="bi bi-pencil-square me-1" />
-                                        Edit Data Form
-                                    </button>
-                                </div>
-                            )}
 
                         {progress !== null &&
                             (progress.findings ?? []).length > 0 && (
@@ -672,7 +609,7 @@ const DailyProgressEditPage = () => {
                                                         detail.isChecked
                                                     }
                                                     disabled={
-                                                        !isTodayProgress ||
+                                                        isSubmitting ||
                                                         isLockedCompleted
                                                     }
                                                     onChange={() =>
@@ -701,7 +638,7 @@ const DailyProgressEditPage = () => {
                                                 <button
                                                     type="button"
                                                     className="daily-progress-note-add"
-                                                    disabled={!isTodayProgress}
+                                                    disabled={isSubmitting}
                                                     onClick={() =>
                                                         handleAddNote(
                                                             detail.id,
@@ -727,7 +664,7 @@ const DailyProgressEditPage = () => {
                                                             className="form-control"
                                                             value={note.text}
                                                             placeholder="Catatan"
-                                                            disabled={!isTodayProgress}
+                                                            disabled={isSubmitting}
                                                             onChange={(
                                                                 event,
                                                             ) =>
@@ -750,7 +687,7 @@ const DailyProgressEditPage = () => {
                                                             </span>
                                                             <input
                                                                 type="file"
-                                                                disabled={!isTodayProgress}
+                                                                disabled={isSubmitting}
                                                                 onChange={(
                                                                     event,
                                                                 ) => {
@@ -769,7 +706,7 @@ const DailyProgressEditPage = () => {
                                                         <button
                                                             type="button"
                                                             className="btn btn-outline-danger"
-                                                            disabled={!isTodayProgress}
+                                                            disabled={isSubmitting}
                                                             onClick={() =>
                                                                 handleRemoveNote(
                                                                     detail.id,
@@ -822,7 +759,7 @@ const DailyProgressEditPage = () => {
                                                             type="button"
                                                             className="btn btn-sm btn-outline-danger"
                                                             disabled={
-                                                                !isTodayProgress ||
+                                                                isSubmitting ||
                                                                 deletingDocumentId ===
                                                                 document.id
                                                             }
@@ -866,10 +803,7 @@ const DailyProgressEditPage = () => {
                             <button
                                 type="submit"
                                 className="btn btn-primary"
-                                disabled={
-                                    !isTodayProgress ||
-                                    isSubmitting
-                                }
+                                disabled={isSubmitting}
                             >
                                 {isSubmitting && (
                                     <span className="spinner-border spinner-border-sm me-2" />

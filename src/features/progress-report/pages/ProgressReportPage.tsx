@@ -922,8 +922,7 @@ const ProgressReportPage = () => {
 
                 {!isLoading &&
                     errorMessage === null &&
-                    reports.length === 0 && (
-                        <div className="progress-report-empty">
+                    reports.length === 0 && (                        <div className="progress-report-empty">
                             <i className="bi bi-inbox" />
                             <span>
                                 Belum ada progress report.
@@ -960,8 +959,8 @@ const ProgressReportPage = () => {
                                             key={report.id}
                                             className="progress-report-clickable-row"
                                             onClick={() =>
-                                                setSelectedReport(
-                                                    report,
+                                                navigate(
+                                                    `/progress-report/${report.id}`,
                                                 )
                                             }
                                         >
@@ -1025,8 +1024,8 @@ const ProgressReportPage = () => {
                                                             event,
                                                         ) => {
                                                             event.stopPropagation()
-                                                            setSelectedReport(
-                                                                report,
+                                                            navigate(
+                                                                `/progress-report/${report.id}`,
                                                             )
                                                         }}
                                                     >

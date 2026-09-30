@@ -13,12 +13,14 @@ interface DailyProgressDeleteModalProps {
     onDelete: (
         id: number,
     ) => Promise<DailyProgressApiResult<null>>
+    onSuccess?: () => void
 }
 
 const DailyProgressDeleteModal = ({
                                       progress,
                                       onClose,
                                       onDelete,
+                                      onSuccess,
                                   }: DailyProgressDeleteModalProps) => {
     const [isDeleting, setIsDeleting] =
         useState<boolean>(false)
@@ -44,6 +46,10 @@ const DailyProgressDeleteModal = ({
                 setErrorMessage(result.message)
 
                 return
+            }
+
+            if (onSuccess !== undefined) {
+                onSuccess()
             }
 
             onClose()
@@ -73,20 +79,21 @@ const DailyProgressDeleteModal = ({
 
                     <p>
                         Apakah Anda yakin ingin menghapus
-                        daily progress:
+                        daily progress{' '}
+                        <strong>{progress.nomor}</strong>?
                     </p>
 
-                    <strong>
-                        {progress.nomor} - {progress.tanggal}
-                    </strong>
+                    <p className="text-muted small mb-0">
+                        Tindakan ini tidak dapat dibatalkan.
+                    </p>
                 </div>
 
                 <div className="daily-progress-modal-footer">
                     <button
                         type="button"
-                        className="btn btn-light"
-                        disabled={isDeleting}
+                        className="btn btn-outline-secondary"
                         onClick={onClose}
+                        disabled={isDeleting}
                     >
                         Batal
                     </button>
@@ -94,13 +101,12 @@ const DailyProgressDeleteModal = ({
                     <button
                         type="button"
                         className="btn btn-danger"
+                        onClick={handleDelete}
                         disabled={isDeleting}
-                        onClick={() => void handleDelete()}
                     >
-                        {isDeleting && (
-                            <span className="spinner-border spinner-border-sm me-2" />
-                        )}
-                        Hapus
+                        {isDeleting
+                            ? 'Menghapus...'
+                            : 'Hapus'}
                     </button>
                 </div>
             </div>

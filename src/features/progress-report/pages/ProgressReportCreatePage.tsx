@@ -38,7 +38,6 @@ interface GeneralNoteForm extends NoteForm {
 
 interface SelectedDetail {
     isSelected: boolean
-    notes: NoteForm[]
 }
 
 interface FindingForm {
@@ -131,12 +130,6 @@ const getDefaultDetailState = (
 
     return {
         isSelected: !isLocked,
-        notes: [
-            {
-                catatan: '',
-                document: null,
-            },
-        ],
     }
 }
 
@@ -519,69 +512,6 @@ const ProgressReportCreatePage = () => {
         })
     }
 
-    const handleDetailNoteChange = (
-        task: ProgressReportFormTask,
-        noteIndex: number,
-        value: string,
-    ): void => {
-        updateDetailState(task, (current) => ({
-            ...current,
-            notes: current.notes.map((note, index) =>
-                index === noteIndex
-                    ? {
-                        ...note,
-                        catatan: value,
-                    }
-                    : note,
-            ),
-        }))
-    }
-
-    const handleDetailDocumentChange = (
-        task: ProgressReportFormTask,
-        noteIndex: number,
-        file: File | null,
-    ): void => {
-        updateDetailState(task, (current) => ({
-            ...current,
-            notes: current.notes.map((note, index) =>
-                index === noteIndex
-                    ? {
-                        ...note,
-                        document: file,
-                    }
-                    : note,
-            ),
-        }))
-    }
-
-    const addDetailNote = (
-        task: ProgressReportFormTask,
-    ): void => {
-        updateDetailState(task, (current) => ({
-            ...current,
-            notes: [
-                ...current.notes,
-                emptyNote(),
-            ],
-        }))
-    }
-
-    const removeDetailNote = (
-        task: ProgressReportFormTask,
-        noteIndex: number,
-    ): void => {
-        updateDetailState(task, (current) => ({
-            ...current,
-            notes:
-                current.notes.length === 1
-                    ? [emptyNote()]
-                    : current.notes.filter(
-                        (_, index) => index !== noteIndex,
-                    ),
-        }))
-    }
-
     const updateFindingNote = (
         findingIndex: number,
         noteIndex: number,
@@ -718,18 +648,6 @@ const ProgressReportCreatePage = () => {
         if (selectedDetails.length === 0) {
             setErrorMessage(
                 'Pilih minimal satu pekerjaan yang sudah selesai untuk dimasukkan ke Progress Report.',
-            )
-            return false
-        }
-
-        const hasTooManyFiles = selectedDetails.some(
-            ({ state }) =>
-                getNoteFiles(state.notes).length > 10,
-        )
-
-        if (hasTooManyFiles) {
-            setErrorMessage(
-                'Maksimal 10 dokumen per detail pekerjaan.',
             )
             return false
         }
@@ -879,21 +797,35 @@ const ProgressReportCreatePage = () => {
                 payloadNotes.length === 0
                     ? undefined
                     : payloadNotes,
-            details: selectedDetails.map(({ task, state }) => {
-                const notes = state.notes
-                    .filter((note) => note.catatan.trim() !== '')
-                    .map((note) => ({
-                        catatan: note.catatan.trim(),
-                    }))
+            details: selectedDetails.map(({ task }) => {
+                const detailNotes =
+                    task.daily_progress_catatan &&
+                    task.daily_progress_catatan.trim() !== ''
+                        ? [
+                              {
+                                  catatan:
+                                      task.daily_progress_catatan.trim(),
+                              },
+                          ]
+                        : undefined
+
+                const detailDocuments =
+                    task.documents && task.documents.length > 0
+                        ? task.documents.map((doc) => ({
+                              id: doc.id,
+                              path: doc.path,
+                              original_name: doc.original_name,
+                              mime_type: doc.mime_type,
+                              size: doc.size,
+                          }))
+                        : undefined
 
                 return {
                     daily_progress_detail_id:
                         task.daily_progress_detail_id,
                     status: 'selesai' as const,
-                    notes:
-                        notes.length > 0
-                            ? notes
-                            : undefined,
+                    ...(detailNotes ? { notes: detailNotes } : {}),
+                    ...(detailDocuments ? { documents: detailDocuments } : {}),
                 }
             }),
             findings:
@@ -925,37 +857,6 @@ const ProgressReportCreatePage = () => {
                 await progressReportApi.uploadDocuments(
                     createdReport.id,
                     generalFiles,
-                )
-
-            if (!uploadResult.success) {
-                setIsSubmitting(false)
-                setErrorMessage(uploadResult.message)
-                return
-            }
-        }
-
-        for (const { task, state } of selectedDetails) {
-            const detailFiles = getNoteFiles(state.notes)
-
-            if (detailFiles.length === 0) {
-                continue
-            }
-
-            const createdDetail = createdReport.details.find(
-                (item) =>
-                    item.daily_progress_detail_id ===
-                    task.daily_progress_detail_id,
-            )
-
-            if (createdDetail === undefined) {
-                continue
-            }
-
-            const uploadResult =
-                await progressReportApi.uploadDetailDocuments(
-                    createdReport.id,
-                    createdDetail.id,
-                    detailFiles,
                 )
 
             if (!uploadResult.success) {
@@ -1252,6 +1153,39 @@ const ProgressReportCreatePage = () => {
         )
     }
 
+    const renderCompletionNote = (
+        catatan: string | null | undefined,
+    ) => {
+        const hasCatatan =
+            catatan !== null &&
+            catatan !== undefined &&
+            catatan.trim() !== ''
+
+        return (
+            <div className="progress-report-completion-note">
+                <div className="progress-report-completion-note-title">
+                    <i className="bi bi-chat-left-text" />
+                    <span>Catatan Penyelesaian:</span>
+                </div>
+                {hasCatatan ? (
+                    <div className="progress-report-completion-note-content">
+                        {catatan}
+                    </div>
+                ) : (
+                    <div
+                        className="text-muted"
+                        style={{
+                            fontSize: '11.5px',
+                            fontStyle: 'italic',
+                        }}
+                    >
+                        Tidak ada catatan penyelesaian dari Daily Progress.
+                    </div>
+                )}
+            </div>
+        )
+    }
+
     const renderTaskHistory = (
         task: ProgressReportFormTask,
     ) => {
@@ -1426,25 +1360,6 @@ const ProgressReportCreatePage = () => {
                                             </span>
                                         </span>
                                     </div>
-                                    {task.daily_progress_catatan !==
-                                        null && (
-                                        <div
-                                            className="mt-1"
-                                            style={{
-                                                fontSize: '12px',
-                                                color: '#4b5563',
-                                            }}
-                                        >
-                                            <strong>
-                                                Catatan Daily Progress:
-                                            </strong>{' '}
-                                            <span>
-                                                {
-                                                    task.daily_progress_catatan
-                                                }
-                                            </span>
-                                        </div>
-                                    )}
                                     {lockedByProgressReport && (
                                         <span className="progress-report-locked-text mt-1">
                                             Sudah dimasukkan ke Progress Report sebelumnya.
@@ -1469,51 +1384,13 @@ const ProgressReportCreatePage = () => {
                                 </div>
                             </div>
 
-                            {/* Dokumen Hasil Pekerjaan dari Daily Progress */}
-                            {renderTaskDocuments(task.documents)}
-
-                            {state.isSelected && !lockedByProgressReport && (
-                                <div className="mt-2 pt-2 border-top">
-                                    <span
-                                        className="text-muted d-block mb-1"
-                                        style={{
-                                            fontSize: '11.5px',
-                                            fontWeight: 500,
-                                        }}
-                                    >
-                                        Catatan & dokumen tambahan Progress Report (opsional):
-                                    </span>
-                                    {renderNoteRows(state.notes, {
-                                        placeholder:
-                                            'Catatan pekerjaan untuk Progress Report (opsional)',
-                                        onAdd: () => addDetailNote(task),
-                                        onRemove: (noteIndex) =>
-                                            removeDetailNote(
-                                                task,
-                                                noteIndex,
-                                            ),
-                                        onNoteChange: (
-                                            noteIndex,
-                                            value,
-                                        ) =>
-                                            handleDetailNoteChange(
-                                                task,
-                                                noteIndex,
-                                                value,
-                                            ),
-                                        onDocumentChange: (
-                                            noteIndex,
-                                            file,
-                                        ) =>
-                                            handleDetailDocumentChange(
-                                                task,
-                                                noteIndex,
-                                                file,
-                                            ),
-                                        disabled: false,
-                                    })}
-                                </div>
+                            {/* Catatan Penyelesaian (Read-only dari Daily Progress) */}
+                            {renderCompletionNote(
+                                task.daily_progress_catatan,
                             )}
+
+                            {/* Dokumen Hasil Pekerjaan dari Daily Progress (Read-only) */}
+                            {renderTaskDocuments(task.documents)}
 
                             {renderTaskHistory(task)}
                         </div>

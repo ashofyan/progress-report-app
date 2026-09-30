@@ -4,6 +4,7 @@ import {
 } from 'react'
 
 import { dailyProgressApi } from '@/features/daily-progress/api/dailyProgressApi'
+import { getPeriodeLabel } from '@/features/daily-progress/utils/dailyProgressPeriod'
 
 import type {
     DailyProgress,
@@ -151,7 +152,7 @@ const DailyProgressDetailModal = ({
                             />
                         </div>
 
-                        <div className="col-md-3">
+                        <div className="col-md-2">
                             <label className="form-label">
                                 Tanggal
                             </label>
@@ -165,7 +166,23 @@ const DailyProgressDetailModal = ({
                             />
                         </div>
 
-                        <div className="col-md-3">
+                        <div className="col-md-2">
+                            <label className="form-label">
+                                Periode
+                            </label>
+                            <input
+                                type="text"
+                                className="form-control"
+                                value={getPeriodeLabel(
+                                    currentProgress.bulan,
+                                    currentProgress.tahun,
+                                    currentProgress.tanggal,
+                                )}
+                                disabled
+                            />
+                        </div>
+
+                        <div className="col-md-2">
                             <label className="form-label">
                                 Client
                             </label>
@@ -225,148 +242,181 @@ const DailyProgressDetailModal = ({
                         </div>
                     </div>
 
-                    {currentProgress.details.map((detail) => (
-                        <div
-                            className="daily-progress-detail-card"
-                            key={detail.id}
-                        >
-                            <div className="flex flex-row">
-                                <div className="daily-progress-detail-heading">
-                                    <strong>
-                                        {getDetailLabel(detail)}
-                                    </strong>
-                                </div>
+                    <div className="mb-4">
+                        <h3 className="h6 mb-2">
+                            Detail Pekerjaan
+                        </h3>
 
-                                <div>
-                                    <span
-                                        className={`daily-progress-status ${detail.status}`}
-                                    >
-                                    {
-                                        statusLabels[
-                                            detail.status
-                                            ]
-                                    }
+                        {currentProgress.details.length ===
+                        0 ? (
+                            <div className="daily-progress-empty p-3">
+                                <span>
+                                    Tidak ada detail pekerjaan.
                                 </span>
-                                </div>
                             </div>
+                        ) : (
+                            <div className="table-responsive">
+                                <table className="table table-bordered table-sm mb-0">
+                                    <thead>
+                                    <tr>
+                                        <th>No</th>
+                                        <th>
+                                            Pekerjaan
+                                        </th>
+                                        <th>Status</th>
+                                        <th>
+                                            Catatan
+                                        </th>
+                                    </tr>
+                                    </thead>
 
-                            <p className="daily-progress-detail-note">
-                                {detail.catatan ??
-                                    'Tidak ada catatan.'}
-                            </p>
+                                    <tbody>
+                                    {currentProgress.details.map(
+                                        (
+                                            detail,
+                                            index,
+                                        ) => (
+                                            <tr
+                                                key={
+                                                    detail.id
+                                                }
+                                            >
+                                                <td>
+                                                    {index +
+                                                        1}
+                                                </td>
 
-                            <div className="daily-progress-document-section">
-                                <div className="daily-progress-document-heading">
-                                    <span>
-                                        Dokumen Tersimpan
-                                    </span>
-                                </div>
+                                                <td>
+                                                    {getDetailLabel(
+                                                        detail,
+                                                    )}
+                                                </td>
 
-                                {(detail.documents ?? [])
-                                    .length === 0 && (
-                                    <div className="daily-progress-document-empty">
-                                        Belum ada dokumen.
-                                    </div>
+                                                <td>
+                                                        <span
+                                                            className={`badge bg-${
+                                                                detail.status ===
+                                                                'selesai'
+                                                                    ? 'success'
+                                                                    : detail.status ===
+                                                                      'pending'
+                                                                      ? 'warning'
+                                                                      : 'secondary'
+                                                            }`}
+                                                        >
+                                                            {
+                                                                statusLabels[
+                                                                    detail
+                                                                        .status
+                                                                    ]
+                                                            }
+                                                        </span>
+                                                </td>
+
+                                                <td>
+                                                    {detail.catatan ??
+                                                        '-'}
+                                                </td>
+                                            </tr>
+                                        ),
+                                    )}
+                                    </tbody>
+                                </table>
+                            </div>
+                        )}
+                    </div>
+
+                    <div>
+                        <h3 className="h6 mb-2">Temuan</h3>
+
+                        {(!currentProgress.temuans ||
+                            currentProgress.temuans
+                                .length === 0) &&
+                        (!currentProgress.findings ||
+                            currentProgress.findings
+                                .length === 0) ? (
+                            <div className="daily-progress-empty p-3">
+                                <span>
+                                    Tidak ada temuan.
+                                </span>
+                            </div>
+                        ) : (
+                            <ul className="list-group">
+                                {currentProgress.temuans?.map(
+                                    (temuan) => (
+                                        <li
+                                            key={
+                                                temuan.id
+                                            }
+                                            className="list-group-item d-flex justify-content-between align-items-center"
+                                        >
+                                            <div>
+                                                <strong>
+                                                    {temuan.nomor}
+                                                </strong>
+                                                {temuan.notes && temuan.notes.length > 0 && (
+                                                    <div className="text-muted small">
+                                                        {temuan.notes.map((n) => n.note).join(', ')}
+                                                    </div>
+                                                )}
+                                                <div className="text-muted small">
+                                                    Status:{' '}
+                                                    {
+                                                        temuan.status
+                                                    }
+                                                </div>
+                                            </div>
+                                        </li>
+                                    ),
                                 )}
 
-                                {(detail.documents ?? []).map(
-                                    (document) => (
-                                        <div
-                                            className="daily-progress-document-row"
-                                            key={document.id}
+                                {currentProgress.findings?.map(
+                                    (finding) => (
+                                        <li
+                                            key={
+                                                finding.id
+                                            }
+                                            className="list-group-item d-flex justify-content-between align-items-center"
                                         >
                                             <div>
                                                 <strong>
                                                     {
-                                                        document.original_name
+                                                        finding.keterangan
                                                     }
                                                 </strong>
-                                                <span>
-                                                    {Math.ceil(
-                                                        document.size /
-                                                        1024,
-                                                    )}{' '}
-                                                    KB
-                                                </span>
+                                                <div className="text-muted small">
+                                                    PR:{' '}
+                                                    {
+                                                        finding.nomor_pr
+                                                    }{' '}
+                                                    (
+                                                    {
+                                                        finding.tanggal
+                                                    }
+                                                    )
+                                                </div>
                                             </div>
-                                        </div>
+                                            <span className="badge bg-info">
+                                                {
+                                                    finding.source_type
+                                                }
+                                            </span>
+                                        </li>
                                     ),
                                 )}
-                            </div>
-                        </div>
-                    ))}
+                            </ul>
+                        )}
+                    </div>
+                </div>
 
-                    {(currentProgress.findings ?? []).length > 0 && (
-                        <div className="daily-progress-document-section">
-                            <div className="daily-progress-document-heading">
-                                <span>Temuan Progress Report</span>
-                            </div>
-
-                            {(currentProgress.findings ?? []).map(
-                                (finding) => (
-                                    <div
-                                        className="daily-progress-document-row"
-                                        key={finding.id}
-                                    >
-                                        <div>
-                                            <strong>
-                                                {finding.nomor_pr} /{' '}
-                                                {finding.tanggal}
-                                            </strong>
-                                            <span>
-                                                {finding.keterangan}
-                                            </span>
-                                        </div>
-
-                                        <span
-                                            className={`daily-progress-status ${finding.status}`}
-                                        >
-                                            {finding.status}
-                                        </span>
-                                    </div>
-                                ),
-                            )}
-                        </div>
-                    )}
-
-                    {(currentProgress.temuans ?? []).length > 0 && (
-                        <div className="daily-progress-document-section">
-                            <div className="daily-progress-document-heading">
-                                <span>Temuan Global</span>
-                            </div>
-
-                            {(currentProgress.temuans ?? []).map(
-                                (temuan) => (
-                                    <div
-                                        className="daily-progress-document-row"
-                                        key={temuan.id}
-                                    >
-                                        <div>
-                                            <strong>
-                                                {temuan.nomor} /{' '}
-                                                {temuan.tanggal}
-                                            </strong>
-                                            <span>
-                                                {(temuan.notes ?? [])
-                                                    .map(
-                                                        (note) =>
-                                                            note.note,
-                                                    )
-                                                    .join('\n') ||
-                                                    'Tanpa catatan.'}
-                                            </span>
-                                        </div>
-
-                                        <span
-                                            className={`daily-progress-status ${temuan.status}`}
-                                        >
-                                            {temuan.status}
-                                        </span>
-                                    </div>
-                                ),
-                            )}
-                        </div>
-                    )}
+                <div className="daily-progress-modal-footer">
+                    <button
+                        type="button"
+                        className="btn btn-secondary"
+                        onClick={onClose}
+                    >
+                        Tutup
+                    </button>
                 </div>
             </div>
         </div>

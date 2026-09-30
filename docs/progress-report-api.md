@@ -550,6 +550,11 @@ Semua detail yang terpilih otomatis disimpan dengan status `selesai` pada Progre
 | `details.*.status` | string | Tidak | Opsional. Jika dikirim, harus bernilai `selesai`. |
 | `details.*.notes` | array | Tidak | Daftar catatan per pekerjaan (opsional). |
 | `details.*.notes.*.catatan` | string | Ya jika `details.*.notes` dikirim | Isi catatan pekerjaan. |
+| `details.*.documents` | array | Tidak | Daftar dokumen lampiran hasil pekerjaan dari Daily Progress (opsional). |
+| `details.*.documents.*.path` | string | Ya jika `details.*.documents` dikirim | Path dokumen lampiran. |
+| `details.*.documents.*.original_name` | string | Ya jika `details.*.documents` dikirim | Nama asli file dokumen. |
+| `details.*.documents.*.mime_type` | string | Tidak | MIME type file dokumen. |
+| `details.*.documents.*.size` | integer | Tidak | Ukuran file dokumen dalam byte. |
 | `findings` | array | Tidak | Daftar temuan Progress Report. |
 | `findings.*.source_type` | string | Ya jika `findings` dikirim | `master` atau `additional`. |
 | `findings.*.als_job_task_id` | integer | Kondisional | Wajib jika `source_type` adalah `master`; harus root/master task dari job SPK. Tidak boleh diisi jika `additional`. |

@@ -17,6 +17,7 @@ import DailyProgressEditPage from '@/features/daily-progress/pages/DailyProgress
 import DailyProgressPage from '@/features/daily-progress/pages/DailyProgressPage'
 import MasterJobPage from '@/features/master-job/pages/MasterJobPage'
 import ProgressReportCreatePage from '@/features/progress-report/pages/ProgressReportCreatePage'
+import ProgressReportDetailPage from '@/features/progress-report/pages/ProgressReportDetailPage'
 import ProgressReportPage from '@/features/progress-report/pages/ProgressReportPage'
 import RepresentativeLetterCreatePage from '@/features/representative-letter/pages/RepresentativeLetterCreatePage'
 import RepresentativeLetterEditorPage from '@/features/representative-letter/pages/RepresentativeLetterEditorPage'
@@ -114,6 +115,11 @@ const AppRouter = () => {
                     <Route
                         path="/progress-report/tambah"
                         element={<ProgressReportCreatePage />}
+                    />
+
+                    <Route
+                        path="/progress-report/:id"
+                        element={<ProgressReportDetailPage />}
                     />
 
                     <Route

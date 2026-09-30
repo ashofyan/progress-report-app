@@ -208,12 +208,21 @@ export interface ProgressReportHistoryFilters {
     als_task_additional_detail_id?: number
 }
 
+export interface CreateProgressReportDetailDocumentRequest {
+    id?: number
+    path?: string
+    original_name?: string
+    mime_type?: string
+    size?: number
+}
+
 export interface CreateProgressReportDetailRequest {
     daily_progress_detail_id: number
     status?: ProgressReportStatus
     notes?: Array<{
         catatan: string
     }>
+    documents?: CreateProgressReportDetailDocumentRequest[]
 }
 
 export interface CreateProgressReportFindingRequest {
@@ -278,7 +287,6 @@ export interface ProgressReportDocumentResponse {
     message: string
     data: ProgressReportDocument[]
 }
-
 export interface ProgressReportDeleteResponse {
     status: true
     message: string
