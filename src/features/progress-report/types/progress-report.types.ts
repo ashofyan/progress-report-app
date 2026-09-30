@@ -54,6 +54,8 @@ export interface ProgressReportDailyProgress {
     client_code: string
     als_spk_id: number
     no_spk: string | null
+    bulan?: number | null
+    tahun?: number | null
 }
 
 export interface ProgressReportNote {
@@ -112,6 +114,8 @@ export interface ProgressReportFindingSources {
 export interface ProgressReportFormData {
     tanggal: string
     client_code: string
+    bulan?: number | null
+    tahun?: number | null
     employee: ProgressReportEmployee
     spk: ProgressReportSpk
     daily_progress: ProgressReportDailyProgress[]
@@ -199,6 +203,8 @@ export interface ProgressReportFormDataFilters {
     client_code: string
     als_spk_id: number
     tanggal: string
+    bulan?: number
+    tahun?: number
 }
 
 export interface ProgressReportHistoryFilters {
@@ -287,6 +293,7 @@ export interface ProgressReportDocumentResponse {
     message: string
     data: ProgressReportDocument[]
 }
+
 export interface ProgressReportDeleteResponse {
     status: true
     message: string

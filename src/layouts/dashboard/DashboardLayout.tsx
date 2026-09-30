@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { Outlet, useLocation } from 'react-router-dom'
 
 import AppHeader from '@/layouts/dashboard/components/AppHeader'
@@ -9,10 +9,12 @@ import '@/layouts/dashboard/styles/dashboard-layout.scss'
 const DashboardLayout = () => {
     const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState<boolean>(false)
     const location = useLocation()
+    const [prevPathname, setPrevPathname] = useState<string>(location.pathname)
 
-    useEffect(() => {
+    if (prevPathname !== location.pathname) {
+        setPrevPathname(location.pathname)
         setIsMobileSidebarOpen(false)
-    }, [location.pathname])
+    }
 
     const handleToggleMobileSidebar = (): void => {
         setIsMobileSidebarOpen((previous) => !previous)
@@ -28,7 +30,9 @@ const DashboardLayout = () => {
 
             <div className="dashboard-body">
                 <div
-                    className={`app-sidebar-backdrop ${isMobileSidebarOpen ? 'show' : ''}`}
+                    className={`app-sidebar-backdrop ${
+                        isMobileSidebarOpen ? 'show' : ''
+                    }`}
                     onClick={handleCloseMobileSidebar}
                     aria-hidden="true"
                 />

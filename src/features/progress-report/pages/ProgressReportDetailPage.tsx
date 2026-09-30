@@ -11,6 +11,7 @@ import { progressReportApi } from '@/features/progress-report/api/progressReport
 import type {
     ProgressReport,
     ProgressReportDocument,
+    ProgressReportStatus,
 } from '@/features/progress-report/types/progress-report.types'
 
 import '@/features/progress-report/styles/progress-report.scss'
@@ -191,6 +192,7 @@ interface GroupedTask {
     childTaskName: string
     notes: string[]
     documents: ProgressReportDocument[]
+    status?: ProgressReportStatus
 }
 
 interface TaskGroup {
@@ -342,6 +344,7 @@ const ProgressReportDetailPage = () => {
                 childTaskName,
                 notes,
                 documents: item.documents ?? [],
+                status: item.status,
             })
         })
 
@@ -523,19 +526,30 @@ const ProgressReportDetailPage = () => {
                                                     className="child-task-item"
                                                     key={childIndex}
                                                 >
-                                                    {child.childTaskName !==
-                                                        '' && (
-                                                        <div className="child-task-title">
-                                                            <span className="bullet">
-                                                                &bull;
+                                                    <div className="d-flex align-items-center justify-content-between flex-wrap gap-2">
+                                                        {child.childTaskName !== '' ? (
+                                                            <div className="child-task-title">
+                                                                <span className="bullet">
+                                                                    &bull;
+                                                                </span>
+                                                                <span>
+                                                                    {
+                                                                        child.childTaskName
+                                                                    }
+                                                                </span>
+                                                            </div>
+                                                        ) : (
+                                                            <div />
+                                                        )}
+                                                        {child.status && (
+                                                            <span
+                                                                className={`progress-report-status ${child.status}`}
+                                                                style={{ fontSize: '11px', padding: '1px 8px' }}
+                                                            >
+                                                                {child.status === 'selesai' ? 'Selesai' : 'Pending'}
                                                             </span>
-                                                            <span>
-                                                                {
-                                                                    child.childTaskName
-                                                                }
-                                                            </span>
-                                                        </div>
-                                                    )}
+                                                        )}
+                                                    </div>
 
                                                     {child.notes.length >
                                                         0 && (

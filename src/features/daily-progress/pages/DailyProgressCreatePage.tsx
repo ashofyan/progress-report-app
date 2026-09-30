@@ -487,8 +487,14 @@ const DailyProgressCreatePage = () => {
                         await dailyProgressApi.getFormData({
                             client_code: clientCode,
                             tanggal: tanggal,
-                            bulan: periodeBulan,
-                            tahun: periodeTahun,
+                            bulan:
+                                typeof periodeBulan === 'number'
+                                    ? periodeBulan
+                                    : undefined,
+                            tahun:
+                                typeof periodeTahun === 'number'
+                                    ? periodeTahun
+                                    : undefined,
                         })
 
                     if (
@@ -496,10 +502,26 @@ const DailyProgressCreatePage = () => {
                         result.data !== undefined
                     ) {
                         setFormData(result.data)
-                        setSelectedSpkId('')
-                        setSelectedTasks([])
-                        setSelectedFindingIds([])
-                        setSelectedTemuanIds([])
+
+                        // Pertahankan pilihan SPK jika masih tersedia di periode baru
+                        setSelectedSpkId((prevSelectedSpkId) => {
+                            const stillExists =
+                                prevSelectedSpkId !== '' &&
+                                result.data!.spks.some(
+                                    (spk) => spk.spk_id === prevSelectedSpkId,
+                                )
+
+                            if (stillExists) {
+                                return prevSelectedSpkId
+                            }
+
+                            // Jika SPK sudah tidak ada di periode baru, reset SPK dan task
+                            setSelectedTasks([])
+                            setSelectedFindingIds([])
+                            setSelectedTemuanIds([])
+                            return ''
+                        })
+
                         setIsLoadingFormData(false)
                         return
                     }
@@ -521,6 +543,7 @@ const DailyProgressCreatePage = () => {
         clientCode,
         periodeBulan,
         periodeTahun,
+        tanggal,
     ])
 
     useEffect(() => {
@@ -643,11 +666,6 @@ const DailyProgressCreatePage = () => {
                 ? ''
                 : Number(event.target.value),
         )
-        setSelectedSpkId('')
-        setSelectedTasks([])
-        setSelectedFindingIds([])
-        setSelectedTemuanIds([])
-        setAdditionalTasks([])
     }
 
     const handlePeriodYearChange = (
@@ -658,11 +676,6 @@ const DailyProgressCreatePage = () => {
                 ? ''
                 : Number(event.target.value),
         )
-        setSelectedSpkId('')
-        setSelectedTasks([])
-        setSelectedFindingIds([])
-        setSelectedTemuanIds([])
-        setAdditionalTasks([])
     }
 
     const handleSpkChange = (

@@ -174,14 +174,14 @@ const DailyProgressBoard = () => {
                                         progress,
                                     ) =>
                                         navigate(
-                                            `/daily-progress/${progress.id}`,
+                                            `/daily-progress/${progress.id}/edit`,
                                         )
                                     }
                                     onEditForm={(
                                         progress,
                                     ) =>
                                         navigate(
-                                            `/daily-progress/${progress.id}/edit`,
+                                            `/daily-progress/${progress.id}/edit-form`,
                                         )
                                     }
                                     onDelete={

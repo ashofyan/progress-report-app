@@ -26,12 +26,22 @@ const AppSidebar = ({ isOpen = false, onClose }: AppSidebarProps) => {
         setIsRepresentativeLetterOpen,
     ] = useState<boolean>(isRepresentativeLetterActive)
 
+    const isToolsActive =
+        location.pathname.startsWith('/notes')
+
+    const [isToolsOpen, setIsToolsOpen] =
+        useState<boolean>(isToolsActive)
+
     const handleToggleMasterData = (): void => {
         setIsMasterDataOpen((previous) => !previous)
     }
 
     const handleToggleRepresentativeLetter = (): void => {
         setIsRepresentativeLetterOpen((previous) => !previous)
+    }
+
+    const handleToggleTools = (): void => {
+        setIsToolsOpen((previous) => !previous)
     }
 
     const handleLinkClick = (): void => {
@@ -211,6 +221,47 @@ const AppSidebar = ({ isOpen = false, onClose }: AppSidebarProps) => {
                                 }
                             >
                                 Header Kop Surat
+                            </NavLink>
+                        </div>
+                    )}
+                </div>
+
+                <div className="app-sidebar-group">
+                    <button
+                        type="button"
+                        className={`app-sidebar-link app-sidebar-button ${
+                            isToolsActive
+                                ? 'active'
+                                : ''
+                        }`}
+                        onClick={handleToggleTools}
+                    >
+                        <div className="app-sidebar-link-content">
+                            <i className="bi bi-tools" />
+                            <span>Tools</span>
+                        </div>
+
+                        <i
+                            className={`bi ${
+                                isToolsOpen
+                                    ? 'bi-chevron-down'
+                                    : 'bi-chevron-right'
+                            } app-sidebar-arrow`}
+                        />
+                    </button>
+
+                    {isToolsOpen && (
+                        <div className="app-sidebar-submenu">
+                            <NavLink
+                                to="/notes"
+                                onClick={handleLinkClick}
+                                className={({ isActive }) =>
+                                    `app-sidebar-submenu-link ${
+                                        isActive ? 'active' : ''
+                                    }`
+                                }
+                            >
+                                Notes
                             </NavLink>
                         </div>
                     )}

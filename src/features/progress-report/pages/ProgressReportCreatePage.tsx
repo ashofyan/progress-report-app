@@ -22,6 +22,7 @@ import type {
     ProgressReportSourceType,
     ProgressReportFormTask,
     ProgressReportHistory,
+    ProgressReportStatus,
 } from '@/features/progress-report/types/progress-report.types'
 
 import '@/features/additional-task/styles/additional-task.scss'
@@ -38,6 +39,7 @@ interface GeneralNoteForm extends NoteForm {
 
 interface SelectedDetail {
     isSelected: boolean
+    status: ProgressReportStatus
 }
 
 interface FindingForm {
@@ -71,7 +73,8 @@ const steps: Array<{
     },
 ]
 
-const statusLabels = {
+const statusLabels: Record<string, string> = {
+    open: 'Open',
     pending: 'Pending',
     selesai: 'Selesai',
 }
@@ -102,6 +105,21 @@ const getYearFromDate = (date: string): number => {
     return Number(date.slice(0, 4))
 }
 
+const monthOptions = [
+    { value: 1, label: 'Januari' },
+    { value: 2, label: 'Februari' },
+    { value: 3, label: 'Maret' },
+    { value: 4, label: 'April' },
+    { value: 5, label: 'Mei' },
+    { value: 6, label: 'Juni' },
+    { value: 7, label: 'Juli' },
+    { value: 8, label: 'Agustus' },
+    { value: 9, label: 'September' },
+    { value: 10, label: 'Oktober' },
+    { value: 11, label: 'November' },
+    { value: 12, label: 'Desember' },
+]
+
 const getSpkLabel = (spk: DailyProgressFormSpk): string => {
     const description =
         spk.note ??
@@ -130,6 +148,11 @@ const getDefaultDetailState = (
 
     return {
         isSelected: !isLocked,
+        status:
+            task.default_progress_report_status ??
+            (task.daily_progress_status === 'pending'
+                ? 'pending'
+                : 'selesai'),
     }
 }
 
@@ -241,6 +264,12 @@ const ProgressReportCreatePage = () => {
     const [tanggal, setTanggal] =
         useState<string>(getToday())
 
+    const [periodeBulan, setPeriodeBulan] =
+        useState<number | ''>(getMonthFromDate(getToday()))
+
+    const [periodeTahun, setPeriodeTahun] =
+        useState<number | ''>(getYearFromDate(getToday()))
+
     const [clientCode, setClientCode] =
         useState<string>('')
 
@@ -305,6 +334,37 @@ const ProgressReportCreatePage = () => {
         spks,
     ])
 
+    const handleTanggalChange = (
+        event: ChangeEvent<HTMLInputElement>,
+    ): void => {
+        const nextDate = event.target.value
+        setTanggal(nextDate)
+
+        if (nextDate.trim() !== '') {
+            setPeriodeBulan(getMonthFromDate(nextDate))
+            setPeriodeTahun(getYearFromDate(nextDate))
+        }
+    }
+
+    const handlePeriodMonthChange = (
+        event: ChangeEvent<HTMLSelectElement>,
+    ): void => {
+        setPeriodeBulan(
+            event.target.value === ''
+                ? ''
+                : Number(event.target.value),
+        )
+        setSelectedSpkId('')
+    }
+
+    const handlePeriodYearChange = (
+        event: ChangeEvent<HTMLInputElement>,
+    ): void => {
+        const value = event.target.value
+        setPeriodeTahun(value === '' ? '' : Number(value))
+        setSelectedSpkId('')
+    }
+
     const handleClientSearch = useCallback(
         (query: string): void => {
             void searchClients(query)
@@ -323,12 +383,15 @@ const ProgressReportCreatePage = () => {
     useEffect(() => {
         if (
             clientCode.trim() === '' ||
-            tanggal === ''
+            tanggal === '' ||
+            periodeBulan === '' ||
+            periodeTahun === ''
         ) {
             queueMicrotask(() => {
                 setSpks([])
                 setSelectedSpkId('')
                 resetFormState()
+                setSpkErrorMessage(null)
             })
             return
         }
@@ -341,8 +404,8 @@ const ProgressReportCreatePage = () => {
                 const result =
                     await dailyProgressApi.getFormData({
                         client_code: clientCode,
-                        bulan: getMonthFromDate(tanggal),
-                        tahun: getYearFromDate(tanggal),
+                        bulan: Number(periodeBulan),
+                        tahun: Number(periodeTahun),
                     })
 
                 if (
@@ -367,6 +430,8 @@ const ProgressReportCreatePage = () => {
         })
     }, [
         clientCode,
+        periodeBulan,
+        periodeTahun,
         resetFormState,
         tanggal,
     ])
@@ -375,7 +440,9 @@ const ProgressReportCreatePage = () => {
         if (
             clientCode.trim() === '' ||
             selectedSpkId === '' ||
-            tanggal === ''
+            tanggal === '' ||
+            periodeBulan === '' ||
+            periodeTahun === ''
         ) {
             queueMicrotask(() => {
                 resetFormState()
@@ -394,6 +461,8 @@ const ProgressReportCreatePage = () => {
                             client_code: clientCode,
                             als_spk_id: selectedSpkId,
                             tanggal,
+                            bulan: Number(periodeBulan),
+                            tahun: Number(periodeTahun),
                         })
 
                     if (
@@ -447,6 +516,8 @@ const ProgressReportCreatePage = () => {
         })
     }, [
         clientCode,
+        periodeBulan,
+        periodeTahun,
         resetFormState,
         selectedSpkId,
         tanggal,
@@ -647,7 +718,7 @@ const ProgressReportCreatePage = () => {
 
         if (selectedDetails.length === 0) {
             setErrorMessage(
-                'Pilih minimal satu pekerjaan yang sudah selesai untuk dimasukkan ke Progress Report.',
+                'Pilih minimal satu pekerjaan Daily Progress untuk dimasukkan ke Progress Report.',
             )
             return false
         }
@@ -797,7 +868,7 @@ const ProgressReportCreatePage = () => {
                 payloadNotes.length === 0
                     ? undefined
                     : payloadNotes,
-            details: selectedDetails.map(({ task }) => {
+            details: selectedDetails.map(({ task, state }) => {
                 const detailNotes =
                     task.daily_progress_catatan &&
                     task.daily_progress_catatan.trim() !== ''
@@ -823,7 +894,7 @@ const ProgressReportCreatePage = () => {
                 return {
                     daily_progress_detail_id:
                         task.daily_progress_detail_id,
-                    status: 'selesai' as const,
+                    status: state.status,
                     ...(detailNotes ? { notes: detailNotes } : {}),
                     ...(detailDocuments ? { documents: detailDocuments } : {}),
                 }
@@ -1248,10 +1319,10 @@ const ProgressReportCreatePage = () => {
                 <div className="d-flex align-items-center justify-content-between mb-3 flex-wrap gap-2">
                     <div>
                         <h2 className="progress-report-section-title mb-1">
-                            Pilih Pekerjaan Daily Progress (Selesai)
+                            Pilih Pekerjaan Daily Progress
                         </h2>
                         <span className="text-muted" style={{ fontSize: '12px' }}>
-                            Checklist pekerjaan selesai dari Daily Progress yang akan dimasukkan ke nomor Progress Report ini
+                            Checklist pekerjaan Daily Progress (status pending maupun selesai) yang akan dimasukkan ke nomor Progress Report ini
                             {formData !== null && ` (${selectedCount}/${availableTasks.length} dipilih)`}.
                         </span>
                     </div>
@@ -1275,6 +1346,29 @@ const ProgressReportCreatePage = () => {
                         </div>
                     )}
                 </div>
+
+                {formData !== null && formData.daily_progress.length > 0 && (
+                    <div
+                        className="d-flex align-items-center gap-2 flex-wrap mb-3 p-2 rounded bg-light border"
+                        style={{ fontSize: '12px' }}
+                    >
+                        <i className="bi bi-clock-history text-primary" />
+                        <span className="fw-semibold text-secondary">
+                            Daily Progress Terkait:
+                        </span>
+                        {formData.daily_progress.map((dp) => (
+                            <span
+                                key={dp.id}
+                                className="badge bg-white text-dark border shadow-xs"
+                            >
+                                {dp.nomor}
+                                {dp.bulan && dp.tahun
+                                    ? ` (Periode ${dp.bulan}/${dp.tahun})`
+                                    : ''}
+                            </span>
+                        ))}
+                    </div>
+                )}
 
                 {selectedSpkId === '' && (
                     <div className="progress-report-state">
@@ -1300,7 +1394,7 @@ const ProgressReportCreatePage = () => {
                     !isLoadingForm &&
                     formData.tasks.length === 0 && (
                         <div className="progress-report-state">
-                            Tidak ada detail Daily Progress berstatus selesai pada tanggal ini.
+                            Tidak ada detail Daily Progress pada tanggal ini.
                         </div>
                     )}
 
@@ -1353,10 +1447,16 @@ const ProgressReportCreatePage = () => {
                                             {task.daily_progress_id}
                                         </span>
                                         <span>&bull;</span>
-                                        <span>
+                                        <span className="d-inline-flex align-items-center gap-1">
                                             Status DP:{' '}
-                                            <span className="badge bg-success-subtle text-success border border-success-subtle">
-                                                {task.daily_progress_status}
+                                            <span
+                                                className={`badge ${
+                                                    task.daily_progress_status === 'selesai'
+                                                        ? 'bg-success-subtle text-success border border-success-subtle'
+                                                        : 'bg-warning-subtle text-warning-emphasis border border-warning-subtle'
+                                                }`}
+                                            >
+                                                {statusLabels[task.daily_progress_status] ?? task.daily_progress_status}
                                             </span>
                                         </span>
                                     </div>
@@ -1373,9 +1473,57 @@ const ProgressReportCreatePage = () => {
                                             Sudah Dilaporkan
                                         </span>
                                     ) : state.isSelected ? (
-                                        <span className="progress-report-status selesai">
-                                            Selesai (Dipilih)
-                                        </span>
+                                        <div className="d-flex align-items-center gap-2">
+                                            <span
+                                                className="text-muted"
+                                                style={{ fontSize: '11px' }}
+                                            >
+                                                Status PR:
+                                            </span>
+                                            <select
+                                                className={`form-select form-select-sm fw-medium py-1 px-2 ${
+                                                    state.status === 'selesai'
+                                                        ? 'border-success text-success bg-success-subtle'
+                                                        : 'border-warning text-warning-emphasis bg-warning-subtle'
+                                                }`}
+                                                style={{
+                                                    fontSize: '11.5px',
+                                                    width: 'auto',
+                                                    minWidth: '95px',
+                                                }}
+                                                value={state.status}
+                                                onChange={(event) => {
+                                                    const newStatus =
+                                                        event.target
+                                                            .value as ProgressReportStatus
+                                                    updateDetailState(
+                                                        task,
+                                                        (curr) => ({
+                                                            ...curr,
+                                                            status: newStatus,
+                                                        }),
+                                                    )
+                                                }}
+                                                title="Pilih status pekerjaan untuk Progress Report"
+                                            >
+                                                {(
+                                                    task.allowed_progress_report_statuses &&
+                                                    task.allowed_progress_report_statuses
+                                                        .length > 0
+                                                        ? task.allowed_progress_report_statuses
+                                                        : (['pending', 'selesai'] as ProgressReportStatus[])
+                                                ).map((status) => (
+                                                    <option
+                                                        key={status}
+                                                        value={status}
+                                                    >
+                                                        {status === 'selesai'
+                                                            ? '✓ Selesai'
+                                                            : '⏳ Pending'}
+                                                    </option>
+                                                ))}
+                                            </select>
+                                        </div>
                                     ) : (
                                         <span className="badge bg-light text-muted border">
                                             Tidak Dipilih
@@ -1603,11 +1751,7 @@ const ProgressReportCreatePage = () => {
                                 type="date"
                                 className="form-control"
                                 value={tanggal}
-                                onChange={(event) =>
-                                    setTanggal(
-                                        event.target.value,
-                                    )
-                                }
+                                onChange={handleTanggalChange}
                             />
                         </div>
 
@@ -1632,7 +1776,44 @@ const ProgressReportCreatePage = () => {
                             />
                         </div>
 
-                        <div className="col-md-6">
+                        <div className="col-md-3">
+                            <label className="form-label">
+                                Periode Bulan
+                            </label>
+                            <select
+                                className="form-select"
+                                value={periodeBulan}
+                                onChange={handlePeriodMonthChange}
+                            >
+                                <option value="">
+                                    Pilih bulan
+                                </option>
+                                {monthOptions.map((month) => (
+                                    <option
+                                        key={month.value}
+                                        value={month.value}
+                                    >
+                                        {month.label}
+                                    </option>
+                                ))}
+                            </select>
+                        </div>
+
+                        <div className="col-md-3">
+                            <label className="form-label">
+                                Periode Tahun
+                            </label>
+                            <input
+                                type="number"
+                                className="form-control"
+                                min={2000}
+                                max={2100}
+                                value={periodeTahun}
+                                onChange={handlePeriodYearChange}
+                            />
+                        </div>
+
+                        <div className="col-12">
                             <label className="form-label">
                                 SPK
                             </label>
@@ -1641,6 +1822,8 @@ const ProgressReportCreatePage = () => {
                                 value={selectedSpkId}
                                 disabled={
                                     clientCode.trim() === '' ||
+                                    periodeBulan === '' ||
+                                    periodeTahun === '' ||
                                     isLoadingSpks ||
                                     spks.length === 0
                                 }

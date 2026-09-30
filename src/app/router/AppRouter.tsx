@@ -16,6 +16,9 @@ import DailyProgressCreatePage from '@/features/daily-progress/pages/DailyProgre
 import DailyProgressEditPage from '@/features/daily-progress/pages/DailyProgressEditPage'
 import DailyProgressPage from '@/features/daily-progress/pages/DailyProgressPage'
 import MasterJobPage from '@/features/master-job/pages/MasterJobPage'
+import NoteCreatePage from '@/features/notes/pages/NoteCreatePage'
+import NoteDetailPage from '@/features/notes/pages/NoteDetailPage'
+import NotesListPage from '@/features/notes/pages/NotesListPage'
 import ProgressReportCreatePage from '@/features/progress-report/pages/ProgressReportCreatePage'
 import ProgressReportDetailPage from '@/features/progress-report/pages/ProgressReportDetailPage'
 import ProgressReportPage from '@/features/progress-report/pages/ProgressReportPage'
@@ -170,6 +173,26 @@ const AppRouter = () => {
                     <Route
                         path="/representative-letter/:id"
                         element={<RepresentativeLetterEditorPage />}
+                    />
+
+                    <Route
+                        path="/notes"
+                        element={<NotesListPage />}
+                    />
+
+                    <Route
+                        path="/notes/tambah"
+                        element={<NoteCreatePage />}
+                    />
+
+                    <Route
+                        path="/notes/create"
+                        element={<Navigate to="/notes/tambah" replace />}
+                    />
+
+                    <Route
+                        path="/notes/:id"
+                        element={<NoteDetailPage />}
                     />
                 </Route>
 

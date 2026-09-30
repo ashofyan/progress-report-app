@@ -437,7 +437,7 @@ $sidebar-width: 250px;
 }
 
 /* ================================
- * Backdrop for mobile
+ * Backdrop for mobile / drawer
  * ================================ */
 
 .app-sidebar-backdrop {
@@ -452,6 +452,38 @@ $sidebar-width: 250px;
   &.show {
     opacity: 1;
     visibility: visible;
+  }
+}
+
+/* ================================
+ * No Sidebar / Notes Mode
+ * ================================ */
+
+.dashboard-layout.no-sidebar {
+  .app-sidebar {
+    top: 0;
+    z-index: 1050;
+    width: 270px;
+    transform: translateX(-100%);
+    box-shadow: 4px 0 24px rgba(0, 0, 0, 0.12);
+
+    &.open {
+      transform: translateX(0);
+    }
+  }
+
+  .app-sidebar-header-mobile {
+    display: flex;
+  }
+
+  .dashboard-content {
+    width: 100%;
+    margin-left: 0;
+    padding: 0;
+  }
+
+  .app-header-menu-toggle {
+    display: flex;
   }
 }
 

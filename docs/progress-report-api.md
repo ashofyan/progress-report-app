@@ -6,13 +6,13 @@ Dokumen ini menjelaskan endpoint Progress Report yang terdaftar pada `routes/api
 
 Bagian ini merangkum perubahan kontrak Progress Report dibanding dokumentasi sebelumnya:
 
-1. **Penyelesaian Pekerjaan**: Semua penyelesaian pekerjaan dilakukan di Daily Progress (DP). Progress Report (PR) hanya mengambil pekerjaan yang **sudah berstatus selesai** di DP.
-2. **Checklist Pekerjaan dari DP**: Di Frontend, user cukup menchecklist task yang sudah selesai di Daily Progress. Request `details` mendukung format ringkas checklist:
+1. **Pekerjaan dari Daily Progress**: Task Daily Progress baik yang berstatus `selesai` maupun `pending` (belum selesai) ditampilkan pada form-data dan dapat dimasukkan ke Progress Report sebagai laporan pekerjaan. (Nantinya pada Representative Letter / RL, hanya pekerjaan Progress Report yang berstatus `selesai` yang akan ditampilkan).
+2. **Checklist Pekerjaan dari DP**: Di Frontend, user dapat menchecklist task dari Daily Progress (baik status `pending` maupun `selesai`). Request `details` mendukung format ringkas checklist:
    - Array of IDs: `details: [500, 501]` atau `daily_progress_detail_ids: [500, 501]`
    - Array of Objects: `details: [{ "daily_progress_detail_id": 500 }, ...]`
-3. **Status Detail PR**: Detail yang masuk ke PR otomatis berstatus `selesai`. Field `status` pada `details.*.status` bersifat opsional (jika dikirim harus `selesai`).
-4. **Validasi Status DP**: Jika frontend mengirimkan ID detail Daily Progress yang statusnya masih `open` atau `pending`, sistem akan menolak dengan error `422 Unprocessable Entity`.
-5. **Tidak Ada Mutasi Status ke DP**: Karena pekerjaan sudah difinalisasi sebagai `selesai` di Daily Progress, Progress Report tidak mengubah status pada Daily Progress.
+3. **Status Detail PR**: Field `status` pada `details.*.status` bersifat opsional dan mengizinkan status `pending` atau `selesai`. Jika tidak dikirim, otomatis mengikuti status Daily Progress Detail bersangkutan.
+4. **Dukungan Status DP Pending**: Detail Daily Progress dengan status `pending` tidak lagi ditolak dan dapat masuk ke Progress Report.
+5. **Tidak Ada Mutasi Status ke DP**: Progress Report tidak mengubah status pada Daily Progress asalnya.
 6. `POST /api/progress-report` tidak lagi memakai field `catatan` tunggal pada header. Catatan umum dikirim melalui array `notes`.
 7. Catatan per pekerjaan dikirim melalui array `details.*.notes` (opsional).
 8. Response Progress Report mengembalikan `notes` dan `documents` pada level header.
@@ -24,7 +24,10 @@ Bagian ini merangkum perubahan kontrak Progress Report dibanding dokumentasi seb
 14. Endpoint delete dokumen menghapus metadata dokumen dari database tenant dan menghapus file fisik dari disk `public` jika file masih ada.
 15. Temuan `master` wajib memilih `als_job_task_id` dari root/master task pekerjaan SPK.
 16. Response temuan mengembalikan object `master_task` dan `additional_task`.
-17. **Dokumen Hasil Pekerjaan dari DP (`tasks[].documents`)**: Pada response `GET /api/progress-report/form-data`, setiap item pada `tasks[]` menyertakan array `documents` berisi dokumen-dokumen pendukung dari Daily Progress Detail yang telah selesai dikerjakan.
+17. **Dokumen Hasil Pekerjaan dari DP (`tasks[].documents`)**: Pada response `GET /api/progress-report/form-data`, setiap item pada `tasks[]` menyertakan array `documents` berisi dokumen-dokumen pendukung dari Daily Progress Detail.
+18. **Payload Periode Bulan dan Tahun pada Form Data**: Endpoint `GET /api/progress-report/form-data` mendukung query parameter opsional `bulan` (`1` sampai `12`) dan `tahun` (`2000` sampai `2100`) untuk memfilter Daily Progress spesifik ke periode tertentu jika pada tanggal tersebut terdapat Daily Progress dengan periode bulan/tahun yang berbeda.
+19. **Field Periode pada Response Form Data**: Response root `GET /api/progress-report/form-data` mengembalikan field `bulan` dan `tahun`, dan setiap item di `daily_progress[]` juga menyertakan field `bulan` dan `tahun`.
+20. **Status Task Dinamis pada Form Data**: Pada response `GET /api/progress-report/form-data`, properti `tasks[].allowed_progress_report_statuses` bernilai `["pending", "selesai"]`, dan `tasks[].default_progress_report_status` bernilai dinamis sesuai status Daily Progress Detail (`selesai` jika DP selesai, `pending` jika DP pending).
 
 ```php
 Route::prefix('progress-report')->group(function () {
@@ -82,10 +85,10 @@ Authorization: Bearer {token}
 
 | Method | Endpoint | Deskripsi |
 | --- | --- | --- |
-| `GET` | `/api/progress-report/form-data` | Mengambil data pendukung form Progress Report berdasarkan client, SPK, dan tanggal. Hanya menampilkan task DP yang sudah berstatus `selesai`. |
+| `GET` | `/api/progress-report/form-data` | Mengambil data pendukung form Progress Report berdasarkan client, SPK, dan tanggal (serta opsional bulan dan tahun periode DP). Menampilkan task DP (status pending maupun selesai). |
 | `GET` | `/api/progress-report` | Mengambil daftar Progress Report milik user login. |
 | `GET` | `/api/progress-report/history` | Mengambil riwayat Progress Report untuk satu master task atau Additional Task. |
-| `POST` | `/api/progress-report` | Membuat Progress Report dari task Daily Progress yang sudah checklist selesai. |
+| `POST` | `/api/progress-report` | Membuat Progress Report dari task Daily Progress (checklist pending maupun selesai). |
 | `GET` | `/api/progress-report/{progressReport}` | Mengambil detail Progress Report berdasarkan ID. |
 | `POST` | `/api/progress-report/{progressReport}/documents` | Upload dokumen umum Progress Report. |
 | `DELETE` | `/api/progress-report/{progressReport}/documents/{document}` | Menghapus satu dokumen umum Progress Report. |
@@ -115,7 +118,7 @@ PR-YYYYMMDD-0001
 
 Contoh: `PR-20260819-0001`.
 
-Satu Progress Report dibuat untuk kombinasi SPK, master pekerjaan, client, tanggal, dan user login. Detail Progress Report selalu berasal dari `als_daily_progress_details` yang telah selesai.
+Satu Progress Report dibuat untuk kombinasi SPK, master pekerjaan, client, tanggal, dan user login. Detail Progress Report berasal dari `als_daily_progress_details` (baik yang berstatus `selesai` maupun `pending`).
 
 ## Status Detail
 
@@ -123,14 +126,14 @@ Status detail Progress Report:
 
 | Status | Keterangan |
 | --- | --- |
-| `selesai` | Pekerjaan telah selesai dikerjakan pada Daily Progress dan dimasukkan ke Progress Report. |
+| `selesai` | Pekerjaan telah selesai dikerjakan pada Daily Progress atau ditandai selesai pada Progress Report. |
+| `pending` | Pekerjaan belum selesai pada Daily Progress atau ditandai pending pada Progress Report sebagai laporan pekerjaan berjalan. |
 
 Aturan status:
 
-1. Semua penyelesaian pekerjaan dilakukan di **Daily Progress**.
-2. Progress Report hanya mengambil data detail Daily Progress yang **berstatus `selesai`**.
-3. Detail Daily Progress yang masih `open` atau `pending` tidak dapat dimasukkan ke Progress Report.
-4. Detail yang masuk ke Progress Report otomatis disimpan dengan status `selesai`.
+1. Detail Daily Progress baik yang berstatus `selesai` maupun `pending` dapat dimasukkan ke Progress Report.
+2. Field `status` pada request pembuatan detail Progress Report bersifat opsional. Jika tidak diisi, status akan otomatis mengikuti status dari Daily Progress Detail asalnya.
+3. Pada tahap Representative Letter (RL), sistem hanya akan memuat pekerjaan Progress Report yang berstatus `selesai`.
 
 ## Sumber Temuan
 
@@ -310,14 +313,14 @@ Status: `401 Unauthorized`
 
 ## GET /api/progress-report/form-data
 
-Endpoint untuk mengambil data pendukung form Progress Report berdasarkan client, SPK, dan tanggal yang dipilih.
+Endpoint untuk mengambil data pendukung form Progress Report berdasarkan client, SPK, dan tanggal yang dipilih (serta opsional filter periode bulan dan tahun).
 
 Data yang dikembalikan:
 
 1. Informasi employee dari Progress Token.
 2. Informasi SPK dan master job.
-3. Daftar Daily Progress pada tanggal tersebut.
-4. Daftar detail Daily Progress yang **hanya berstatus selesai** (`selesai`) dan siap dichecklist untuk dimasukkan ke nomor PR.
+3. Daftar Daily Progress pada tanggal (dan periode bulan/tahun jika difilter) tersebut, dilengkapi field `bulan` dan `tahun`.
+4. Daftar detail Daily Progress (baik status `selesai` maupun `pending`) yang siap dichecklist untuk dimasukkan ke nomor PR.
 5. Pilihan sumber temuan, yaitu root/master task pekerjaan dan Additional Task.
 6. Flag `is_already_reported` serta riwayat Progress Report yang sudah pernah dibuat untuk setiap detail Daily Progress.
 
@@ -328,11 +331,13 @@ Data yang dikembalikan:
 | `client_code` | string | Ya | Kode client yang dipilih. |
 | `als_spk_id` | integer | Ya | ID SPK yang dipilih. User login harus terdaftar pada team SPK tersebut. |
 | `tanggal` | date | Ya | Tanggal Progress Report, format `YYYY-MM-DD`. |
+| `bulan` | integer | Tidak | Bulan periode Daily Progress (`1` sampai `12`). Opsional, gunakan jika pada tanggal tersebut terdapat DP dari periode bulan yang berbeda. |
+| `tahun` | integer | Tidak | Tahun periode Daily Progress (`2000` sampai `2100`). Opsional, gunakan jika pada tanggal tersebut terdapat DP dari periode tahun yang berbeda. |
 
 ### Request
 
 ```http
-GET /api/progress-report/form-data?client_code=CLIENT-001&als_spk_id=10&tanggal=2026-08-19
+GET /api/progress-report/form-data?client_code=CLIENT-001&als_spk_id=10&tanggal=2026-08-19&bulan=8&tahun=2026
 Accept: application/json
 Authorization: Bearer {token}
 ```
@@ -347,6 +352,8 @@ Status: `200 OK`
   "message": "Data form Progress Report berhasil diambil.",
   "data": {
     "tanggal": "2026-08-19",
+    "bulan": 8,
+    "tahun": 2026,
     "client_code": "CLIENT-001",
     "employee": {
       "employee_code": "EMP001",
@@ -377,7 +384,9 @@ Status: `200 OK`
         "tanggal": "2026-08-19",
         "client_code": "CLIENT-001",
         "als_spk_id": 10,
-        "no_spk": "SPK-001"
+        "no_spk": "SPK-001",
+        "bulan": 8,
+        "tahun": 2026
       }
     ],
     "tasks": [
@@ -397,6 +406,7 @@ Status: `200 OK`
         "daily_progress_status": "selesai",
         "daily_progress_catatan": "Pekerjaan selesai di lapangan",
         "allowed_progress_report_statuses": [
+          "pending",
           "selesai"
         ],
         "default_progress_report_status": "selesai",
@@ -414,6 +424,27 @@ Status: `200 OK`
             "updated_at": "2026-08-19T03:00:00.000000Z"
           }
         ]
+      },
+      {
+        "daily_progress_detail_id": 501,
+        "daily_progress_id": 50,
+        "als_job_id": 5,
+        "source_type": "additional",
+        "task": {
+          "id": 30,
+          "task_name": "Perbaikan drainase",
+          "parent": null
+        },
+        "daily_progress_status": "pending",
+        "daily_progress_catatan": "Pekerjaan masih berjalan",
+        "allowed_progress_report_statuses": [
+          "pending",
+          "selesai"
+        ],
+        "default_progress_report_status": "pending",
+        "is_already_reported": false,
+        "history": [],
+        "documents": []
       }
     ],
     "finding_sources": {
@@ -435,7 +466,7 @@ Status: `200 OK`
 }
 ```
 
-Pada response form-data, `tasks` hanya berisi detail yang telah diselesaikan pada Daily Progress (`daily_progress_status = "selesai"`) dan menyertakan dokumen pendukung Daily Progress jika ada.
+Pada response form-data, `tasks` berisi detail pekerjaan Daily Progress baik yang sudah selesai (`daily_progress_status = "selesai"`) maupun masih berjalan (`daily_progress_status = "pending"`), dan menyertakan dokumen pendukung Daily Progress jika ada.
 
 ### Response Error
 
@@ -526,14 +557,14 @@ Status: `200 OK`
 
 ## POST /api/progress-report
 
-Endpoint untuk membuat Progress Report dari detail pekerjaan Daily Progress yang **sudah selesai**.
+Endpoint untuk membuat Progress Report dari detail pekerjaan Daily Progress (baik yang sudah selesai maupun masih pending).
 
 Frontend dapat mengirim data task dalam bentuk checklist ID sederhana maupun object detail:
 - `details: [500, 501]` (array of integer ID)
 - `daily_progress_detail_ids: [500, 501]` (alias array of integer ID)
 - `details: [{ "daily_progress_detail_id": 500, ... }]` (array of object)
 
-Semua detail yang terpilih otomatis disimpan dengan status `selesai` pada Progress Report.
+Jika status tidak dikirim pada objek detail, sistem akan otomatis menggunakan status dari Daily Progress Detail asalnya.
 
 ### Body Parameter
 
@@ -545,9 +576,9 @@ Semua detail yang terpilih otomatis disimpan dengan status `selesai` pada Progre
 | `notes` | array | Tidak | Daftar catatan umum Progress Report. |
 | `notes.*.judul` | string | Tidak | Judul catatan umum. Maksimal 256 karakter. |
 | `notes.*.catatan` | string | Ya jika `notes` dikirim | Isi catatan umum Progress Report. |
-| `details` | array | Ya | Minimal satu detail Daily Progress yang sudah checklist selesai. Dapat berupa array of integer `[500, 501]` atau array of object. |
-| `details.*.daily_progress_detail_id` | integer | Ya jika dikirim object | ID detail Daily Progress yang sudah berstatus `selesai`. |
-| `details.*.status` | string | Tidak | Opsional. Jika dikirim, harus bernilai `selesai`. |
+| `details` | array | Ya | Minimal satu detail Daily Progress yang dichecklist. Dapat berupa array of integer `[500, 501]` atau array of object. |
+| `details.*.daily_progress_detail_id` | integer | Ya jika dikirim object | ID detail Daily Progress. |
+| `details.*.status` | string | Tidak | Opsional. Bernilai `pending` atau `selesai`. Jika tidak dikirim, otomatis mengikuti status pada Daily Progress Detail asalnya. |
 | `details.*.notes` | array | Tidak | Daftar catatan per pekerjaan (opsional). |
 | `details.*.notes.*.catatan` | string | Ya jika `details.*.notes` dikirim | Isi catatan pekerjaan. |
 | `details.*.documents` | array | Tidak | Daftar dokumen lampiran hasil pekerjaan dari Daily Progress (opsional). |
@@ -716,14 +747,18 @@ Status: `201 Created`
 
 ### Response Error
 
-Jika Daily Progress Detail yang dipilih belum selesai di DP:
+Validasi gagal (misalnya status pekerjaan tidak valid):
 
 Status: `422 Unprocessable Entity`
 
 ```json
 {
-  "status": false,
-  "message": "Daily Progress Detail #500 belum selesai. Hanya pekerjaan yang sudah berstatus selesai di Daily Progress yang dapat dimasukkan ke Progress Report."
+  "message": "Status pekerjaan pada Progress Report tidak valid.",
+  "errors": {
+    "details.0.status": [
+      "Status pekerjaan pada Progress Report tidak valid."
+    ]
+  }
 }
 ```
 
@@ -737,7 +772,7 @@ Kemungkinan error lain:
 | `422` | `Terdapat Daily Progress Detail yang dipilih lebih dari satu kali.` |
 | `422` | `Daily Progress Detail tidak valid atau tidak sesuai dengan Progress Report.` |
 | `422` | `Daily Progress Detail #{id} sudah pernah masuk Progress Report.` |
-| `422` | `Status pekerjaan pada Progress Report harus selesai karena penyelesaian dilakukan pada Daily Progress.` |
+| `422` | `Status pekerjaan pada Progress Report tidak valid.` |
 | `422` | `Master Pekerjaan wajib dipilih untuk temuan.` |
 | `422` | `Master Pekerjaan untuk temuan tidak valid.` |
 | `422` | `Temuan Master Pekerjaan tidak boleh memiliki Task Tambahan.` |
@@ -1276,7 +1311,7 @@ curl -X GET "http://localhost:8000/api/progress-report?client_code=CLIENT-001&pe
 ### Form Data
 
 ```bash
-curl -X GET "http://localhost:8000/api/progress-report/form-data?client_code=CLIENT-001&als_spk_id=10&tanggal=2026-08-19" \
+curl -X GET "http://localhost:8000/api/progress-report/form-data?client_code=CLIENT-001&als_spk_id=10&tanggal=2026-08-19&bulan=8&tahun=2026" \
   -H "Accept: application/json" \
   -H "Authorization: Bearer {token}"
 ```
