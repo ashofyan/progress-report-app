@@ -1,5 +1,9 @@
 import type { MasterJob } from '@/features/master-job/types/master-job.types'
 
+export type AdditionalTaskType =
+    | 'custom'
+    | 'tambahan'
+
 export type AdditionalTaskStatus =
     | 'open'
     | 'pending'
@@ -10,6 +14,30 @@ export interface AdditionalTaskJob {
     id: number
     job_code: string
     description: string
+}
+
+export interface AdditionalTaskSpk {
+    id: number
+    no_spk: string
+    note?: string | null
+    kode_product_jasa?: string | null
+}
+
+export interface AdditionalTaskSpkOption {
+    id: number
+    no_spk: string
+    kode_klien: string
+    kode_product_jasa?: string | null
+    note?: string | null
+    job?: {
+        id: number
+        job_code: string
+        description: string
+        tasks: Array<{
+            id: number
+            task_name: string
+        }>
+    } | null
 }
 
 export interface AdditionalTaskItem {
@@ -24,11 +52,31 @@ export interface AdditionalTaskDetail {
     tasks: AdditionalTaskItem[]
 }
 
+export const PRIORITY_LABELS: Record<number, string> = {
+    1: 'P1 - Sangat Rendah',
+    2: 'P2 - Rendah',
+    3: 'P3 - Sedang',
+    4: 'P4 - Tinggi',
+    5: 'P5 - Kritis',
+}
+
+export const PRIORITY_OPTIONS: Array<{ value: number; label: string }> = [
+    { value: 1, label: 'P1 - Sangat Rendah' },
+    { value: 2, label: 'P2 - Rendah' },
+    { value: 3, label: 'P3 - Sedang' },
+    { value: 4, label: 'P4 - Tinggi' },
+    { value: 5, label: 'P5 - Kritis' },
+]
+
 export interface AdditionalTask {
     id: number
     nomor: string
     client_code: string
+    als_spk_id?: number | null
+    spk?: AdditionalTaskSpk | null
     job: AdditionalTaskJob
+    type?: AdditionalTaskType
+    priority?: number
     details: AdditionalTaskDetail[]
     created_by: string
     created_at: string
@@ -37,7 +85,10 @@ export interface AdditionalTask {
 
 export interface AdditionalTaskFilters {
     client_code?: string
+    als_spk_id?: number
     job_id?: number
+    type?: AdditionalTaskType
+    priority?: number
 }
 
 export interface CreateAdditionalTaskItemRequest {
@@ -62,13 +113,19 @@ export interface UpdateAdditionalTaskDetailRequest {
 
 export interface CreateAdditionalTaskRequest {
     client_code: string
+    als_spk_id: number
     job_id: number
+    type?: AdditionalTaskType
+    priority?: number
     details: CreateAdditionalTaskDetailRequest[]
 }
 
 export interface UpdateAdditionalTaskRequest {
     client_code: string
+    als_spk_id?: number
     job_id: number
+    type?: AdditionalTaskType
+    priority?: number
     details: UpdateAdditionalTaskDetailRequest[]
 }
 

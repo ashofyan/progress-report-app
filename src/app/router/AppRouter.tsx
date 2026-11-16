@@ -19,8 +19,12 @@ import MasterJobPage from '@/features/master-job/pages/MasterJobPage'
 import NoteCreatePage from '@/features/notes/pages/NoteCreatePage'
 import NoteDetailPage from '@/features/notes/pages/NoteDetailPage'
 import NotesListPage from '@/features/notes/pages/NotesListPage'
+import NotulenCreatePage from '@/features/notes/pages/NotulenCreatePage'
+import NotulenDetailPage from '@/features/notes/pages/NotulenDetailPage'
+import NotulenListPage from '@/features/notes/pages/NotulenListPage'
 import ProgressReportCreatePage from '@/features/progress-report/pages/ProgressReportCreatePage'
 import ProgressReportDetailPage from '@/features/progress-report/pages/ProgressReportDetailPage'
+import ProgressReportEditPage from '@/features/progress-report/pages/ProgressReportEditPage'
 import ProgressReportPage from '@/features/progress-report/pages/ProgressReportPage'
 import RepresentativeLetterCreatePage from '@/features/representative-letter/pages/RepresentativeLetterCreatePage'
 import RepresentativeLetterEditorPage from '@/features/representative-letter/pages/RepresentativeLetterEditorPage'
@@ -30,8 +34,10 @@ import SolusiFormPage from '@/features/solusi/pages/SolusiFormPage'
 import TemuanFormPage from '@/features/temuan/pages/TemuanFormPage'
 import TemuanPage from '@/features/temuan/pages/TemuanPage'
 
-import DashboardLayout from '@/layouts/dashboard/DashboardLayout'
 import UnderDevelopmentPage from '@/shared/components/UnderDevelopmentPage'
+
+import DashboardLayout from '@/layouts/dashboard/DashboardLayout'
+import DashboardPage from '@/pages/dashboard/DashboardPage'
 
 const AppRouter = () => {
     return (
@@ -64,10 +70,13 @@ const AppRouter = () => {
                     />
 
                     <Route
+                        path="/progress-report/:id/edit"
+                        element={<ProgressReportEditPage />}
+                    />
+
+                    <Route
                         path="/dashboard"
-                        element={
-                            <UnderDevelopmentPage title="Dashboard" />
-                        }
+                        element={<DashboardPage />}
                     />
 
                     <Route
@@ -76,13 +85,43 @@ const AppRouter = () => {
                     />
 
                     <Route
+                        path="/master-data/custom-pekerjaan"
+                        element={<AdditionalTaskPage defaultType="custom" />}
+                    />
+
+                    <Route
+                        path="/master-data/custom-pekerjaan/tambah"
+                        element={<AdditionalTaskCreatePage defaultType="custom" />}
+                    />
+
+                    <Route
+                        path="/data-legalitas"
+                        element={<UnderDevelopmentPage title="Data Perusahaan" />}
+                    />
+
+                    <Route
+                        path="/legalitas"
+                        element={<Navigate to="/data-legalitas" replace />}
+                    />
+
+                    <Route
+                        path="/pekerjaan-tambahan"
+                        element={<AdditionalTaskPage defaultType="tambahan" />}
+                    />
+
+                    <Route
+                        path="/pekerjaan-tambahan/tambah"
+                        element={<AdditionalTaskCreatePage defaultType="tambahan" />}
+                    />
+
+                    <Route
                         path="/master-data/task"
-                        element={<AdditionalTaskPage />}
+                        element={<Navigate to="/pekerjaan-tambahan" replace />}
                     />
 
                     <Route
                         path="/master-data/task/tambah"
-                        element={<AdditionalTaskCreatePage />}
+                        element={<Navigate to="/pekerjaan-tambahan/tambah" replace />}
                     />
 
                     <Route
@@ -123,6 +162,11 @@ const AppRouter = () => {
                     <Route
                         path="/progress-report/:id"
                         element={<ProgressReportDetailPage />}
+                    />
+
+                    <Route
+                        path="/progress-report/:id/edit"
+                        element={<ProgressReportEditPage />}
                     />
 
                     <Route
@@ -175,6 +219,7 @@ const AppRouter = () => {
                         element={<RepresentativeLetterEditorPage />}
                     />
 
+                    {/* Tools - Notes */}
                     <Route
                         path="/notes"
                         element={<NotesListPage />}
@@ -193,6 +238,27 @@ const AppRouter = () => {
                     <Route
                         path="/notes/:id"
                         element={<NoteDetailPage />}
+                    />
+
+                    {/* Tools - Notulen */}
+                    <Route
+                        path="/notulen"
+                        element={<NotulenListPage />}
+                    />
+
+                    <Route
+                        path="/notulen/tambah"
+                        element={<NotulenCreatePage />}
+                    />
+
+                    <Route
+                        path="/notulen/create"
+                        element={<Navigate to="/notulen/tambah" replace />}
+                    />
+
+                    <Route
+                        path="/notulen/:id"
+                        element={<NotulenDetailPage />}
                     />
                 </Route>
 

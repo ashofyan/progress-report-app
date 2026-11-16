@@ -1,165 +1,301 @@
 @use '@/styles/bootstrap-variables' as bootstrap;
 @use '@/styles/variables' as *;
 
+/* ==========================================================================
+   Daily Progress Feature Styles
+   Clean, modern, colorful design without gradients or heavy colored shadows.
+   Brand primary: $primary-color (#e64b38)
+   ========================================================================== */
+
 .daily-progress-page {
   width: 100%;
+  display: flex;
+  flex-direction: column;
+  min-height: calc(100vh - 92px);
 }
 
+/* --------------------------------------------------------------------------
+   Heading & Breadcrumbs
+   -------------------------------------------------------------------------- */
 .daily-progress-heading {
   display: flex;
   align-items: center;
   justify-content: space-between;
-
+  flex-wrap: wrap;
+  gap: 12px;
   margin-bottom: 14px;
 }
 
 .daily-progress-title {
   margin: 0;
+  color: #1e293b;
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: -0.015em;
+}
 
-  color: #374151;
-
-  font-size: 18px;
-  font-weight: 600;
-  letter-spacing: -0.01em;
+.daily-progress-subtitle {
+  margin: 3px 0 0;
+  color: #64748b;
+  font-size: 13px;
+  font-weight: 400;
 }
 
 .daily-progress-breadcrumb {
   display: flex;
   align-items: center;
-
   gap: 6px;
-
-  color: #6b7280;
-
+  color: #64748b;
   font-size: 12.5px;
+
+  span {
+    color: #94a3b8;
+  }
 
   .active {
     color: $primary-color;
-    font-weight: 500;
+    font-weight: 600;
   }
 }
 
+/* --------------------------------------------------------------------------
+   Layout & Summary Stats Grid
+   -------------------------------------------------------------------------- */
 .daily-progress-layout {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-
-  gap: 16px;
-}
-
-.daily-progress-board,
-.daily-progress-form-page,
-.daily-progress-pending-panel {
-  background-color: #ffffff;
-  border: 1px solid #edf0f4;
-  border-radius: 10px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
-}
-
-.daily-progress-board,
-.daily-progress-form-page {
-  min-height: calc(100vh - 135px);
-
-  padding: 16px 20px;
-}
-
-.daily-progress-board {
   display: flex;
   flex-direction: column;
+  gap: 14px;
+  flex: 1;
+}
+
+.daily-progress-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 12px;
+}
+
+.daily-progress-stat-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  background-color: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04);
+  transition: border-color 0.15s ease;
+
+  &:hover {
+    border-color: #cbd5e1;
+  }
+
+  .daily-progress-stat-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 38px;
+    height: 38px;
+    border-radius: 8px;
+    font-size: 18px;
+    flex-shrink: 0;
+  }
+
+  .daily-progress-stat-content {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+  }
+
+  .daily-progress-stat-label {
+    font-size: 12px;
+    font-weight: 500;
+    color: #64748b;
+    line-height: 1.2;
+    margin-bottom: 2px;
+  }
+
+  .daily-progress-stat-value {
+    font-size: 20px;
+    font-weight: 700;
+    color: #0f172a;
+    line-height: 1.2;
+  }
+
+  /* Semantic Theme Variations */
+  &.primary {
+    .daily-progress-stat-icon {
+      color: $primary-color;
+      background-color: #fef2f2;
+      border: 1px solid #fee2e2;
+    }
+  }
+
+  &.purple {
+    .daily-progress-stat-icon {
+      color: #7c3aed;
+      background-color: #f5f3ff;
+      border: 1px solid #ede9fe;
+    }
+  }
+
+  &.blue {
+    .daily-progress-stat-icon {
+      color: #2563eb;
+      background-color: #eff6ff;
+      border: 1px solid #dbeafe;
+    }
+  }
+
+  &.emerald {
+    .daily-progress-stat-icon {
+      color: #059669;
+      background-color: #ecfdf5;
+      border: 1px solid #d1fae5;
+    }
+  }
+}
+
+/* --------------------------------------------------------------------------
+   Board & Form Page Base
+   -------------------------------------------------------------------------- */
+.daily-progress-board {
+  background-color: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04);
+  padding: 16px 18px;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+}
+
+.daily-progress-form-page {
+  background-color: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04);
+  padding: 20px;
+  min-height: calc(100vh - 160px);
 }
 
 .daily-progress-board-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 14px;
+}
 
-  gap: 14px;
+.daily-progress-header-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1;
+  min-width: 260px;
+}
 
-  margin-bottom: 16px;
+.daily-progress-search {
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: 100%;
+  max-width: 320px;
+  height: 38px;
+  padding: 0 12px;
+  background-color: #ffffff;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  transition: all 0.15s ease;
+
+  i.bi-search {
+    margin-right: 8px;
+    color: #94a3b8;
+    font-size: 14px;
+    flex-shrink: 0;
+  }
+
+  input {
+    width: 100%;
+    padding: 0;
+    color: #1e293b;
+    background: transparent;
+    font-size: 13px;
+    border: 0;
+    outline: none;
+
+    &::placeholder {
+      color: #94a3b8;
+    }
+  }
+
+  .daily-progress-search-clear {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: transparent;
+    border: 0;
+    color: #94a3b8;
+    font-size: 14px;
+    padding: 0 2px;
+    cursor: pointer;
+    transition: color 0.15s ease;
+
+    &:hover {
+      color: #64748b;
+    }
+  }
+
+  &:focus-within {
+    border-color: $primary-color;
+    box-shadow: 0 0 0 3px rgba($primary-color, 0.12);
+
+    i.bi-search {
+      color: $primary-color;
+    }
+  }
+}
+
+.daily-progress-search-count {
+  font-size: 12px;
+  font-weight: 500;
+  color: #64748b;
+  background-color: #f1f5f9;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  padding: 3px 9px;
+  white-space: nowrap;
 }
 
 .daily-progress-header-actions {
   display: flex;
   align-items: center;
-
   gap: 8px;
-}
-
-.daily-progress-board-content {
-  flex: 1;
-}
-
-.daily-progress-search {
-  display: flex;
-  align-items: center;
-
-  width: 260px;
-  height: 36px;
-
-  padding: 0 12px;
-
-  background-color: #ffffff;
-
-  border: 1px solid #e2e4e9;
-  border-radius: 8px;
-  transition: border-color 0.15s ease, box-shadow 0.15s ease;
-
-  i {
-    margin-right: 8px;
-
-    color: #9ca3af;
-
-    font-size: 14px;
-  }
-
-  input {
-    width: 100%;
-
-    padding: 0;
-
-    color: #374151;
-    background: transparent;
-
-    font-size: 13px;
-
-    border: 0;
-    outline: none;
-
-    &::placeholder {
-      color: #9ca3af;
-    }
-  }
-
-  &:focus-within {
-    border-color: rgba($primary-color, 0.5);
-    box-shadow: 0 0 0 3px rgba($primary-color, 0.08);
-  }
 }
 
 .daily-progress-add-button {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-
-  min-width: 100px;
-  height: 36px;
-
+  height: 38px;
   gap: 6px;
-  padding: 0 14px;
-
+  padding: 0 16px;
   color: #ffffff;
-  background-color: #10b981;
-
+  background-color: $primary-color;
   font-size: 13px;
-  font-weight: 500;
-
+  font-weight: 600;
   border: 0;
   border-radius: 8px;
-
   cursor: pointer;
   transition: background-color 0.15s ease, transform 0.1s ease;
 
+  i {
+    font-size: 14px;
+    font-weight: 700;
+  }
+
   &:hover {
-    background-color: #059669;
+    background-color: #cc3b29;
   }
 
   &:active {
@@ -167,155 +303,344 @@
   }
 }
 
-.daily-progress-secondary-button {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
+.daily-progress-board-content {
+  flex: 1;
+}
 
-  min-width: 160px;
-  height: 36px;
-
-  gap: 6px;
-  padding: 0 14px;
-
-  color: #2563eb;
-  background-color: #eff6ff;
-
-  font-size: 13px;
-  font-weight: 500;
-
-  border: 1px solid #dbeafe;
+/* --------------------------------------------------------------------------
+   Table & Badges
+   -------------------------------------------------------------------------- */
+.daily-progress-table-container {
+  background-color: #ffffff;
+  border: 1px solid #e2e8f0;
   border-radius: 8px;
+  overflow: visible;
 
-  cursor: pointer;
-  transition: all 0.15s ease;
-
-  &:hover {
-    background-color: #dbeafe;
+  @media (max-width: 991px) {
+    overflow-x: auto;
   }
 }
 
 .daily-progress-table {
+  width: 100%;
   margin-bottom: 0;
-
   font-size: 13px;
+  border-collapse: separate;
+  border-spacing: 0;
 
   thead {
     th {
-      padding: 10px 12px;
-
-      color: #6b7280;
-      background-color: #f9fafb;
-
+      padding: 9px 12px;
+      color: #475569;
+      background-color: #f8fafc;
       font-size: 12px;
       font-weight: 600;
+      letter-spacing: 0.02em;
+      border-bottom: 1px solid #e2e8f0;
+      white-space: nowrap;
 
-      border-bottom: 1px solid #edf0f4;
+      &.th-nomor { width: 22%; }
+      &.th-tanggal { width: 13%; }
+      &.th-periode { width: 15%; }
+      &.th-client { width: 14%; }
+      &.th-spk { width: 18%; }
+      &.th-detail { width: 10%; }
+      &.th-aksi { width: 68px; text-align: center; }
     }
   }
 
   tbody {
     td {
-      padding: 11px 12px;
-
-      color: #374151;
-
+      padding: 9px 12px;
+      color: #334155;
       vertical-align: middle;
+      border-bottom: 1px solid #f1f5f9;
+      background-color: #ffffff;
+    }
 
-      border-bottom: 1px solid #f3f4f6;
+    tr:last-child td {
+      border-bottom: none;
     }
   }
 }
 
 .daily-progress-clickable-row {
   cursor: pointer;
+  transition: background-color 0.12s ease;
 
-  &:hover {
-    td {
-      background-color: #f9fafb;
-    }
+  &.menu-open {
+    position: relative;
+    z-index: 25;
+  }
+
+  &:hover td {
+    background-color: #f8fafc;
   }
 }
 
-.daily-progress-statuses {
+.daily-progress-nomor-wrapper {
   display: flex;
-  flex-wrap: wrap;
-
-  gap: 4px;
+  align-items: center;
+  gap: 6px;
 }
 
+.daily-progress-nomor {
+  font-weight: 600;
+  color: #0f172a;
+  letter-spacing: -0.01em;
+}
+
+.daily-progress-date {
+  color: #475569;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+/* Semantic Badges */
+.daily-progress-badge {
+  display: inline-flex;
+  align-items: center;
+  font-size: 11.5px;
+  font-weight: 500;
+  padding: 3px 8px;
+  border-radius: 6px;
+  white-space: nowrap;
+  line-height: 1.3;
+
+  &.periode {
+    color: #0369a1;
+    background-color: #f0f9ff;
+    border: 1px solid #bae6fd;
+  }
+
+  &.client {
+    color: #6d28d9;
+    background-color: #f5f3ff;
+    border: 1px solid #ddd6fe;
+  }
+
+  &.spk {
+    color: #475569;
+    background-color: #f1f5f9;
+    border: 1px solid #e2e8f0;
+    font-family: inherit;
+  }
+
+  &.tasks {
+    color: #047857;
+    background-color: #ecfdf5;
+    border: 1px solid #a7f3d0;
+    font-weight: 600;
+  }
+
+  &.temuan {
+    color: #b45309;
+    background-color: #fffbeb;
+    border: 1px solid #fde68a;
+    font-weight: 600;
+  }
+}
+
+/* Status Badges */
 .daily-progress-status {
   display: inline-flex;
   align-items: center;
-
+  gap: 4px;
   min-height: 22px;
-
   padding: 2px 8px;
-
   font-size: 11.5px;
-  font-weight: 500;
-
+  font-weight: 600;
   border-radius: 999px;
   border: 1px solid transparent;
+  white-space: nowrap;
 
   &.open {
     color: #1d4ed8;
     background-color: #eff6ff;
-    border-color: #dbeafe;
+    border-color: #bfdbfe;
   }
 
   &.pending {
     color: #b45309;
-    background-color: #fef3c7;
+    background-color: #fffbeb;
     border-color: #fde68a;
   }
 
   &.batal {
     color: #b91c1c;
-    background-color: #fee2e2;
+    background-color: #fef2f2;
     border-color: #fecaca;
   }
 
   &.selesai {
     color: #047857;
-    background-color: #d1fae5;
+    background-color: #ecfdf5;
     border-color: #a7f3d0;
   }
 }
 
+/* --------------------------------------------------------------------------
+   Action Buttons & Dropdown (Three Dots)
+   -------------------------------------------------------------------------- */
 .daily-progress-actions {
-  display: flex;
-  justify-content: center;
-
-  gap: 4px;
-}
-
-.daily-progress-action-button {
   display: flex;
   align-items: center;
   justify-content: center;
+  gap: 4px;
+}
 
+.daily-progress-action-dropdown {
+  position: relative;
+  display: inline-block;
+  text-align: center;
+
+  &.open {
+    z-index: 30;
+  }
+}
+
+.daily-progress-action-trigger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   width: 32px;
   height: 32px;
-
-  background: transparent;
-
-  border: 0;
+  background-color: #ffffff;
+  border: 1px solid #e2e8f0;
   border-radius: 6px;
-
+  color: #64748b;
   cursor: pointer;
-  transition: background-color 0.15s ease;
+  transition: all 0.15s ease;
 
   i {
-    font-size: 16px;
+    font-size: 15px;
     line-height: 1;
+  }
+
+  &:hover {
+    color: #0f172a;
+    background-color: #f8fafc;
+    border-color: #cbd5e1;
+  }
+
+  &.active {
+    color: $primary-color;
+    background-color: #fef2f2;
+    border-color: rgba($primary-color, 0.4);
+    box-shadow: 0 0 0 2px rgba($primary-color, 0.08);
+  }
+}
+
+.daily-progress-action-menu {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  z-index: 1050;
+  min-width: 210px;
+  padding: 6px;
+  background-color: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.08), 0 1px 3px rgba(15, 23, 42, 0.04);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  animation: dailyProgressMenuFadeIn 0.12s ease-out;
+
+  &.dropup {
+    top: auto;
+    bottom: calc(100% + 4px);
+  }
+}
+
+@keyframes dailyProgressMenuFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.daily-progress-action-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 8px 10px;
+  background: transparent;
+  border: 0;
+  border-radius: 6px;
+  color: #334155;
+  font-size: 12.5px;
+  font-weight: 500;
+  text-align: left;
+  cursor: pointer;
+  transition: all 0.12s ease;
+  white-space: nowrap;
+
+  i {
+    font-size: 14px;
+    flex-shrink: 0;
+  }
+
+  &:hover {
+    background-color: #f1f5f9;
+    color: #0f172a;
+  }
+
+  &.danger {
+    color: #e11d48;
+
+    &:hover {
+      background-color: #fff1f2;
+      color: #be123c;
+    }
+  }
+}
+
+.daily-progress-action-divider {
+  height: 1px;
+  background-color: #f1f5f9;
+  margin: 4px 0;
+}
+
+.daily-progress-action-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  background-color: transparent;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+
+  i {
+    font-size: 14px;
+    line-height: 1;
+  }
+
+  &.view {
+    color: #475569;
+
+    &:hover {
+      color: #0f172a;
+      background-color: #f1f5f9;
+      border-color: #e2e8f0;
+    }
   }
 
   &.edit {
     color: #d97706;
 
     &:hover {
-      background-color: #fef3c7;
+      color: #b45309;
+      background-color: #fffbeb;
+      border-color: #fde68a;
     }
   }
 
@@ -323,38 +648,67 @@
     color: #2563eb;
 
     &:hover {
+      color: #1d4ed8;
       background-color: #eff6ff;
+      border-color: #bfdbfe;
     }
   }
 
   &.delete {
-    color: #dc2626;
+    color: #e11d48;
 
     &:hover {
-      background-color: #fee2e2;
+      color: #be123c;
+      background-color: #fff1f2;
+      border-color: #fecdd3;
     }
   }
 }
 
+/* --------------------------------------------------------------------------
+   Loading & Empty States
+   -------------------------------------------------------------------------- */
 .daily-progress-loading,
 .daily-progress-empty {
   display: flex;
   align-items: center;
   justify-content: center;
   flex-direction: column;
-
-  min-height: 300px;
-
-  gap: 10px;
-
-  color: #9ca3af;
-
-  font-size: 13px;
+  min-height: 280px;
+  gap: 12px;
+  color: #64748b;
+  font-size: 13.5px;
 }
 
 .daily-progress-empty {
-  i {
-    font-size: 30px;
+  .daily-progress-empty-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    background-color: #f1f5f9;
+    color: #94a3b8;
+    font-size: 26px;
+  }
+
+  .daily-progress-empty-text {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    text-align: center;
+
+    strong {
+      color: #1e293b;
+      font-size: 14.5px;
+    }
+
+    span {
+      color: #64748b;
+      font-size: 12.5px;
+    }
   }
 }
 
@@ -362,69 +716,919 @@
   display: flex;
   align-items: center;
   flex-direction: column;
-
-  padding-top: 36px;
+  padding-top: 24px;
 }
 
+/* --------------------------------------------------------------------------
+   Pagination
+   -------------------------------------------------------------------------- */
 .daily-progress-pagination {
   display: flex;
   align-items: center;
-  justify-content: flex-end;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding-top: 12px;
+  margin-top: 12px;
+  border-top: 1px solid #f1f5f9;
+}
 
-  gap: 10px;
+.daily-progress-pagination-info {
+  font-size: 12.5px;
+  color: #64748b;
 
-  padding: 16px 12px 0 0;
+  strong {
+    color: #1e293b;
+  }
+}
+
+.daily-progress-pagination-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .daily-progress-page-info {
-  min-width: 55px;
-
-  color: #6b7280;
-
-  font-size: 12.5px;
-  text-align: center;
+  font-size: 12px;
+  font-weight: 500;
+  color: #475569;
+  padding: 0 4px;
 }
 
-.daily-progress-pending-panel {
-  padding: 14px 16px;
+/* --------------------------------------------------------------------------
+   Modals Base
+   -------------------------------------------------------------------------- */
+.daily-progress-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 2000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  background-color: rgba(15, 23, 42, 0.45);
+  backdrop-filter: blur(2px);
+}
 
-  align-self: start;
+.daily-progress-modal {
+  width: 100%;
+  max-width: 800px;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  background-color: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  box-shadow: 0 10px 25px -5px rgba(15, 23, 42, 0.1), 0 8px 10px -6px rgba(15, 23, 42, 0.05);
+  overflow: hidden;
+}
+
+.daily-progress-delete-modal {
+  width: 100%;
+  max-width: 440px;
+  background-color: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  box-shadow: 0 10px 25px -5px rgba(15, 23, 42, 0.1), 0 8px 10px -6px rgba(15, 23, 42, 0.05);
+  overflow: hidden;
+}
+
+.daily-progress-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  background-color: #ffffff;
+  border-bottom: 1px solid #e2e8f0;
+
+  h2 {
+    margin: 0;
+    color: #0f172a;
+    font-size: 16px;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+  }
+
+  .daily-progress-modal-doc-id {
+    display: inline-block;
+    font-size: 12px;
+    font-weight: 600;
+    color: $primary-color;
+  }
+}
+
+.daily-progress-modal-icon-badge {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 8px;
+  color: $primary-color;
+  background-color: #fef2f2;
+  border: 1px solid #fee2e2;
+  font-size: 18px;
+}
+
+.daily-progress-modal-close {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  color: #64748b;
+  background: transparent;
+  border: 0;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+
+  &:hover {
+    color: #0f172a;
+    background-color: #f1f5f9;
+  }
+}
+
+.daily-progress-modal-body {
+  padding: 20px;
+  overflow-y: auto;
+  max-height: calc(90vh - 130px);
+}
+
+.daily-progress-modal-footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  padding: 14px 20px;
+  background-color: #f8fafc;
+  border-top: 1px solid #e2e8f0;
+}
+
+/* --------------------------------------------------------------------------
+   Detail Modal Specifics
+   -------------------------------------------------------------------------- */
+.daily-progress-detail-info-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 12px;
+}
+
+.daily-progress-info-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  background-color: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+
+  .daily-progress-info-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
+    font-size: 16px;
+    flex-shrink: 0;
+
+    &.purple {
+      color: #7c3aed;
+      background-color: #f5f3ff;
+      border: 1px solid #ddd6fe;
+    }
+
+    &.blue {
+      color: #2563eb;
+      background-color: #eff6ff;
+      border: 1px solid #bfdbfe;
+    }
+
+    &.cyan {
+      color: #0891b2;
+      background-color: #ecfeff;
+      border: 1px solid #a5f3fc;
+    }
+
+    &.primary {
+      color: $primary-color;
+      background-color: #fef2f2;
+      border: 1px solid #fecaca;
+    }
+  }
+
+  .daily-progress-info-meta {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+
+    .label {
+      font-size: 11px;
+      font-weight: 500;
+      color: #64748b;
+      margin-bottom: 1px;
+    }
+
+    .value {
+      font-size: 13px;
+      font-weight: 600;
+      color: #0f172a;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .sub {
+      font-size: 11px;
+      color: #64748b;
+    }
+  }
+}
+
+.daily-progress-detail-tabs {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px;
+  background-color: #f1f5f9;
+  border-radius: 8px;
+  width: fit-content;
+}
+
+.daily-progress-detail-tab {
+  display: inline-flex;
+  align-items: center;
+  padding: 6px 14px;
+  font-size: 12.5px;
+  font-weight: 500;
+  color: #64748b;
+  background: transparent;
+  border: 0;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+
+  .count-pill {
+    margin-left: 6px;
+    padding: 1px 6px;
+    font-size: 11px;
+    font-weight: 600;
+    color: #475569;
+    background-color: #e2e8f0;
+    border-radius: 999px;
+
+    &.alert {
+      color: #b45309;
+      background-color: #fef3c7;
+    }
+  }
+
+  &.active {
+    color: #0f172a;
+    background-color: #ffffff;
+    font-weight: 600;
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05);
+
+    .count-pill {
+      background-color: #f1f5f9;
+    }
+  }
+}
+
+.daily-progress-modal-table-wrap {
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.daily-progress-modal-table {
+  width: 100%;
+  font-size: 12.5px;
+
+  thead th {
+    background-color: #f8fafc;
+    color: #475569;
+    font-weight: 600;
+    padding: 9px 12px;
+    border-bottom: 1px solid #e2e8f0;
+  }
+
+  tbody td {
+    padding: 10px 12px;
+    vertical-align: middle;
+    border-bottom: 1px solid #f1f5f9;
+  }
+
+  tbody tr:last-child td {
+    border-bottom: none;
+  }
+}
+
+.daily-progress-parent-task {
+  font-size: 11px;
+  color: #64748b;
+  margin-bottom: 1px;
+}
+
+.daily-progress-task-name {
+  font-weight: 600;
+  color: #1e293b;
+}
+
+.daily-progress-note-callout {
+  display: flex;
+  align-items: flex-start;
+  padding: 6px 10px;
+  background-color: #f8fafc;
+  border-left: 3px solid #3b82f6;
+  border-radius: 4px;
+  font-size: 12px;
+  line-height: 1.4;
+  color: #1e293b;
+
+  i {
+    color: #2563eb;
+    margin-top: 1px;
+    flex-shrink: 0;
+  }
+}
+
+.daily-progress-temuan-card {
+  padding: 12px 14px;
+  background-color: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  transition: border-color 0.15s ease;
+
+  &.global {
+    border-left: 3px solid #e11d48;
+  }
+
+  &.pr {
+    border-left: 3px solid #0891b2;
+  }
+
+  .daily-progress-temuan-tag {
+    font-size: 11px;
+    font-weight: 600;
+    padding: 2px 7px;
+    border-radius: 4px;
+
+    &.global {
+      color: #e11d48;
+      background-color: #fff1f2;
+    }
+
+    &.pr {
+      color: #0891b2;
+      background-color: #ecfeff;
+    }
+  }
+
+  .daily-progress-temuan-notes {
+    font-size: 12px;
+    color: #475569;
+    margin-top: 4px;
+  }
+
+  .daily-progress-finding-desc {
+    font-size: 12.5px;
+    color: #334155;
+    margin-top: 4px;
+  }
+}
+
+/* Delete Modal Specifics */
+.daily-progress-delete-icon-wrapper {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  margin: 0 auto;
+  color: #e11d48;
+  background-color: #fff1f2;
+  border: 1px solid #fecdd3;
+  border-radius: 50%;
+  font-size: 20px;
+}
+
+.daily-progress-delete-title {
+  font-size: 17px;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.daily-progress-delete-subtitle {
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.daily-progress-delete-target-card {
+  padding: 12px 14px;
+  background-color: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+}
+
+/* --------------------------------------------------------------------------
+   Edit Page Summary Banner
+   -------------------------------------------------------------------------- */
+.daily-progress-edit-summary {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+}
+
+.daily-progress-summary-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  background-color: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+
+  .summary-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
+    font-size: 16px;
+    flex-shrink: 0;
+  }
+
+  .summary-content {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+  }
+
+  .summary-label {
+    font-size: 11px;
+    font-weight: 500;
+    color: #64748b;
+    margin-bottom: 1px;
+  }
+
+  .summary-value {
+    font-size: 13px;
+    font-weight: 600;
+    color: #0f172a;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  &.primary .summary-icon {
+    color: $primary-color;
+    background-color: #fef2f2;
+    border: 1px solid #fee2e2;
+  }
+
+  &.cyan .summary-icon {
+    color: #0891b2;
+    background-color: #ecfeff;
+    border: 1px solid #a5f3fc;
+  }
+
+  &.blue .summary-icon {
+    color: #2563eb;
+    background-color: #eff6ff;
+    border: 1px solid #dbeafe;
+  }
+
+  &.purple .summary-icon {
+    color: #7c3aed;
+    background-color: #f5f3ff;
+    border: 1px solid #ede9fe;
+  }
+}
+
+/* --------------------------------------------------------------------------
+   Form Cards & Task Sections (Create / Edit / Correction)
+   -------------------------------------------------------------------------- */
+.daily-progress-form-card,
+.daily-progress-task-section {
+  padding: 16px;
+  background-color: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  margin-bottom: 16px;
 }
 
 .daily-progress-panel-heading {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-
-  margin-bottom: 10px;
+  gap: 12px;
+  margin-bottom: 14px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid #f1f5f9;
 
   h2 {
     margin: 0;
+    color: #0f172a;
+    font-size: 15px;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+  }
 
-    color: #374151;
+  p {
+    margin: 2px 0 0;
+    font-size: 12px;
+    color: #64748b;
+  }
+}
 
-    font-size: 14px;
+.daily-progress-panel-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
+  font-size: 16px;
+  flex-shrink: 0;
+
+  &.primary {
+    color: $primary-color;
+    background-color: #fef2f2;
+    border: 1px solid #fee2e2;
+  }
+
+  &.warning {
+    color: #d97706;
+    background-color: #fffbeb;
+    border: 1px solid #fef3c7;
+  }
+
+  &.info {
+    color: #2563eb;
+    background-color: #eff6ff;
+    border: 1px solid #dbeafe;
+  }
+
+  &.purple {
+    color: #7c3aed;
+    background-color: #f5f3ff;
+    border: 1px solid #ede9fe;
+  }
+
+  &.cyan {
+    color: #0891b2;
+    background-color: #ecfeff;
+    border: 1px solid #cffafe;
+  }
+
+  &.danger {
+    color: #e11d48;
+    background-color: #fff1f2;
+    border: 1px solid #ffe4e6;
+  }
+}
+
+/* Carry Card (Pending from PR) */
+.daily-progress-carry-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 14px;
+  margin-bottom: 10px;
+  background-color: #fffbeb;
+  border: 1px solid #fef3c7;
+  border-left: 3px solid #f59e0b;
+  border-radius: 8px;
+
+  div {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    gap: 2px;
+  }
+
+  strong {
+    color: #78350f;
+    font-size: 13px;
+    font-weight: 600;
+  }
+
+  span {
+    color: #92400e;
+    font-size: 12px;
+  }
+}
+
+.daily-progress-carry-badge {
+  flex: 0 0 auto;
+  padding: 3px 9px;
+  color: #b45309;
+  background-color: #fef3c7;
+  font-size: 11.5px;
+  font-weight: 600;
+  border: 1px solid #fde68a;
+  border-radius: 999px;
+}
+
+.daily-progress-carry-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  margin-top: 6px;
+  padding: 6px 10px;
+  background-color: #ffffff;
+  border: 1px solid #fde68a;
+  border-radius: 6px;
+  font-size: 11.5px;
+  line-height: 1.45;
+  color: #78350f;
+
+  i {
+    color: #d97706;
+    font-size: 12px;
+    margin-top: 1px;
+    flex-shrink: 0;
+  }
+}
+
+/* Task Groups & Interactive Options */
+.daily-progress-parent-card {
+  margin-bottom: 12px;
+  background-color: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  overflow: hidden;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+
+  &:hover {
+    border-color: #cbd5e1;
+  }
+}
+
+.daily-progress-parent-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  background-color: #f8fafc;
+  cursor: pointer;
+  user-select: none;
+  transition: background-color 0.15s ease;
+
+  &:hover {
+    background-color: #f1f5f9;
+  }
+
+  h3 {
+    margin: 0;
+    color: #1e293b;
+    font-size: 13.5px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+}
+
+.daily-progress-parent-summary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.daily-progress-parent-count {
+  font-size: 11.5px;
+  font-weight: 500;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background-color: #e2e8f0;
+  color: #475569;
+
+  &.has-selected {
+    background-color: #dbeafe;
+    color: #1e40af;
     font-weight: 600;
   }
 }
 
-.daily-progress-pending-state,
+.daily-progress-parent-chevron {
+  font-size: 13px;
+  color: #64748b;
+  transition: transform 0.2s ease;
+}
+
+.daily-progress-parent-body {
+  padding: 12px 16px;
+  border-top: 1px solid #e2e8f0;
+  background-color: #ffffff;
+}
+
+.daily-progress-task-compact-note {
+  font-size: 11.5px;
+  color: #b45309;
+  margin: 4px 0 2px 28px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.daily-progress-subtask-badge {
+  font-size: 10.5px;
+  font-weight: 600;
+  padding: 1px 6px;
+  border-radius: 4px;
+  margin-left: 6px;
+
+  &.tambahan {
+    background-color: #f3e8ff;
+    color: #7e22ce;
+    border: 1px solid #e9d5ff;
+  }
+
+  &.custom {
+    background-color: #e0f2fe;
+    color: #0369a1;
+    border: 1px solid #bae6fd;
+  }
+
+  &.temuan {
+    background-color: #fef3c7;
+    color: #92400e;
+    border: 1px solid #fde68a;
+  }
+}
+
+.daily-progress-task-group {
+  padding: 14px 16px;
+  margin-bottom: 12px;
+  background-color: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+
+  h3 {
+    margin: 0 0 10px;
+    color: #1e293b;
+    font-size: 14px;
+    font-weight: 700;
+  }
+}
+
+.daily-progress-task-entry {
+  margin-bottom: 8px;
+
+  &:last-child {
+    margin-bottom: 0;
+  }
+}
+
+.daily-progress-task-option {
+  display: flex;
+  align-items: center;
+  min-height: 36px;
+  gap: 10px;
+  padding: 6px 10px;
+  color: #1e293b;
+  background-color: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+
+  input[type='checkbox'] {
+    width: 16px;
+    height: 16px;
+    accent-color: $primary-color;
+    cursor: pointer;
+  }
+
+  &:hover {
+    background-color: #f1f5f9;
+    border-color: #cbd5e1;
+  }
+
+  &.pending-locked {
+    color: #78350f;
+    background-color: #fffbeb;
+    border-color: #fde68a;
+    cursor: not-allowed;
+
+    input[type='checkbox'] {
+      cursor: not-allowed;
+    }
+  }
+
+  &.disabled {
+    color: #94a3b8;
+    background-color: #f8fafc;
+    border-color: #f1f5f9;
+    cursor: not-allowed;
+
+    input[type='checkbox'] {
+      cursor: not-allowed;
+    }
+  }
+}
+
+.daily-progress-task-history {
+  margin: 4px 0 8px 26px;
+  padding: 8px 12px;
+  background-color: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  font-size: 12px;
+
+  strong {
+    color: #334155;
+    font-size: 12px;
+    font-weight: 600;
+  }
+
+  p {
+    margin: 4px 0 0;
+    color: #64748b;
+    white-space: pre-line;
+  }
+}
+
+.daily-progress-task-history-item {
+  display: flex;
+  flex-direction: column;
+  padding-bottom: 8px;
+  margin-bottom: 8px;
+  border-bottom: 1px dashed #e2e8f0;
+
+  &:last-child {
+    padding-bottom: 0;
+    margin-bottom: 0;
+    border-bottom: none;
+  }
+}
+
+.daily-progress-task-history-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+}
+
+.daily-progress-task-history-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  margin-top: 6px;
+  padding: 6px 10px;
+  width: 100%;
+  background-color: #eff6ff;
+  border: 1px solid #dbeafe;
+  border-left: 3px solid #3b82f6;
+  border-radius: 4px;
+  font-size: 11.5px;
+  line-height: 1.45;
+  color: #1e3a8a;
+
+  i {
+    color: #2563eb;
+    font-size: 12px;
+    margin-top: 1px;
+    flex-shrink: 0;
+  }
+
+  .daily-progress-task-history-note-label {
+    font-weight: 600;
+    color: #1e40af;
+    flex-shrink: 0;
+  }
+
+  .daily-progress-task-history-note-text {
+    color: #1e3a8a;
+    white-space: pre-wrap;
+    word-break: break-word;
+    flex: 1;
+    text-align: left;
+  }
+}
+
 .daily-progress-task-empty {
-  padding: 14px;
-
-  color: #6b7280;
-  background-color: #f9fafb;
-
-  font-size: 12.5px;
+  padding: 16px;
+  color: #64748b;
+  background-color: #f8fafc;
+  font-size: 13px;
   text-align: center;
-
-  border: 1px solid #edf0f4;
+  border: 1px dashed #cbd5e1;
   border-radius: 8px;
 
   &.error {
-    color: #dc2626;
+    color: #b91c1c;
     background-color: #fef2f2;
     border-color: #fecaca;
+    border-style: solid;
   }
 
   &.compact {
@@ -433,450 +1637,233 @@
   }
 }
 
-.daily-progress-pending-card {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-
-  gap: 10px;
-  padding: 10px 0;
-
-  border-bottom: 1px solid #f3f4f6;
-
-  div {
-    display: flex;
-    flex-direction: column;
-
-    gap: 2px;
-  }
-
-  strong {
-    color: #374151;
-
-    font-size: 12.5px;
-  }
-
-  span {
-    color: #6b7280;
-
-    font-size: 11.5px;
-  }
-}
-
-.daily-progress-carry-card {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-
-  gap: 10px;
-  padding: 10px 12px;
-
-  margin-bottom: 8px;
-
-  background-color: #f8fafc;
-
-  border: 1px solid #e2e8f0;
-  border-radius: 8px;
-
-  div {
-    display: flex;
-    flex-direction: column;
-
-    min-width: 0;
-
-    gap: 2px;
-  }
-
-  strong {
-    color: #334155;
-
-    font-size: 12.5px;
-  }
-
-  span {
-    color: #64748b;
-
-    font-size: 11.5px;
-  }
-}
-
-.daily-progress-carry-badge {
-  flex: 0 0 auto;
-
-  padding: 3px 8px;
-
-  color: #2563eb !important;
-  background-color: #eff6ff;
-
-  font-size: 11px;
-  font-weight: 600;
-
-  border: 1px solid #dbeafe;
-  border-radius: 999px;
-}
-
-.daily-progress-task-section {
-  padding-top: 4px;
-}
-
-.daily-progress-task-group,
-.daily-progress-detail-card {
-  padding: 12px 14px;
-
-  margin-bottom: 10px;
-
-  background-color: #f9fafb;
-
-  border: 1px solid #edf0f4;
-  border-radius: 8px;
-}
-
-.daily-progress-task-group {
-  h3 {
-    margin: 0 0 8px;
-
-    color: #374151;
-
-    font-size: 13.5px;
-    font-weight: 600;
-  }
-}
-
-.daily-progress-task-option {
-  display: flex;
-  align-items: center;
-
-  min-height: 32px;
-
-  gap: 8px;
-
-  color: #374151;
-
-  font-size: 13px;
-
-  cursor: pointer;
-
-  &.disabled {
-    color: #9ca3af;
-
-    cursor: not-allowed;
-  }
-}
-
-.daily-progress-task-entry {
-  margin-bottom: 6px;
-}
-
-.daily-progress-task-history {
-  margin: 0 0 6px 23px;
-  padding: 8px 10px;
-
-  color: #6b7280;
-  background-color: #ffffff;
-
-  font-size: 12px;
-
-  border: 1px solid #edf0f4;
-  border-radius: 6px;
-
-  div {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-
-    gap: 8px;
-  }
-
-  strong {
-    color: #4b5563;
-
-    font-size: 12px;
-    font-weight: 600;
-  }
-
-  p {
-    margin: 4px 0 0;
-
-    color: #6b7280;
-    white-space: pre-line;
-  }
-}
-
-.daily-progress-task-history-item {
-  padding-bottom: 6px;
-
-  &:last-child {
-    padding-bottom: 0;
-  }
-}
-
-.daily-progress-form-page-footer {
-  display: flex;
-  justify-content: flex-end;
-
-  gap: 8px;
-
-  margin-top: 16px;
-  padding-top: 14px;
-
-  border-top: 1px solid #edf0f4;
-}
-
-.daily-progress-modal-backdrop {
-  position: fixed;
-  inset: 0;
-
-  z-index: 2000;
-
-  display: flex;
-  align-items: center;
-  justify-content: center;
-
-  padding: 16px;
-
-  background-color: rgba(17, 24, 39, 0.5);
-  backdrop-filter: blur(2px);
-}
-
-.daily-progress-modal {
-  width: 100%;
-  max-width: 760px;
-  max-height: 90vh;
-
-  overflow-y: auto;
-
-  background-color: #ffffff;
-
-  border: 1px solid #edf0f4;
-  border-radius: 12px;
-
-  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
-}
-
-.daily-progress-delete-modal {
-  width: 100%;
-  max-width: 440px;
-
-  background-color: #ffffff;
-
-  border: 1px solid #edf0f4;
-  border-radius: 12px;
-
-  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
-}
-
-.daily-progress-modal-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-
-  padding: 14px 18px;
-
-  border-bottom: 1px solid #edf0f4;
-
-  h2 {
-    margin: 0;
-
-    color: #1f2937;
-
-    font-size: 16px;
-    font-weight: 600;
-  }
-}
-
-.daily-progress-modal-close {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-
-  width: 28px;
-  height: 28px;
-
-  color: #6b7280;
-  background: transparent;
-
-  border: 0;
-  border-radius: 6px;
-
-  cursor: pointer;
-
-  &:hover {
-    color: #1f2937;
-    background-color: #f3f4f6;
-  }
-}
-
-.daily-progress-modal-body {
-  padding: 18px;
-}
-
+/* --------------------------------------------------------------------------
+   Edit Page Detail Cards & Notes Section
+   -------------------------------------------------------------------------- */
 .daily-progress-detail-list {
   display: flex;
   flex-direction: column;
-
-  gap: 10px;
+  gap: 16px;
 }
 
-.daily-progress-detail-title {
-  margin-bottom: 6px;
+/* Job Group Container */
+.daily-progress-job-card {
+  background-color: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  overflow: hidden;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.03);
 
-  color: #374151;
+  .daily-progress-job-header {
+    padding: 12px 18px;
+    background-color: #f8fafc;
+    border-bottom: 1px solid #e2e8f0;
+    font-size: 13.5px;
+    font-weight: 700;
+    color: #1e293b;
+    letter-spacing: -0.01em;
+  }
 
-  font-size: 13px;
-  font-weight: 600;
-}
-
-.daily-progress-detail-grid {
-  display: grid;
-  grid-template-columns: 140px minmax(180px, 1fr) 38px;
-
-  gap: 8px;
-
-  .btn {
-    width: 38px;
-    min-height: 38px;
-    padding: 0;
+  .daily-progress-job-body {
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
   }
 }
 
-.daily-progress-detail-grid.completion {
-  grid-template-columns: 160px minmax(180px, 1fr);
-}
+/* Task Card */
+.daily-progress-task-card {
+  padding: 16px 18px;
+  background-color: #ffffff;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 10px;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
 
-.daily-progress-readonly-grid {
-  display: grid;
-  grid-template-columns: 120px minmax(180px, 1fr);
-  align-items: start;
+  &.status-pending {
+    border-color: #f59e0b;
+    background-color: #ffffff;
+  }
 
-  gap: 8px;
+  &.status-selesai {
+    border-color: #10b981;
+    background-color: #ffffff;
+  }
 
-  p {
-    margin: 0;
+  &.status-open {
+    border-color: #e2e8f0;
+    background-color: #ffffff;
+  }
 
-    color: #4b5563;
+  .daily-progress-task-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    flex-wrap: wrap;
+  }
 
-    font-size: 13px;
+  .daily-progress-task-info {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+    flex: 1;
+
+    .daily-progress-task-title {
+      font-size: 14px;
+      font-weight: 700;
+      color: #0f172a;
+      line-height: 1.35;
+    }
+
+    .daily-progress-task-subtitle {
+      font-size: 12.5px;
+      color: #64748b;
+
+      .status-text-pending {
+        color: #d97706;
+        font-weight: 600;
+      }
+
+      .status-text-selesai {
+        color: #059669;
+        font-weight: 600;
+      }
+    }
   }
 }
 
-.daily-progress-completion-row {
-  margin-bottom: 10px;
-}
-
-.daily-progress-completion-check {
+/* Segmented Toggle Buttons: Selesai | Pending */
+.daily-progress-status-toggle {
   display: inline-flex;
   align-items: center;
+  background-color: #ffffff;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  padding: 2px 3px;
+  gap: 3px;
+  flex-shrink: 0;
 
-  gap: 8px;
+  .daily-progress-status-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 14px;
+    border: none;
+    border-radius: 6px;
+    font-size: 12.5px;
+    font-weight: 500;
+    color: #475569;
+    background-color: transparent;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    line-height: 1.2;
 
-  color: #374151;
+    i {
+      font-size: 14px;
+      line-height: 1;
+    }
 
-  font-size: 13px;
-  font-weight: 500;
+    &:hover:not(.active):not(:disabled) {
+      background-color: #f1f5f9;
+      color: #0f172a;
+    }
 
-  cursor: pointer;
+    &.btn-selesai.active {
+      background-color: #059669;
+      color: #ffffff;
+      font-weight: 600;
 
-  &.disabled {
-    cursor: not-allowed;
-    opacity: 0.85;
+      i {
+        color: #ffffff;
+      }
+    }
 
-    input[type="checkbox"] {
+    &.btn-pending.active {
+      background-color: #d97706;
+      color: #ffffff;
+      font-weight: 600;
+
+      i {
+        color: #ffffff;
+      }
+    }
+
+    &:disabled {
+      opacity: 0.55;
       cursor: not-allowed;
     }
   }
 }
 
-.daily-progress-note-section {
+/* Notes / Keterangan Form Section */
+.daily-progress-note-container {
+  margin-top: 14px;
   display: flex;
   flex-direction: column;
-
-  gap: 8px;
-
-  padding: 10px 12px;
-
-  background-color: #ffffff;
-
-  border: 1px solid #edf0f4;
-  border-radius: 6px;
+  gap: 12px;
 }
 
-.daily-progress-note-heading {
+.daily-progress-note-block {
+  display: flex;
+  flex-direction: column;
+}
+
+.daily-progress-note-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 6px;
 
-  span {
-    color: #6b7280;
-
-    font-size: 12px;
+  .note-label {
+    font-size: 13px;
     font-weight: 600;
+
+    .label-pending {
+      color: #991b1b;
+
+      strong {
+        color: #dc2626;
+      }
+    }
+
+    .label-selesai {
+      color: #047857;
+    }
+  }
+
+  .note-tools {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
   }
 }
 
-.daily-progress-note-add {
+/* Upload Button positioned ABOVE the textarea */
+.daily-progress-upload-btn {
   display: inline-flex;
   align-items: center;
-
-  gap: 4px;
-
-  color: #2563eb;
-  background: transparent;
-
+  gap: 5px;
+  padding: 4px 10px;
+  height: 29px;
+  background-color: #ffffff;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  color: #334155;
   font-size: 12px;
   font-weight: 500;
-
-  border: 0;
-
   cursor: pointer;
+  transition: all 0.15s ease;
+  user-select: none;
+  margin-bottom: 0;
 
-  &:hover {
-    color: #1d4ed8;
-  }
-}
-
-.daily-progress-note-row {
-  display: flex;
-  align-items: center;
-
-  gap: 8px;
-
-  .form-control {
-    flex: 1;
-
-    font-size: 12.5px;
-  }
-
-  .btn {
-    width: 32px;
-    height: 32px;
-    padding: 0;
-  }
-}
-
-.daily-progress-note-file {
-  display: inline-flex;
-  align-items: center;
-
-  max-width: 140px;
-  height: 32px;
-
-  gap: 4px;
-  padding: 0 10px;
-
-  color: #4b5563;
-  background-color: #f3f4f6;
-
-  font-size: 12px;
-
-  border-radius: 6px;
-
-  cursor: pointer;
-
-  span {
-    overflow: hidden;
-
-    text-overflow: ellipsis;
-    white-space: nowrap;
+  i {
+    font-size: 13px;
+    color: #64748b;
   }
 
   input {
@@ -884,31 +1871,150 @@
   }
 
   &:hover {
-    background-color: #e5e7eb;
+    background-color: #f8fafc;
+    border-color: #94a3b8;
+    color: #0f172a;
+  }
+}
+
+/* Attached File Badge positioned ABOVE the textarea */
+.daily-progress-attached-file {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 8px;
+  background-color: #eff6ff;
+  border: 1px solid #bfdbfe;
+  border-radius: 6px;
+  color: #1e40af;
+  font-size: 11.5px;
+
+  .file-name {
+    max-width: 160px;
+  }
+
+  button {
+    cursor: pointer;
+    background: transparent;
+    border: none;
+    padding: 0;
+    color: #e11d48;
+    display: inline-flex;
+    align-items: center;
+    font-size: 13px;
+    line-height: 1;
+
+    &:hover {
+      color: #be123c;
+    }
+  }
+}
+
+.daily-progress-note-remove-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 5px;
+  border: none;
+  background: transparent;
+  color: #e11d48;
+  font-size: 14px;
+  cursor: pointer;
+  flex-shrink: 0;
+  line-height: 1;
+  border-radius: 6px;
+  transition: all 0.15s ease;
+
+  &:hover {
+    color: #be123c;
+    background-color: #fff1f2;
+  }
+
+  &:disabled {
+    color: #fca5a5;
+    cursor: not-allowed;
+  }
+}
+
+.daily-progress-add-note-btn {
+  display: inline-flex;
+  align-items: center;
+  align-self: flex-start;
+  gap: 6px;
+  background: transparent;
+  border: 1px dashed #cbd5e1;
+  border-radius: 6px;
+  padding: 5px 12px;
+  font-size: 12px;
+  font-weight: 500;
+  color: #64748b;
+  cursor: pointer;
+  transition: all 0.15s ease;
+
+  &:hover:not(:disabled) {
+    border-color: #94a3b8;
+    color: #0f172a;
+    background-color: #f8fafc;
+  }
+}
+
+/* Textarea Wrapper & Textarea Styling */
+.daily-progress-textarea-wrapper {
+  position: relative;
+  width: 100%;
+
+  textarea.daily-progress-note-textarea {
+    width: 100%;
+    font-size: 13px;
+    border-radius: 8px;
+    min-height: 75px;
+    padding: 10px 14px;
+    color: #1e293b;
+    line-height: 1.5;
+    background-color: #ffffff;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+
+    &::placeholder {
+      color: #94a3b8;
+    }
+
+    &.pending-textarea {
+      border: 1px solid #f59e0b;
+
+      &:focus {
+        border-color: #d97706;
+        box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.15);
+      }
+    }
+
+    &.selesai-textarea {
+      border: 1px solid #cbd5e1;
+
+      &:focus {
+        border-color: #10b981;
+        box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.15);
+      }
+    }
   }
 }
 
 .daily-progress-document-section {
   display: flex;
   flex-direction: column;
-
   gap: 6px;
-
-  margin-top: 10px;
+  margin-top: 12px;
 }
 
 .daily-progress-document-heading {
   span {
-    color: #6b7280;
-
+    color: #475569;
     font-size: 12px;
     font-weight: 600;
   }
 }
 
 .daily-progress-document-empty {
-  color: #9ca3af;
-
+  color: #94a3b8;
   font-size: 12px;
   font-style: italic;
 }
@@ -917,30 +2023,248 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-
-  padding: 8px 10px;
-
-  background-color: #ffffff;
-
-  border: 1px solid #edf0f4;
+  padding: 8px 12px;
+  background-color: #f8fafc;
+  border: 1px solid #e2e8f0;
   border-radius: 6px;
 
   div {
     display: flex;
     flex-direction: column;
-
     gap: 2px;
   }
 
   strong {
-    color: #374151;
-
+    color: #1e293b;
     font-size: 12px;
   }
 
   span {
-    color: #9ca3af;
-
+    color: #64748b;
     font-size: 11px;
   }
 }
+
+/* --------------------------------------------------------------------------
+   Form Page Footer
+   -------------------------------------------------------------------------- */
+.daily-progress-form-page-footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 24px;
+  padding-top: 16px;
+  border-top: 1px solid #e2e8f0;
+}
+
+/* --------------------------------------------------------------------------
+   Select Dropdown Component
+   -------------------------------------------------------------------------- */
+.daily-progress-select {
+  position: relative;
+  width: 100%;
+}
+
+.daily-progress-select-trigger {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  min-height: 38px;
+  padding: 6px 12px;
+  background-color: #ffffff;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  color: #1e293b;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+
+  span.placeholder {
+    color: #94a3b8;
+  }
+
+  i {
+    color: #64748b;
+    font-size: 12px;
+  }
+
+  &:hover {
+    border-color: #94a3b8;
+  }
+
+  &.active {
+    border-color: $primary-color;
+    box-shadow: 0 0 0 3px rgba($primary-color, 0.1);
+  }
+}
+
+.daily-progress-select-dropdown {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  z-index: 1000;
+  background-color: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  box-shadow: 0 4px 6px -1px rgba(15, 23, 42, 0.08), 0 2px 4px -2px rgba(15, 23, 42, 0.05);
+  overflow: hidden;
+}
+
+.daily-progress-select-search {
+  display: flex;
+  align-items: center;
+  padding: 8px 12px;
+  border-bottom: 1px solid #e2e8f0;
+  background-color: #f8fafc;
+
+  i {
+    color: #94a3b8;
+    margin-right: 8px;
+    font-size: 13px;
+  }
+
+  input {
+    width: 100%;
+    border: 0;
+    outline: none;
+    background: transparent;
+    font-size: 12.5px;
+    color: #1e293b;
+
+    &::placeholder {
+      color: #94a3b8;
+    }
+  }
+}
+
+.daily-progress-select-options {
+  max-height: 220px;
+  overflow-y: auto;
+}
+
+.daily-progress-select-option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 8px 12px;
+  background: transparent;
+  border: 0;
+  color: #1e293b;
+  font-size: 12.5px;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color 0.12s ease;
+
+  .daily-progress-select-code {
+    font-size: 11.5px;
+    color: #64748b;
+  }
+
+  &:hover {
+    background-color: #f1f5f9;
+  }
+
+  &.selected {
+    background-color: #fef2f2;
+    color: $primary-color;
+    font-weight: 600;
+
+    .daily-progress-select-code {
+      color: $primary-color;
+    }
+  }
+}
+
+.daily-progress-select-state {
+  padding: 16px;
+  text-align: center;
+  color: #64748b;
+  font-size: 12.5px;
+
+  &.error {
+    color: #e11d48;
+  }
+}
+
+.daily-progress-temuan-followup {
+  margin-top: 10px;
+  padding: 12px 14px;
+  background-color: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
+
+  .daily-progress-followup-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 8px;
+    flex-wrap: wrap;
+  }
+
+  .daily-progress-followup-title {
+    font-size: 11.5px;
+    font-weight: 600;
+    color: #475569;
+  }
+
+  .daily-progress-followup-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    cursor: pointer;
+    font-size: 11.5px;
+    font-weight: 600;
+    padding: 3px 10px;
+    border-radius: 999px;
+    border: 1px solid #cbd5e1;
+    background-color: #ffffff;
+    color: #64748b;
+    transition: all 0.15s ease;
+    user-select: none;
+
+    input[type='radio'] {
+      margin: 0;
+      cursor: pointer;
+    }
+
+    &.active-selesai {
+      background-color: #ecfdf5;
+      color: #047857;
+      border-color: #10b981;
+    }
+
+    &.active-pending {
+      background-color: #fffbeb;
+      color: #b45309;
+      border-color: #f59e0b;
+    }
+  }
+
+  .daily-progress-followup-body {
+    label {
+      font-size: 11.5px;
+      font-weight: 600;
+      color: #334155;
+      margin-bottom: 4px;
+      display: block;
+    }
+
+    textarea {
+      font-size: 12px;
+      border-radius: 6px;
+      border: 1px solid #cbd5e1;
+      resize: vertical;
+
+      &:focus {
+        border-color: #6366f1;
+        box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.15);
+      }
+    }
+  }
+}
+

@@ -1,9 +1,11 @@
 export type SolusiSource =
     | 'menu'
+    | 'daily_progress'
     | 'progress_report'
 
 export type SolusiTemuanStatus =
     | 'open'
+    | 'pending'
     | 'selesai'
 
 export interface SolusiSpk {
@@ -20,6 +22,9 @@ export interface SolusiJob {
 export interface SolusiTemuan {
     id: number
     nomor: string
+    type?: 'TM' | 'PR'
+    priority?: number
+    no_pr?: string | null
     tanggal: string
     client_code: string
     status: SolusiTemuanStatus
@@ -54,7 +59,8 @@ export interface Solusi {
     temuan: SolusiTemuan
     note: SolusiNote
     solution: string
-    progress_report: unknown | null
+    progress_report?: unknown | null
+    daily_progress?: unknown | null
     files?: SolusiFile[]
     created_by: string
     created_by_level: number | null

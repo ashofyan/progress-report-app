@@ -20,6 +20,7 @@ import type {
     Temuan,
     TemuanFilters,
     TemuanStatus,
+    TemuanType,
 } from '@/features/temuan/types/temuan.types'
 
 import '@/features/temuan/styles/temuan.scss'
@@ -28,7 +29,16 @@ const ITEMS_PER_PAGE = 10
 
 const statusLabels: Record<TemuanStatus, string> = {
     open: 'Open',
+    pending: 'Pending',
     selesai: 'Selesai',
+}
+
+const priorityLabels: Record<number, string> = {
+    1: 'P1 - Sangat Rendah',
+    2: 'P2 - Rendah',
+    3: 'P3 - Sedang',
+    4: 'P4 - Tinggi',
+    5: 'P5 - Kritis',
 }
 
 const getNotesText = (temuan: Temuan): string => {
@@ -63,6 +73,8 @@ const TemuanPage = () => {
     const [clientCode, setClientCode] = useState<string>('')
     const [tanggal, setTanggal] = useState<string>('')
     const [status, setStatus] = useState<TemuanStatus | ''>('')
+    const [typeFilter, setTypeFilter] = useState<TemuanType | ''>('')
+    const [priorityFilter, setPriorityFilter] = useState<number | ''>('')
     const [searchQuery, setSearchQuery] = useState<string>('')
     const [currentPage, setCurrentPage] = useState<number>(1)
 
@@ -70,6 +82,9 @@ const TemuanPage = () => {
     const [expandedTemuanIds, setExpandedTemuanIds] = useState<Set<number>>(
         new Set(),
     )
+
+    // Action dropdown menu
+    const [openMenuId, setOpenMenuId] = useState<number | null>(null)
 
     // Modals
     const [temuanToView, setTemuanToView] = useState<Temuan | null>(null)
@@ -84,6 +99,29 @@ const TemuanPage = () => {
     const [isSolusiCreateOpen, setIsSolusiCreateOpen] = useState<boolean>(false)
     const [feedbackMessage, setFeedbackMessage] = useState<string | null>(null)
 
+    // Close menu when clicking outside or pressing Escape
+    useEffect(() => {
+        const handleClickOutside = () => {
+            setOpenMenuId(null)
+        }
+
+        const handleKeyDown = (event: KeyboardEvent) => {
+            if (event.key === 'Escape') {
+                setOpenMenuId(null)
+            }
+        }
+
+        if (openMenuId !== null) {
+            document.addEventListener('click', handleClickOutside)
+            document.addEventListener('keydown', handleKeyDown)
+        }
+
+        return () => {
+            document.removeEventListener('click', handleClickOutside)
+            document.removeEventListener('keydown', handleKeyDown)
+        }
+    }, [openMenuId])
+
     const {
         clients,
         isLoading: isLoadingClients,
@@ -97,8 +135,10 @@ const TemuanPage = () => {
                 clientCode.trim() === '' ? undefined : clientCode.trim(),
             tanggal: tanggal === '' ? undefined : tanggal,
             status: status === '' ? undefined : status,
+            type: typeFilter === '' ? undefined : typeFilter,
+            priority: priorityFilter === '' ? undefined : Number(priorityFilter),
         }),
-        [clientCode, status, tanggal],
+        [clientCode, priorityFilter, status, tanggal, typeFilter],
     )
 
     const handleClientSearch = useCallback(
@@ -210,6 +250,7 @@ const TemuanPage = () => {
 
     const handleFilterChange = (): void => {
         setCurrentPage(1)
+        setOpenMenuId(null)
     }
 
     const isLoading = isLoadingTemuans || isLoadingSolusis
@@ -244,77 +285,20 @@ const TemuanPage = () => {
 
             <section className="temuan-board">
                 <div className="temuan-board-header">
-                    <div className="temuan-filter-grid">
-                        <ClientSelect
-                            clients={clients}
-                            selectedCode={clientCode}
-                            isLoading={isLoadingClients}
-                            errorMessage={clientErrorMessage}
-                            onSearch={handleClientSearch}
-                            onSelect={(client) => {
-                                setClientCode(client.customer_code)
-                                handleFilterChange()
-                            }}
-                        />
-
+                    <div className="temuan-search">
+                        <i className="bi bi-search" />
                         <input
-                            type="date"
-                            className="form-control"
-                            value={tanggal}
-                            onChange={(
-                                event: ChangeEvent<HTMLInputElement>,
-                            ) => {
-                                setTanggal(event.target.value)
-                                handleFilterChange()
-                            }}
-                        />
-
-                        <select
-                            className="form-select"
-                            value={status}
-                            onChange={(
-                                event: ChangeEvent<HTMLSelectElement>,
-                            ) => {
-                                setStatus(
-                                    event.target.value as TemuanStatus | '',
-                                )
-                                handleFilterChange()
-                            }}
-                        >
-                            <option value="">Semua status</option>
-                            <option value="open">Open</option>
-                            <option value="selesai">Selesai</option>
-                        </select>
-
-                        <button
-                            type="button"
-                            className="btn btn-light"
-                            onClick={() => {
-                                setClientCode('')
-                                setTanggal('')
-                                setStatus('')
-                                setSearchQuery('')
+                            type="text"
+                            value={searchQuery}
+                            placeholder="Cari temuan atau solusi..."
+                            onChange={(event) => {
+                                setSearchQuery(event.target.value)
                                 setCurrentPage(1)
                             }}
-                        >
-                            Reset
-                        </button>
+                        />
                     </div>
 
                     <div className="temuan-actions">
-                        <div className="temuan-search">
-                            <i className="bi bi-search" />
-                            <input
-                                type="text"
-                                value={searchQuery}
-                                placeholder="Cari temuan atau solusi..."
-                                onChange={(event) => {
-                                    setSearchQuery(event.target.value)
-                                    setCurrentPage(1)
-                                }}
-                            />
-                        </div>
-
                         <button
                             type="button"
                             className="temuan-add-button secondary"
@@ -334,6 +318,109 @@ const TemuanPage = () => {
                             <span>Tambah Temuan</span>
                         </button>
                     </div>
+                </div>
+
+                <div className="temuan-filter-toolbar">
+                    <div className="filter-client">
+                        <ClientSelect
+                            clients={clients}
+                            selectedCode={clientCode}
+                            isLoading={isLoadingClients}
+                            errorMessage={clientErrorMessage}
+                            onSearch={handleClientSearch}
+                            onSelect={(client) => {
+                                setClientCode(client.customer_code)
+                                handleFilterChange()
+                            }}
+                        />
+                    </div>
+
+                    <input
+                        type="date"
+                        className="form-control filter-date"
+                        value={tanggal}
+                        onChange={(
+                            event: ChangeEvent<HTMLInputElement>,
+                        ) => {
+                            setTanggal(event.target.value)
+                            handleFilterChange()
+                        }}
+                    />
+
+                    <select
+                        className="form-select filter-select"
+                        value={status}
+                        onChange={(
+                            event: ChangeEvent<HTMLSelectElement>,
+                        ) => {
+                            setStatus(
+                                event.target.value as TemuanStatus | '',
+                            )
+                            handleFilterChange()
+                        }}
+                    >
+                        <option value="">Semua status</option>
+                        <option value="open">Open</option>
+                        <option value="pending">Pending</option>
+                        <option value="selesai">Selesai</option>
+                    </select>
+
+                    <select
+                        className="form-select filter-select"
+                        value={typeFilter}
+                        onChange={(
+                            event: ChangeEvent<HTMLSelectElement>,
+                        ) => {
+                            setTypeFilter(
+                                event.target.value as TemuanType | '',
+                            )
+                            handleFilterChange()
+                        }}
+                    >
+                        <option value="">Semua tipe</option>
+                        <option value="TM">TM (Global)</option>
+                        <option value="PR">PR (Progress Report)</option>
+                    </select>
+
+                    <select
+                        className="form-select filter-select"
+                        value={priorityFilter}
+                        onChange={(
+                            event: ChangeEvent<HTMLSelectElement>,
+                        ) => {
+                            setPriorityFilter(
+                                event.target.value === ''
+                                    ? ''
+                                    : Number(event.target.value),
+                            )
+                            handleFilterChange()
+                        }}
+                    >
+                        <option value="">Semua prioritas</option>
+                        <option value="1">P1 - Sangat Rendah</option>
+                        <option value="2">P2 - Rendah</option>
+                        <option value="3">P3 - Sedang</option>
+                        <option value="4">P4 - Tinggi</option>
+                        <option value="5">P5 - Kritis</option>
+                    </select>
+
+                    <button
+                        type="button"
+                        className="filter-reset-btn"
+                        onClick={() => {
+                            setClientCode('')
+                            setTanggal('')
+                            setStatus('')
+                            setTypeFilter('')
+                            setPriorityFilter('')
+                            setSearchQuery('')
+                            setCurrentPage(1)
+                            setOpenMenuId(null)
+                        }}
+                    >
+                        <i className="bi bi-arrow-counterclockwise" />
+                        Reset
+                    </button>
                 </div>
 
                 {isLoading && (
@@ -379,18 +466,14 @@ const TemuanPage = () => {
                             <table className="table temuan-table">
                                 <thead>
                                     <tr>
-                                        <th style={{ width: '40px' }} />
-                                        <th>No</th>
-                                        <th>Nomor</th>
-                                        <th>Tanggal</th>
-                                        <th>Client</th>
-                                        <th>SPK</th>
-                                        <th>Pekerjaan</th>
-                                        <th>Status</th>
-                                        <th>Solusi</th>
-                                        <th>Catatan</th>
-                                        <th>File</th>
-                                        <th className="text-center">Aksi</th>
+                                        <th style={{ width: '44px' }} />
+                                        <th style={{ width: '48px' }}>No</th>
+                                        <th>Temuan</th>
+                                        <th style={{ width: '115px' }}>Tanggal</th>
+                                        <th>Client &amp; Pekerjaan</th>
+                                        <th>Catatan &amp; File</th>
+                                        <th style={{ width: '150px' }}>Status &amp; Solusi</th>
+                                        <th className="text-center" style={{ width: '60px' }}>Aksi</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -406,13 +489,18 @@ const TemuanPage = () => {
                                         const isAllSolved =
                                             totalNotesCount > 0 &&
                                             solvedNotesCount >= totalNotesCount
+                                        const isDropup =
+                                            paginatedTemuans.length >= 3 &&
+                                            index >= paginatedTemuans.length - 2
 
                                         return (
                                             <tr
                                                 key={temuan.id}
-                                                className="temuan-clickable-row"
+                                                className={`temuan-clickable-row ${
+                                                    isExpanded ? 'is-expanded' : ''
+                                                } ${openMenuId === temuan.id ? 'menu-open' : ''}`}
                                             >
-                                                <td>
+                                                <td className="text-center">
                                                     <button
                                                         type="button"
                                                         className={`temuan-expand-btn ${
@@ -422,7 +510,7 @@ const TemuanPage = () => {
                                                         }`}
                                                         title={
                                                             isExpanded
-                                                                ? 'Tutup detail solusi'
+                                                                ? 'Tutup detail catatan & solusi'
                                                                 : 'Lihat catatan & solusi'
                                                         }
                                                         onClick={(e) => {
@@ -435,185 +523,283 @@ const TemuanPage = () => {
                                                         <i className="bi bi-chevron-right" />
                                                     </button>
                                                 </td>
-                                                <td>
+
+                                                <td className="text-muted">
                                                     {(currentPage - 1) *
                                                         ITEMS_PER_PAGE +
                                                         index +
                                                         1}
                                                 </td>
+
                                                 <td>
-                                                    <strong>
-                                                        {temuan.nomor}
-                                                    </strong>
-                                                </td>
-                                                <td>{temuan.tanggal}</td>
-                                                <td>{temuan.client_code}</td>
-                                                <td>
-                                                    {temuan.spk?.no_spk ?? '-'}
-                                                </td>
-                                                <td>
-                                                    {temuan.job?.description ??
-                                                        '-'}
-                                                </td>
-                                                <td>
-                                                    <span
-                                                        className={`temuan-status ${temuan.status}`}
-                                                    >
-                                                        {
-                                                            statusLabels[
-                                                                temuan.status
-                                                            ]
-                                                        }
-                                                    </span>
-                                                </td>
-                                                <td>
-                                                    <span
-                                                        className={`temuan-summary-badge ${
-                                                            isAllSolved
-                                                                ? 'text-success'
-                                                                : solvedNotesCount >
-                                                                  0
-                                                                ? 'text-warning'
-                                                                : 'text-muted'
-                                                        }`}
-                                                    >
-                                                        <i
-                                                            className={`bi ${
-                                                                isAllSolved
-                                                                    ? 'bi-check-all'
-                                                                    : 'bi-check2'
-                                                            }`}
-                                                        />
-                                                        {solvedNotesCount} /{' '}
-                                                        {totalNotesCount} Solusi
-                                                    </span>
-                                                </td>
-                                                <td>
-                                                    <span
-                                                        className="temuan-note-preview"
-                                                        title={getNotesText(
-                                                            temuan,
-                                                        )}
-                                                    >
-                                                        {getNotesText(temuan)}
-                                                    </span>
-                                                </td>
-                                                <td>{temuan.files.length}</td>
-                                                <td>
-                                                    <div className="temuan-row-actions">
+                                                    <div className="temuan-id-cell">
                                                         <button
                                                             type="button"
-                                                            className={`temuan-action-button ${
-                                                                isExpanded
-                                                                    ? 'active text-primary'
-                                                                    : ''
-                                                            }`}
-                                                            title={
-                                                                isExpanded
-                                                                    ? 'Tutup Detail Catatan & Solusi'
-                                                                    : 'Buka Detail Catatan & Solusi'
+                                                            className="temuan-nomor-btn"
+                                                            title="Klik untuk melihat detail temuan"
+                                                            onClick={() => setTemuanToView(temuan)}
+                                                        >
+                                                            {temuan.nomor}
+                                                        </button>
+                                                        <div className="temuan-meta-tags">
+                                                            <span
+                                                                className={`temuan-type-badge ${
+                                                                    temuan.type === 'PR'
+                                                                        ? 'type-pr'
+                                                                        : 'type-tm'
+                                                                }`}
+                                                            >
+                                                                {temuan.type ?? 'TM'}
+                                                            </span>
+                                                            {temuan.no_pr && (
+                                                                <span className="temuan-pr-tag">
+                                                                    {temuan.no_pr}
+                                                                </span>
+                                                            )}
+                                                            <span
+                                                                className={`temuan-priority-badge p${temuan.priority ?? 3}`}
+                                                                title={priorityLabels[temuan.priority ?? 3] ?? `P${temuan.priority}`}
+                                                            >
+                                                                P{temuan.priority ?? 3}
+                                                            </span>
+                                                        </div>
+                                                    </div>
+                                                </td>
+
+                                                <td>
+                                                    <span className="temuan-date-text">
+                                                        {temuan.tanggal}
+                                                    </span>
+                                                </td>
+
+                                                <td>
+                                                    <div className="temuan-client-cell">
+                                                        <div className="d-flex align-items-center gap-1 flex-wrap">
+                                                            <span className="temuan-client-badge">
+                                                                <i className="bi bi-buildings" />
+                                                                {temuan.client_code}
+                                                            </span>
+                                                            {temuan.spk?.no_spk && (
+                                                                <span
+                                                                    className="temuan-spk-tag"
+                                                                    title={`No SPK: ${temuan.spk.no_spk}`}
+                                                                >
+                                                                    <i className="bi bi-file-earmark-text me-1" />
+                                                                    {temuan.spk.no_spk}
+                                                                </span>
+                                                            )}
+                                                        </div>
+                                                        {temuan.job?.description && (
+                                                            <span
+                                                                className="temuan-job-subtext"
+                                                                title={temuan.job.description}
+                                                            >
+                                                                {temuan.job.description}
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                </td>
+
+                                                <td>
+                                                    <div className="temuan-note-cell">
+                                                        <span
+                                                            className="temuan-note-preview"
+                                                            title={getNotesText(temuan)}
+                                                        >
+                                                            {getNotesText(temuan)}
+                                                        </span>
+                                                        {temuan.files.length > 0 && (
+                                                            <span
+                                                                className="temuan-file-pill"
+                                                                title={`${temuan.files.length} file lampiran`}
+                                                            >
+                                                                <i className="bi bi-paperclip" />
+                                                                {temuan.files.length} file
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                </td>
+
+                                                <td>
+                                                    <div className="temuan-status-cell">
+                                                        <span
+                                                            className={`temuan-status ${temuan.status}`}
+                                                        >
+                                                            {
+                                                                statusLabels[
+                                                                    temuan.status
+                                                                ]
                                                             }
-                                                            onClick={(
-                                                                event,
-                                                            ) => {
-                                                                event.stopPropagation()
-                                                                toggleExpand(
-                                                                    temuan.id,
-                                                                )
-                                                            }}
+                                                        </span>
+                                                        <span
+                                                            className={`temuan-solusi-progress ${
+                                                                isAllSolved
+                                                                    ? 'solved'
+                                                                    : solvedNotesCount > 0
+                                                                    ? 'partial'
+                                                                    : 'empty'
+                                                            }`}
+                                                            title={`${solvedNotesCount} dari ${totalNotesCount} catatan memiliki solusi`}
                                                         >
                                                             <i
                                                                 className={`bi ${
-                                                                    isExpanded
-                                                                        ? 'bi-chevron-contract'
-                                                                        : 'bi-chevron-expand'
+                                                                    isAllSolved
+                                                                        ? 'bi-check-all'
+                                                                        : 'bi-check2'
                                                                 }`}
                                                             />
-                                                        </button>
+                                                            {solvedNotesCount} / {totalNotesCount} Solusi
+                                                        </span>
+                                                    </div>
+                                                </td>
 
+                                                <td className="text-center">
+                                                    <div
+                                                        className={`temuan-action-dropdown ${
+                                                            openMenuId === temuan.id ? 'open' : ''
+                                                        }`}
+                                                        onClick={(event) => event.stopPropagation()}
+                                                    >
                                                         <button
                                                             type="button"
-                                                            className="temuan-action-button"
-                                                            title="Lihat Detail Temuan"
-                                                            onClick={(
-                                                                event,
-                                                            ) => {
+                                                            className={`temuan-action-trigger ${
+                                                                openMenuId === temuan.id ? 'active' : ''
+                                                            }`}
+                                                            title="Pilihan Aksi"
+                                                            aria-label="Pilihan Aksi"
+                                                            onClick={(event) => {
                                                                 event.stopPropagation()
-                                                                setTemuanToView(
-                                                                    temuan,
+                                                                setOpenMenuId((prev) =>
+                                                                    prev === temuan.id ? null : temuan.id,
                                                                 )
                                                             }}
                                                         >
-                                                            <i className="bi bi-eye" />
+                                                            <i className="bi bi-three-dots-vertical" />
                                                         </button>
 
-                                                        <button
-                                                            type="button"
-                                                            className="temuan-action-button solusi"
-                                                            title={
-                                                                temuan.status ===
-                                                                'selesai'
-                                                                    ? 'Temuan sudah selesai'
-                                                                    : isAllSolved
-                                                                    ? 'Semua catatan sudah memiliki solusi'
-                                                                    : 'Beri Solusi'
-                                                            }
-                                                            disabled={
-                                                                temuan.status ===
-                                                                    'selesai' ||
-                                                                isAllSolved
-                                                            }
-                                                            onClick={(
-                                                                event,
-                                                            ) => {
-                                                                event.stopPropagation()
-                                                                handleOpenSolusiCreate(
-                                                                    temuan,
-                                                                )
-                                                            }}
-                                                        >
-                                                            <i className="bi bi-check2-circle" />
-                                                        </button>
+                                                        {openMenuId === temuan.id && (
+                                                            <div
+                                                                className={`temuan-action-menu ${
+                                                                    isDropup ? 'dropup' : ''
+                                                                }`}
+                                                            >
+                                                                <button
+                                                                    type="button"
+                                                                    className="temuan-action-item"
+                                                                    onClick={(event) => {
+                                                                        event.stopPropagation()
+                                                                        setOpenMenuId(null)
+                                                                        setTemuanToView(temuan)
+                                                                    }}
+                                                                >
+                                                                    <i className="bi bi-eye text-primary" />
+                                                                    <span>Lihat Detail Temuan</span>
+                                                                </button>
 
-                                                        <button
-                                                            type="button"
-                                                            className="temuan-action-button edit"
-                                                            title="Edit Temuan"
-                                                            disabled={
-                                                                temuan.status !==
-                                                                'open'
-                                                            }
-                                                            onClick={(
-                                                                event,
-                                                            ) => {
-                                                                event.stopPropagation()
-                                                                navigate(
-                                                                    `/temuan/${temuan.id}/edit`,
-                                                                )
-                                                            }}
-                                                        >
-                                                            <i className="bi bi-pencil-square" />
-                                                        </button>
+                                                                <button
+                                                                    type="button"
+                                                                    className="temuan-action-item"
+                                                                    onClick={(event) => {
+                                                                        event.stopPropagation()
+                                                                        setOpenMenuId(null)
+                                                                        toggleExpand(temuan.id)
+                                                                    }}
+                                                                >
+                                                                    <i
+                                                                        className={`bi ${
+                                                                            isExpanded
+                                                                                ? 'bi-chevron-contract text-secondary'
+                                                                                : 'bi-card-checklist text-info'
+                                                                        }`}
+                                                                    />
+                                                                    <span>
+                                                                        {isExpanded
+                                                                            ? 'Tutup Catatan & Solusi'
+                                                                            : 'Lihat Catatan & Solusi'}
+                                                                    </span>
+                                                                </button>
 
-                                                        <button
-                                                            type="button"
-                                                            className="temuan-action-button delete"
-                                                            title="Hapus Temuan"
-                                                            disabled={
-                                                                temuan.status !==
-                                                                'open'
-                                                            }
-                                                            onClick={(
-                                                                event,
-                                                            ) => {
-                                                                event.stopPropagation()
-                                                                setTemuanToDelete(
-                                                                    temuan,
-                                                                )
-                                                            }}
-                                                        >
-                                                            <i className="bi bi-trash3" />
-                                                        </button>
+                                                                <button
+                                                                    type="button"
+                                                                    className="temuan-action-item"
+                                                                    disabled={
+                                                                        temuan.status ===
+                                                                            'selesai' ||
+                                                                        isAllSolved
+                                                                    }
+                                                                    title={
+                                                                        temuan.status ===
+                                                                        'selesai'
+                                                                            ? 'Temuan sudah selesai'
+                                                                            : isAllSolved
+                                                                            ? 'Semua catatan sudah memiliki solusi'
+                                                                            : 'Beri Solusi'
+                                                                    }
+                                                                    onClick={(event) => {
+                                                                        event.stopPropagation()
+                                                                        setOpenMenuId(null)
+                                                                        handleOpenSolusiCreate(
+                                                                            temuan,
+                                                                        )
+                                                                    }}
+                                                                >
+                                                                    <i className="bi bi-check2-circle text-success" />
+                                                                    <span>Beri Solusi</span>
+                                                                </button>
+
+                                                                <div className="temuan-action-divider" />
+
+                                                                <button
+                                                                    type="button"
+                                                                    className="temuan-action-item"
+                                                                    disabled={
+                                                                        temuan.status !==
+                                                                        'open'
+                                                                    }
+                                                                    title={
+                                                                        temuan.status !==
+                                                                        'open'
+                                                                            ? 'Hanya temuan berstatus Open yang dapat diedit'
+                                                                            : 'Edit Temuan'
+                                                                    }
+                                                                    onClick={(event) => {
+                                                                        event.stopPropagation()
+                                                                        setOpenMenuId(null)
+                                                                        navigate(
+                                                                            `/temuan/${temuan.id}/edit`,
+                                                                        )
+                                                                    }}
+                                                                >
+                                                                    <i className="bi bi-pencil-square text-warning" />
+                                                                    <span>Edit Temuan</span>
+                                                                </button>
+
+                                                                <button
+                                                                    type="button"
+                                                                    className="temuan-action-item danger"
+                                                                    disabled={
+                                                                        temuan.status !==
+                                                                        'open'
+                                                                    }
+                                                                    title={
+                                                                        temuan.status !==
+                                                                        'open'
+                                                                            ? 'Hanya temuan berstatus Open yang dapat dihapus'
+                                                                            : 'Hapus Temuan'
+                                                                    }
+                                                                    onClick={(event) => {
+                                                                        event.stopPropagation()
+                                                                        setOpenMenuId(null)
+                                                                        setTemuanToDelete(
+                                                                            temuan,
+                                                                        )
+                                                                    }}
+                                                                >
+                                                                    <i className="bi bi-trash3 text-danger" />
+                                                                    <span>Hapus Temuan</span>
+                                                                </button>
+                                                            </div>
+                                                        )}
                                                     </div>
                                                 </td>
                                             </tr>
@@ -640,7 +826,7 @@ const TemuanPage = () => {
                                                 key={`expanded-${temuan.id}`}
                                                 className="temuan-expanded-row"
                                             >
-                                                <td colSpan={12}>
+                                                <td colSpan={8}>
                                                     <div className="temuan-expanded-container">
                                                         <div className="temuan-expanded-title">
                                                             <h4>
@@ -941,11 +1127,12 @@ const TemuanPage = () => {
                                 type="button"
                                 className="pagination-arrow"
                                 disabled={currentPage <= 1}
-                                onClick={() =>
+                                onClick={() => {
+                                    setOpenMenuId(null)
                                     setCurrentPage((previous) =>
                                         Math.max(1, previous - 1),
                                     )
-                                }
+                                }}
                             >
                                 <i className="bi bi-caret-left-fill" />
                             </button>
@@ -956,11 +1143,12 @@ const TemuanPage = () => {
                                 type="button"
                                 className="pagination-arrow"
                                 disabled={currentPage >= totalPages}
-                                onClick={() =>
+                                onClick={() => {
+                                    setOpenMenuId(null)
                                     setCurrentPage((previous) =>
                                         Math.min(totalPages, previous + 1),
                                     )
-                                }
+                                }}
                             >
                                 <i className="bi bi-caret-right-fill" />
                             </button>

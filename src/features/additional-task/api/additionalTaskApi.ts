@@ -11,6 +11,7 @@ import type {
     AdditionalTaskFilters,
     AdditionalTaskListResponse,
     AdditionalTaskMutationResponse,
+    AdditionalTaskSpkOption,
     CreateAdditionalTaskRequest,
     LaravelValidationErrorResponse,
     UpdateAdditionalTaskRequest,
@@ -202,10 +203,51 @@ const remove = async (
         }))
 }
 
+const getSpks = async (
+    clientCode: string,
+    bulan?: number,
+    tahun?: number,
+): Promise<AdditionalTaskApiResult<AdditionalTaskSpkOption[]>> => {
+    return httpClient
+        .get<{ success: true; message: string; data: AdditionalTaskSpkOption[] } | TaskError>(
+            '/additional-tasks/spks',
+            {
+                params: {
+                    client_code: clientCode,
+                    ...(bulan !== undefined ? { bulan } : {}),
+                    ...(tahun !== undefined ? { tahun } : {}),
+                },
+            },
+        )
+        .then((response) => {
+            if (
+                'success' in response.data &&
+                response.data.success
+            ) {
+                return {
+                    success: true,
+                    status: response.status,
+                    message: response.data.message,
+                    data: response.data.data,
+                }
+            }
+
+            return getErrorResult(
+                response as AxiosResponse<TaskError>,
+            )
+        })
+        .catch(() => ({
+            success: false,
+            status: 0,
+            message: 'Tidak dapat terhubung ke server.',
+        }))
+}
+
 export const additionalTaskApi = {
     getAll,
     getById,
     create,
     update,
     remove,
+    getSpks,
 }

@@ -20,10 +20,12 @@ export interface EditorJsContent {
 
 export interface NoteShare {
     id: number
-    note_id: number
+    note_id?: number
+    meeting_note_id?: number
     employee_code: string
+    employee_name?: string | null
     permission: SharePermission
-    is_attendance: boolean
+    is_attendance?: boolean
     created_at?: string
     updated_at?: string
 }
@@ -31,7 +33,10 @@ export interface NoteShare {
 export interface Note {
     id: number
     author_employee_code: string
-    type: NoteType
+    author_employee_name?: string | null
+    report_number?: string | null
+    report_no?: string | null
+    type?: NoteType
     meeting_scope?: MeetingScope | null
     client_id?: number | null
     title: string
@@ -43,47 +48,73 @@ export interface Note {
 }
 
 export interface NotePaginationMeta {
-    current_page: number
-    from: number | null
-    last_page: number
-    per_page: number
-    to: number | null
+    current_page?: number
+    from?: number | null
+    last_page?: number
+    per_page?: number
+    to?: number | null
     total: number
 }
 
 export interface NotePaginationLinks {
-    first: string | null
-    last: string | null
-    prev: string | null
-    next: string | null
+    first?: string | null
+    last?: string | null
+    prev?: string | null
+    next?: string | null
 }
 
 export interface NoteListResponse {
     data: Note[]
-    links: NotePaginationLinks
-    meta: NotePaginationMeta
+    links?: NotePaginationLinks
+    meta?: NotePaginationMeta
 }
 
 export interface CreateStandardNotePayload {
     title: string
     content: EditorJsContent
+    author_employee_name?: string
+}
+
+export interface MeetingAttendeePayload {
+    employee_code: string
+    employee_name?: string
 }
 
 export interface CreateMeetingNotePayload {
+    report_number?: string | null
     meeting_scope: MeetingScope
     client_id?: number | null
     title: string
-    attendee_codes: string[]
+    attendees?: MeetingAttendeePayload[] | string[]
+    attendee_codes?: string[]
+    author_employee_name?: string
     content: EditorJsContent
 }
 
-export interface UpdateNotePayload {
+export interface UpdateStandardNotePayload {
     title?: string
     content?: EditorJsContent
 }
 
+export interface UpdateMeetingNotePayload {
+    report_number?: string | null
+    title?: string
+    content?: EditorJsContent
+    meeting_scope?: MeetingScope
+    client_id?: number | null
+}
+
+export interface UpdateNotePayload {
+    report_number?: string | null
+    title?: string
+    content?: EditorJsContent
+    meeting_scope?: MeetingScope
+    client_id?: number | null
+}
+
 export interface ShareInvitedItem {
     employee_code: string
+    employee_name?: string
     permission: SharePermission
 }
 
@@ -117,6 +148,8 @@ export interface NoteApiResult<T> {
 
 export type CreateStandardNoteRequest = CreateStandardNotePayload
 export type CreateMeetingNoteRequest = CreateMeetingNotePayload
+export type UpdateStandardNoteRequest = UpdateStandardNotePayload
+export type UpdateMeetingNoteRequest = UpdateMeetingNotePayload
 export type UpdateNoteRequest = UpdateNotePayload
 export type ShareInvitedRequest = ShareInvitedPayload
 export type NotesApiResponse<T> = NoteApiResult<T>

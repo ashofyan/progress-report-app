@@ -1,4 +1,6 @@
-export type TemuanStatus = 'open' | 'selesai'
+export type TemuanStatus = 'open' | 'pending' | 'selesai'
+
+export type TemuanType = 'TM' | 'PR'
 
 export interface TemuanMeta {
     current_page: number
@@ -10,8 +12,8 @@ export interface TemuanMeta {
 export interface TemuanSpk {
     id: number
     no_spk: string
-    client_code: string
-    kode_product_jasa: string | null
+    client_code?: string
+    kode_product_jasa?: string | null
 }
 
 export interface TemuanJob {
@@ -25,11 +27,20 @@ export interface TemuanTask {
     task_name: string
 }
 
+export interface TemuanNoteSolution {
+    id?: number
+    solution: string
+    files?: TemuanFile[]
+    created_by?: string
+    created_at?: string | null
+}
+
 export interface TemuanNote {
     id: number
     als_job_task_id: number
     task?: TemuanTask | null
     note: string
+    solution?: string | TemuanNoteSolution | null
     created_at?: string | null
     updated_at?: string | null
 }
@@ -44,9 +55,32 @@ export interface TemuanFile {
     created_at: string | null
 }
 
+export interface TemuanComment {
+    id: number
+    temuan_id: number
+    temuan_note_id?: number | null
+    comment: string
+    created_by: string
+    created_by_name: string
+    created_by_level?: number | null
+    created_at: string | null
+    updated_at: string | null
+}
+
+export interface TemuanProgressReportSummary {
+    id: number
+    nomor: string
+    tanggal: string
+}
+
 export interface Temuan {
     id: number
     nomor: string
+    type?: TemuanType
+    priority?: number
+    als_progress_report_id?: number | null
+    no_pr?: string | null
+    progress_report?: TemuanProgressReportSummary | null
     tanggal: string
     client_code: string
     spk?: TemuanSpk
@@ -54,7 +88,9 @@ export interface Temuan {
     status: TemuanStatus
     notes: TemuanNote[]
     files: TemuanFile[]
+    comments?: TemuanComment[]
     created_by: string
+    created_by_name?: string
     created_by_level: number | null
     created_at: string | null
     updated_at: string | null
@@ -64,7 +100,9 @@ export interface TemuanFilters {
     client_code?: string
     als_spk_id?: number
     tanggal?: string
-    status?: TemuanStatus | ''
+    status?: TemuanStatus | string
+    type?: TemuanType | ''
+    priority?: number
 }
 
 export interface CreateTemuanNoteRequest {
@@ -76,18 +114,26 @@ export interface CreateTemuanRequest {
     tanggal: string
     client_code: string
     als_spk_id: number
+    priority?: number
+    type?: TemuanType
     notes: CreateTemuanNoteRequest[]
 }
 
 export interface UpdateTemuanNoteRequest {
     id?: number
-    als_job_task_id: number
+    als_job_task_id?: number
     note: string
 }
 
 export interface UpdateTemuanRequest {
     tanggal?: string
+    priority?: number
     notes?: UpdateTemuanNoteRequest[]
+}
+
+export interface CreateTemuanCommentRequest {
+    comment: string
+    temuan_note_id?: number | null
 }
 
 export interface TemuanListResponse {
@@ -117,6 +163,23 @@ export interface TemuanFileResponse {
     status: true
     message: string
     data: TemuanFile[]
+}
+
+export interface TemuanCommentListResponse {
+    status: true
+    message: string
+    data: TemuanComment[]
+}
+
+export interface TemuanCommentMutationResponse {
+    status: true
+    message: string
+    data: TemuanComment
+}
+
+export interface TemuanCommentDeleteResponse {
+    status: true
+    message: string
 }
 
 export interface TemuanErrorResponse {

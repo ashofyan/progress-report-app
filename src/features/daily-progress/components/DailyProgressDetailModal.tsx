@@ -17,22 +17,42 @@ interface DailyProgressDetailModalProps {
     onEditForm?: (progress: DailyProgress) => void
 }
 
-const statusLabels: Record<DailyProgressStatus, string> = {
-    open: 'Open',
-    pending: 'Pending',
-    batal: 'Batal',
-    selesai: 'Selesai',
+const statusConfig: Record<
+    DailyProgressStatus,
+    { label: string; className: string; icon: string }
+> = {
+    open: {
+        label: 'Open',
+        className: 'open',
+        icon: 'bi-circle',
+    },
+    pending: {
+        label: 'Pending',
+        className: 'pending',
+        icon: 'bi-hourglass-split',
+    },
+    batal: {
+        label: 'Batal',
+        className: 'batal',
+        icon: 'bi-x-circle',
+    },
+    selesai: {
+        label: 'Selesai',
+        className: 'selesai',
+        icon: 'bi-check-circle-fill',
+    },
 }
 
 const getDetailLabel = (
     detail: DailyProgress['details'][number],
-): string => {
+): { parentName?: string; taskName: string } => {
     const taskName = detail.task?.task_name ?? 'Task'
     const parentName = detail.task?.parent?.task_name
 
-    return parentName === undefined
-        ? taskName
-        : `${parentName} / ${taskName}`
+    return {
+        parentName,
+        taskName,
+    }
 }
 
 const DailyProgressDetailModal = ({
@@ -48,6 +68,9 @@ const DailyProgressDetailModal = ({
 
     const [errorMessage, setErrorMessage] =
         useState<string | null>(null)
+
+    const [activeTab, setActiveTab] =
+        useState<'pekerjaan' | 'temuan'>('pekerjaan')
 
     useEffect(() => {
         if (progress === null) {
@@ -86,11 +109,35 @@ const DailyProgressDetailModal = ({
 
     const currentProgress = detailProgress ?? progress
 
+    const completedCount = currentProgress.details.filter(
+        (d) => d.status === 'selesai',
+    ).length
+    const pendingCount = currentProgress.details.filter(
+        (d) => d.status === 'pending',
+    ).length
+    const totalTemuans =
+        (currentProgress.temuans?.length ?? 0) +
+        (currentProgress.findings?.length ?? 0)
+
     return (
-        <div className="daily-progress-modal-backdrop">
-            <div className="daily-progress-modal">
-                <div className="daily-progress-modal-header sticky-top bg-white">
-                    <h2>Detail Daily Progress</h2>
+        <div className="daily-progress-modal-backdrop" onClick={onClose}>
+            <div
+                className="daily-progress-modal"
+                onClick={(e) => e.stopPropagation()}
+            >
+                {/* Header */}
+                <div className="daily-progress-modal-header">
+                    <div className="d-flex align-items-center gap-2.5">
+                        <div className="daily-progress-modal-icon-badge">
+                            <i className="bi bi-file-earmark-check" />
+                        </div>
+                        <div>
+                            <h2>Detail Daily Progress</h2>
+                            <span className="daily-progress-modal-doc-id">
+                                {currentProgress.nomor}
+                            </span>
+                        </div>
+                    </div>
 
                     <div className="d-flex align-items-center gap-2">
                         {onEditForm !== undefined && (
@@ -111,6 +158,7 @@ const DailyProgressDetailModal = ({
                             type="button"
                             className="daily-progress-modal-close"
                             onClick={onClose}
+                            title="Tutup"
                         >
                             <i className="bi bi-x-lg" />
                         </button>
@@ -119,304 +167,330 @@ const DailyProgressDetailModal = ({
 
                 <div className="daily-progress-modal-body">
                     {isLoading && (
-                        <div className="daily-progress-loading">
+                        <div className="daily-progress-loading py-4">
                             <div
-                                className="spinner-border"
+                                className="spinner-border spinner-border-sm text-primary mb-2"
                                 role="status"
                             />
-                            <span>Memuat detail...</span>
+                            <span>Memuat detail terbaru...</span>
                         </div>
                     )}
 
                     {errorMessage !== null && (
                         <div
-                            className="alert alert-danger"
+                            className="alert alert-danger d-flex align-items-center gap-2 mb-3"
                             role="alert"
                         >
-                            {errorMessage}
+                            <i className="bi bi-exclamation-circle-fill" />
+                            <span>{errorMessage}</span>
                         </div>
                     )}
 
-                    <div className="row g-3 mb-4">
-                        <div className="col-md-3">
-                            <label className="form-label">
-                                Nomor
-                            </label>
-                            <input
-                                type="text"
-                                className="form-control"
-                                value={
-                                    currentProgress.nomor
-                                }
-                                disabled
-                            />
-                        </div>
-
-                        <div className="col-md-2">
-                            <label className="form-label">
-                                Tanggal
-                            </label>
-                            <input
-                                type="date"
-                                className="form-control"
-                                value={
-                                    currentProgress.tanggal
-                                }
-                                disabled
-                            />
-                        </div>
-
-                        <div className="col-md-2">
-                            <label className="form-label">
-                                Periode
-                            </label>
-                            <input
-                                type="text"
-                                className="form-control"
-                                value={getPeriodeLabel(
-                                    currentProgress.bulan,
-                                    currentProgress.tahun,
-                                    currentProgress.tanggal,
-                                )}
-                                disabled
-                            />
-                        </div>
-
-                        <div className="col-md-2">
-                            <label className="form-label">
-                                Client
-                            </label>
-                            <input
-                                type="text"
-                                className="form-control"
-                                value={
-                                    currentProgress.client_code
-                                }
-                                disabled
-                            />
-                        </div>
-
-                        <div className="col-md-3">
-                            <label className="form-label">
-                                SPK
-                            </label>
-                            <input
-                                type="text"
-                                className="form-control"
-                                value={
-                                    currentProgress.no_spk ??
-                                    '-'
-                                }
-                                disabled
-                            />
-                        </div>
-                    </div>
-
-                    <div className="row g-3 mb-4">
-                        <div className="col-md-6">
-                            <label className="form-label">
-                                Dibuat Oleh
-                            </label>
-                            <input
-                                type="text"
-                                className="form-control"
-                                value={
-                                    currentProgress.created_by
-                                }
-                                disabled
-                            />
-                        </div>
-
-                        <div className="col-md-6">
-                            <label className="form-label">
-                                Tingkat Pembuat
-                            </label>
-                            <input
-                                type="text"
-                                className="form-control"
-                                value={
-                                    currentProgress.created_by_level
-                                }
-                                disabled
-                            />
-                        </div>
-                    </div>
-
-                    <div className="mb-4">
-                        <h3 className="h6 mb-2">
-                            Detail Pekerjaan
-                        </h3>
-
-                        {currentProgress.details.length ===
-                        0 ? (
-                            <div className="daily-progress-empty p-3">
-                                <span>
-                                    Tidak ada detail pekerjaan.
-                                </span>
+                    {/* Metadata Overview Cards */}
+                    <div className="daily-progress-detail-info-grid mb-4">
+                        <div className="daily-progress-info-card">
+                            <div className="daily-progress-info-icon purple">
+                                <i className="bi bi-buildings" />
                             </div>
-                        ) : (
-                            <div className="table-responsive">
-                                <table className="table table-bordered table-sm mb-0">
-                                    <thead>
-                                    <tr>
-                                        <th>No</th>
-                                        <th>
-                                            Pekerjaan
-                                        </th>
-                                        <th>Status</th>
-                                        <th>
-                                            Catatan
-                                        </th>
-                                    </tr>
-                                    </thead>
+                            <div className="daily-progress-info-meta">
+                                <span className="label">Client</span>
+                                <strong className="value">
+                                    {currentProgress.client_code}
+                                </strong>
+                            </div>
+                        </div>
 
-                                    <tbody>
-                                    {currentProgress.details.map(
-                                        (
-                                            detail,
-                                            index,
-                                        ) => (
-                                            <tr
-                                                key={
-                                                    detail.id
-                                                }
-                                            >
-                                                <td>
-                                                    {index +
-                                                        1}
-                                                </td>
+                        <div className="daily-progress-info-card">
+                            <div className="daily-progress-info-icon blue">
+                                <i className="bi bi-file-earmark-ruled" />
+                            </div>
+                            <div className="daily-progress-info-meta">
+                                <span className="label">Nomor SPK</span>
+                                <strong className="value">
+                                    {currentProgress.no_spk ?? '-'}
+                                </strong>
+                            </div>
+                        </div>
 
-                                                <td>
-                                                    {getDetailLabel(
-                                                        detail,
-                                                    )}
-                                                </td>
-
-                                                <td>
-                                                        <span
-                                                            className={`badge bg-${
-                                                                detail.status ===
-                                                                'selesai'
-                                                                    ? 'success'
-                                                                    : detail.status ===
-                                                                      'pending'
-                                                                      ? 'warning'
-                                                                      : 'secondary'
-                                                            }`}
-                                                        >
-                                                            {
-                                                                statusLabels[
-                                                                    detail
-                                                                        .status
-                                                                    ]
-                                                            }
-                                                        </span>
-                                                </td>
-
-                                                <td>
-                                                    {detail.catatan ??
-                                                        '-'}
-                                                </td>
-                                            </tr>
-                                        ),
+                        <div className="daily-progress-info-card">
+                            <div className="daily-progress-info-icon cyan">
+                                <i className="bi bi-calendar3" />
+                            </div>
+                            <div className="daily-progress-info-meta">
+                                <span className="label">Tanggal &amp; Periode</span>
+                                <strong className="value">
+                                    {currentProgress.tanggal}
+                                </strong>
+                                <small className="sub">
+                                    {getPeriodeLabel(
+                                        currentProgress.bulan,
+                                        currentProgress.tahun,
+                                        currentProgress.tanggal,
                                     )}
-                                    </tbody>
-                                </table>
+                                </small>
                             </div>
-                        )}
+                        </div>
+
+                        <div className="daily-progress-info-card">
+                            <div className="daily-progress-info-icon primary">
+                                <i className="bi bi-person-badge" />
+                            </div>
+                            <div className="daily-progress-info-meta">
+                                <span className="label">Dibuat Oleh</span>
+                                <strong className="value">
+                                    {currentProgress.created_by ?? '-'}
+                                </strong>
+                                <small className="sub">
+                                    {currentProgress.created_by_level ?? 'Staff'}
+                                </small>
+                            </div>
+                        </div>
                     </div>
 
-                    <div>
-                        <h3 className="h6 mb-2">Temuan</h3>
+                    {/* Tabs / Segmented Control */}
+                    <div className="daily-progress-detail-tabs mb-3">
+                        <button
+                            type="button"
+                            className={`daily-progress-detail-tab ${
+                                activeTab === 'pekerjaan' ? 'active' : ''
+                            }`}
+                            onClick={() => setActiveTab('pekerjaan')}
+                        >
+                            <i className="bi bi-list-check me-1.5" />
+                            <span>Pekerjaan</span>
+                            <span className="count-pill">
+                                {currentProgress.details.length}
+                            </span>
+                        </button>
 
-                        {(!currentProgress.temuans ||
-                            currentProgress.temuans
-                                .length === 0) &&
-                        (!currentProgress.findings ||
-                            currentProgress.findings
-                                .length === 0) ? (
-                            <div className="daily-progress-empty p-3">
-                                <span>
-                                    Tidak ada temuan.
+                        <button
+                            type="button"
+                            className={`daily-progress-detail-tab ${
+                                activeTab === 'temuan' ? 'active' : ''
+                            }`}
+                            onClick={() => setActiveTab('temuan')}
+                        >
+                            <i className="bi bi-exclamation-triangle me-1.5" />
+                            <span>Temuan</span>
+                            {totalTemuans > 0 && (
+                                <span className="count-pill alert">
+                                    {totalTemuans}
                                 </span>
+                            )}
+                        </button>
+                    </div>
+
+                    {/* Tab 1: Pekerjaan */}
+                    {activeTab === 'pekerjaan' && (
+                        <div className="daily-progress-pekerjaan-section">
+                            <div className="daily-progress-section-toolbar mb-2">
+                                <div className="d-flex align-items-center gap-2">
+                                    <span className="badge bg-success-subtle text-success border border-success-subtle">
+                                        <i className="bi bi-check-circle me-1" />
+                                        {completedCount} Selesai
+                                    </span>
+                                    {pendingCount > 0 && (
+                                        <span className="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle">
+                                            <i className="bi bi-hourglass-split me-1" />
+                                            {pendingCount} Pending
+                                        </span>
+                                    )}
+                                </div>
                             </div>
-                        ) : (
-                            <ul className="list-group">
-                                {currentProgress.temuans?.map(
-                                    (temuan) => (
-                                        <li
-                                            key={
-                                                temuan.id
-                                            }
-                                            className="list-group-item d-flex justify-content-between align-items-center"
+
+                            {currentProgress.details.length === 0 ? (
+                                <div className="daily-progress-empty p-4">
+                                    <i className="bi bi-inbox text-muted fs-3 mb-2" />
+                                    <span>Tidak ada detail pekerjaan.</span>
+                                </div>
+                            ) : (
+                                <div className="table-responsive daily-progress-modal-table-wrap">
+                                    <table className="table daily-progress-modal-table mb-0">
+                                        <thead>
+                                        <tr>
+                                            <th style={{ width: '40px' }}>No</th>
+                                            <th>Pekerjaan</th>
+                                            <th style={{ width: '120px' }}>Status</th>
+                                            <th>Catatan</th>
+                                        </tr>
+                                        </thead>
+
+                                        <tbody>
+                                        {currentProgress.details.map(
+                                            (detail, index) => {
+                                                const {
+                                                    parentName,
+                                                    taskName,
+                                                } = getDetailLabel(detail)
+                                                const status =
+                                                    statusConfig[detail.status] ??
+                                                    statusConfig.open
+
+                                                return (
+                                                    <tr key={detail.id}>
+                                                        <td className="text-muted text-center">
+                                                            {index + 1}
+                                                        </td>
+
+                                                        <td>
+                                                            {parentName && (
+                                                                <div className="daily-progress-parent-task">
+                                                                    {parentName}
+                                                                </div>
+                                                            )}
+                                                            <div className="daily-progress-task-name">
+                                                                {taskName}
+                                                            </div>
+                                                        </td>
+
+                                                        <td>
+                                                            <span
+                                                                className={`daily-progress-status ${status.className}`}
+                                                            >
+                                                                <i
+                                                                    className={`bi ${status.icon} me-1`}
+                                                                />
+                                                                {status.label}
+                                                            </span>
+                                                        </td>
+
+                                                        <td>
+                                                            {detail.catatan &&
+                                                            detail.catatan.trim() !==
+                                                            '' ? (
+                                                                <div className="daily-progress-note-callout">
+                                                                    <i className="bi bi-chat-left-text me-1.5" />
+                                                                    <span>
+                                                                        {detail.catatan}
+                                                                    </span>
+                                                                </div>
+                                                            ) : (
+                                                                <span className="text-muted fst-italic small">
+                                                                    -
+                                                                </span>
+                                                            )}
+                                                        </td>
+                                                    </tr>
+                                                )
+                                            },
+                                        )}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            )}
+                        </div>
+                    )}
+
+                    {/* Tab 2: Temuan */}
+                    {activeTab === 'temuan' && (
+                        <div className="daily-progress-temuan-section">
+                            {(!currentProgress.temuans ||
+                                currentProgress.temuans.length === 0) &&
+                            (!currentProgress.findings ||
+                                currentProgress.findings.length === 0) ? (
+                                <div className="daily-progress-empty p-4">
+                                    <i className="bi bi-check-circle text-success fs-3 mb-2" />
+                                    <span>
+                                        Tidak ada temuan pada laporan ini.
+                                    </span>
+                                </div>
+                            ) : (
+                                <div className="d-flex flex-column gap-2.5">
+                                    {currentProgress.temuans?.map((temuan) => (
+                                        <div
+                                            key={temuan.id}
+                                            className="daily-progress-temuan-card global"
                                         >
-                                            <div>
-                                                <strong>
-                                                    {temuan.nomor}
-                                                </strong>
-                                                {temuan.notes && temuan.notes.length > 0 && (
-                                                    <div className="text-muted small">
-                                                        {temuan.notes.map((n) => n.note).join(', ')}
+                                            <div className="d-flex align-items-center justify-content-between mb-1.5">
+                                                <div className="d-flex align-items-center gap-2">
+                                                    <span className="daily-progress-temuan-tag global">
+                                                        Temuan Global
+                                                    </span>
+                                                    <strong>
+                                                        {temuan.nomor}
+                                                    </strong>
+                                                </div>
+
+                                                <span
+                                                    className={`daily-progress-status ${
+                                                        temuan.status === 'open'
+                                                            ? 'open'
+                                                            : 'selesai'
+                                                    }`}
+                                                >
+                                                    {temuan.status}
+                                                </span>
+                                            </div>
+
+                                            {temuan.notes &&
+                                                temuan.notes.length > 0 && (
+                                                    <div className="daily-progress-temuan-notes">
+                                                        {temuan.notes
+                                                            .map((n) => n.note)
+                                                            .join(', ')}
                                                     </div>
                                                 )}
-                                                <div className="text-muted small">
-                                                    Status:{' '}
-                                                    {
-                                                        temuan.status
-                                                    }
-                                                </div>
-                                            </div>
-                                        </li>
-                                    ),
-                                )}
+                                        </div>
+                                    ))}
 
-                                {currentProgress.findings?.map(
-                                    (finding) => (
-                                        <li
-                                            key={
-                                                finding.id
-                                            }
-                                            className="list-group-item d-flex justify-content-between align-items-center"
-                                        >
-                                            <div>
-                                                <strong>
-                                                    {
-                                                        finding.keterangan
-                                                    }
-                                                </strong>
-                                                <div className="text-muted small">
-                                                    PR:{' '}
-                                                    {
-                                                        finding.nomor_pr
-                                                    }{' '}
-                                                    (
-                                                    {
-                                                        finding.tanggal
-                                                    }
-                                                    )
+                                    {currentProgress.findings?.map(
+                                        (finding) => (
+                                            <div
+                                                key={finding.id}
+                                                className="daily-progress-temuan-card pr"
+                                            >
+                                                <div className="d-flex align-items-center justify-content-between mb-1.5">
+                                                    <div className="d-flex align-items-center gap-2">
+                                                        <span className="daily-progress-temuan-tag pr">
+                                                            Finding PR
+                                                        </span>
+                                                        <strong>
+                                                            {finding.nomor_pr}
+                                                        </strong>
+                                                        <span className="text-muted small">
+                                                            ({finding.tanggal})
+                                                        </span>
+                                                    </div>
+
+                                                    <span className="badge bg-info-subtle text-info-emphasis border border-info-subtle">
+                                                        {finding.source_type}
+                                                    </span>
                                                 </div>
+
+                                                <p className="daily-progress-finding-desc mb-0">
+                                                    {finding.keterangan}
+                                                </p>
                                             </div>
-                                            <span className="badge bg-info">
-                                                {
-                                                    finding.source_type
-                                                }
-                                            </span>
-                                        </li>
-                                    ),
-                                )}
-                            </ul>
-                        )}
-                    </div>
+                                        ),
+                                    )}
+                                </div>
+                            )}
+                        </div>
+                    )}
                 </div>
 
+                {/* Footer */}
                 <div className="daily-progress-modal-footer">
                     <button
                         type="button"
-                        className="btn btn-secondary"
+                        className="btn btn-outline-secondary"
                         onClick={onClose}
                     >
                         Tutup
                     </button>
+                    {onEditForm !== undefined && (
+                        <button
+                            type="button"
+                            className="btn btn-primary"
+                            onClick={() => {
+                                onClose()
+                                onEditForm(currentProgress)
+                            }}
+                        >
+                            <i className="bi bi-pencil-square me-1" />
+                            Edit Daily Progress
+                        </button>
+                    )}
                 </div>
             </div>
         </div>

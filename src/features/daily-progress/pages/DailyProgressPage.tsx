@@ -6,9 +6,14 @@ const DailyProgressPage = () => {
     return (
         <div className="daily-progress-page">
             <div className="daily-progress-heading">
-                <h1 className="daily-progress-title">
-                    Daily Progress
-                </h1>
+                <div>
+                    <h1 className="daily-progress-title">
+                        Daily Progress
+                    </h1>
+                    <p className="daily-progress-subtitle">
+                        Monitoring dan pencatatan pekerjaan harian operasional
+                    </p>
+                </div>
 
                 <div className="daily-progress-breadcrumb">
                     <span className="active">

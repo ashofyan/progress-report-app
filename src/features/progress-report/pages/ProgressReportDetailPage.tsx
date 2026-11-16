@@ -215,6 +215,8 @@ const ProgressReportDetailPage = () => {
         useState<boolean>(true)
     const [errorMessage, setErrorMessage] =
         useState<string | null>(null)
+    const [isApproving, setIsApproving] = useState<boolean>(false)
+    const [approveSuccessMessage, setApproveSuccessMessage] = useState<string | null>(null)
 
     useEffect(() => {
         if (!Number.isFinite(reportId) || reportId <= 0) {
@@ -262,19 +264,8 @@ const ProgressReportDetailPage = () => {
 
     const creatorName = useMemo(() => {
         if (!detail) return '-'
-        if (
-            'created_by_name' in detail &&
-            typeof (
-                detail as unknown as {
-                    created_by_name: unknown
-                }
-            ).created_by_name === 'string'
-        ) {
-            return (
-                detail as unknown as {
-                    created_by_name: string
-                }
-            ).created_by_name
+        if (detail.created_by_name) {
+            return detail.created_by_name
         }
         if (
             authEmployee &&
@@ -303,20 +294,27 @@ const ProgressReportDetailPage = () => {
         const groupsMap = new Map<string, TaskGroup>()
 
         detail.details.forEach((item) => {
-            const hasParent =
-                item.task.parent !== null &&
-                item.task.parent.task_name.trim() !== ''
+            const parentTaskName =
+                item.task?.parent?.task_name?.trim() ||
+                item.parent_task_name?.trim() ||
+                ''
+            const hasParent = parentTaskName !== ''
+
+            const ownTaskName =
+                item.task?.task_name?.trim() ||
+                item.task_name?.trim() ||
+                `Detail Pekerjaan #${item.id}`
 
             const groupKey = hasParent
-                ? `parent-${item.task.parent?.id ?? item.task.parent?.task_name}`
-                : `single-${item.task.id}`
+                ? `parent-${item.task?.parent?.id ?? parentTaskName}`
+                : `single-${item.task?.id ?? item.id}`
 
             const parentName = hasParent
-                ? item.task.parent!.task_name
-                : item.task.task_name
+                ? parentTaskName
+                : ownTaskName
 
             const childTaskName = hasParent
-                ? item.task.task_name
+                ? ownTaskName
                 : ''
 
             if (!groupsMap.has(groupKey)) {
@@ -385,6 +383,35 @@ const ProgressReportDetailPage = () => {
         )
     }
 
+    const isApproved = detail.approval_status === 'approved'
+    const isPending = detail.approval_status === 'pending' || !detail.approval_status
+    const isCreator = authEmployee && authEmployee.employee_code === detail.created_by
+
+    const authLevel = authEmployee?.jabatan?.tingkat ? Number(authEmployee.jabatan.tingkat) : null
+    const creatorLevel = detail.created_by_level
+
+    const canApprove = isPending && !isCreator && (
+        authLevel !== null && creatorLevel !== null ? authLevel < creatorLevel : true
+    )
+
+    const handleApprove = async (): Promise<void> => {
+        if (!window.confirm('Apakah Anda yakin ingin menyetujui (approve) Progress Report ini?')) {
+            return
+        }
+
+        setIsApproving(true)
+        const result = await progressReportApi.approve(detail.id)
+        setIsApproving(false)
+
+        if (result.success && result.data) {
+            setDetail(result.data)
+            setApproveSuccessMessage('Progress Report berhasil disetujui (Approved).')
+            setTimeout(() => setApproveSuccessMessage(null), 5000)
+        } else {
+            alert(result.message || 'Gagal menyetujui Progress Report.')
+        }
+    }
+
     return (
         <div className="progress-report-detail-page">
             {/* Top Toolbar */}
@@ -404,6 +431,42 @@ const ProgressReportDetailPage = () => {
                 </div>
 
                 <div className="progress-report-detail-topbar-right">
+                    {canApprove && (
+                        <button
+                            type="button"
+                            className="btn btn-success btn-sm d-flex align-items-center gap-1 shadow-sm px-3"
+                            style={{ height: '34px', borderRadius: '6px' }}
+                            disabled={isApproving}
+                            onClick={handleApprove}
+                            title="Setujui (Approve) Progress Report"
+                        >
+                            {isApproving ? (
+                                <span className="spinner-border spinner-border-sm" />
+                            ) : (
+                                <i className="bi bi-check-circle-fill" />
+                            )}
+                            <span className="fw-semibold">Approve</span>
+                        </button>
+                    )}
+
+                    {(!authEmployee ||
+                        authEmployee.employee_code ===
+                            detail.created_by) && !isApproved && (
+                        <button
+                            type="button"
+                            className="btn-print-action"
+                            onClick={() =>
+                                navigate(
+                                    `/progress-report/${detail.id}/edit`,
+                                )
+                            }
+                            title="Edit Progress Report"
+                        >
+                            <i className="bi bi-pencil" />
+                            <span>Edit</span>
+                        </button>
+                    )}
+
                     <button
                         type="button"
                         className="btn-print-action"
@@ -425,6 +488,63 @@ const ProgressReportDetailPage = () => {
                     </button>
                 </div>
             </div>
+
+            {/* Approval Status Alert / Banner */}
+            {approveSuccessMessage && (
+                <div className="alert alert-success alert-dismissible fade show d-flex align-items-center gap-2 py-2 px-3 mb-3 print-hide">
+                    <i className="bi bi-check-circle-fill text-success" />
+                    <span>{approveSuccessMessage}</span>
+                    <button
+                        type="button"
+                        className="btn-close ms-auto"
+                        onClick={() => setApproveSuccessMessage(null)}
+                    />
+                </div>
+            )}
+
+            {detail.approval_status === 'approved' ? (
+                <div className="alert alert-success d-flex align-items-center justify-content-between flex-wrap gap-2 py-2 px-3 mb-3 print-hide border shadow-xs" style={{ borderRadius: '8px' }}>
+                    <div className="d-flex align-items-center gap-2">
+                        <i className="bi bi-patch-check-fill fs-5 text-success" />
+                        <div>
+                            <strong className="text-success">Progress Report Disetujui (Approved)</strong>
+                            <div className="small text-muted">
+                                Disetujui oleh <strong>{detail.approved_by_name || detail.approved_by}</strong>
+                                {detail.approved_by_level !== undefined && detail.approved_by_level !== null && ` (Tingkat Level ${detail.approved_by_level})`}
+                                {detail.approved_at && ` pada ${formatIndoDate(detail.approved_at)}`}
+                            </div>
+                        </div>
+                    </div>
+                    <span className="badge bg-success">Status: Approved</span>
+                </div>
+            ) : (
+                <div className="alert alert-warning d-flex align-items-center justify-content-between flex-wrap gap-2 py-2 px-3 mb-3 print-hide border shadow-xs" style={{ borderRadius: '8px' }}>
+                    <div className="d-flex align-items-center gap-2">
+                        <i className="bi bi-hourglass-split fs-5 text-warning-emphasis" />
+                        <div>
+                            <strong className="text-warning-emphasis">Menunggu Persetujuan Atasan (Pending Approval)</strong>
+                            <div className="small text-muted">
+                                Laporan ini dibuat oleh <strong>{creatorName}</strong> (Level {detail.created_by_level}) dan belum disetujui atasan.
+                            </div>
+                        </div>
+                    </div>
+                    {canApprove && (
+                        <button
+                            type="button"
+                            className="btn btn-success btn-sm fw-semibold shadow-xs"
+                            disabled={isApproving}
+                            onClick={handleApprove}
+                        >
+                            {isApproving ? (
+                                <span className="spinner-border spinner-border-sm me-1" />
+                            ) : (
+                                <i className="bi bi-check-circle-fill me-1" />
+                            )}
+                            Setujui (Approve) Laporan
+                        </button>
+                    )}
+                </div>
+            )}
 
             {/* Document Card */}
             <div className="progress-report-document-card">
@@ -625,6 +745,14 @@ const ProgressReportDetailPage = () => {
                                                             ?.task_name ??
                                                           'Additional Task'}
                                                 </strong>
+                                                {finding.priority && (
+                                                    <span
+                                                        className="badge bg-secondary ms-2"
+                                                        style={{ fontSize: '10px', verticalAlign: 'middle' }}
+                                                    >
+                                                        Prioritas {finding.priority}
+                                                    </span>
+                                                )}
                                             </div>
                                             {finding.keterangan && (
                                                 <div className="task-note-list">

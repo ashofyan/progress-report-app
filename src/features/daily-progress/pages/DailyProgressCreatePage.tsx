@@ -34,6 +34,7 @@ interface SelectedTask {
     als_task_additional_detail_id?: number
 }
 
+
 interface PendingMasterTask {
     detailId: number
     dailyProgressId: number
@@ -101,9 +102,15 @@ const getSpkLabel = (
     return `${spk.no_spk} - ${description}`
 }
 
-const getChildLastProgress = (
+const getChildLatestHistory = (
     child: DailyProgressFormJobTaskChild,
 ): ChildProgressHistory | null => {
+    if (child.last_progress_report) {
+        return child.last_progress_report
+    }
+    if (child.history && child.history.length > 0) {
+        return child.history[0]
+    }
     return child.last_progress_report ?? null
 }
 
@@ -122,21 +129,30 @@ const getProgressHeaderId = (
 const getProgressNoteText = (
     progress: ChildProgressHistory,
 ): string | null => {
+    const noteList: string[] = []
+
     if (
         'notes' in progress &&
         progress.notes !== undefined &&
         progress.notes.length > 0
     ) {
-        const notes = progress.notes
-            .map((note) => note.catatan.trim())
-            .filter((note) => note !== '')
-
-        return notes.length === 0
-            ? null
-            : notes.join('\n')
+        progress.notes.forEach((note) => {
+            const trimmed = note.catatan?.trim()
+            if (trimmed) {
+                noteList.push(trimmed)
+            }
+        })
     }
 
-    return progress.catatan ?? null
+    if (
+        progress.catatan &&
+        progress.catatan.trim() !== '' &&
+        !noteList.includes(progress.catatan.trim())
+    ) {
+        noteList.push(progress.catatan.trim())
+    }
+
+    return noteList.length === 0 ? null : noteList.join('\n')
 }
 
 const getChildHistory = (
@@ -149,7 +165,7 @@ const getChildHistory = (
         return child.history
     }
 
-    const lastProgress = getChildLastProgress(child)
+    const lastProgress = getChildLatestHistory(child)
 
     return lastProgress === null ? [] : [lastProgress]
 }
@@ -159,13 +175,14 @@ const getPendingMasterTasks = (
 ): PendingMasterTask[] => {
     return tasks.flatMap((parent) =>
         parent.children
-            .filter(
-                (child) =>
-                    getChildLastProgress(child)?.status ===
-                    'pending',
-            )
+            .filter((child) => hasChildPending(child))
             .map((child) => {
-                const progress = getChildLastProgress(child)
+                const history = getChildHistory(child)
+                const progress =
+                    child.last_progress_report?.status === 'pending'
+                        ? child.last_progress_report
+                        : history.find((h) => h.status === 'pending') ??
+                          getChildLatestHistory(child)
 
                 return {
                     detailId:
@@ -193,19 +210,34 @@ const getPendingMasterTasks = (
 const hasChildPending = (
     child: DailyProgressFormJobTaskChild,
 ): boolean => {
-    return getChildLastProgress(child)?.status === 'pending'
+    const latest = getChildLatestHistory(child)
+    if (latest?.status === 'pending') {
+        return true
+    }
+    if (child.history && child.history.length > 0) {
+        const hasPending = child.history.some((h) => h.status === 'pending')
+        const hasSelesai = child.history.some((h) => h.status === 'selesai')
+        if (hasPending && !hasSelesai) {
+            return true
+        }
+    }
+    return false
 }
 
 const isChildCompleted = (
     child: DailyProgressFormJobTaskChild,
 ): boolean => {
-    return getChildLastProgress(child)?.status === 'selesai'
-}
-
-const isMasterChildPending = (
-    child: DailyProgressFormJobTaskChild,
-): boolean => {
-    return hasChildPending(child)
+    const latest = getChildLatestHistory(child)
+    if (latest?.status === 'selesai') {
+        return true
+    }
+    if (latest?.status === 'pending') {
+        return false
+    }
+    if (child.history && child.history.length > 0) {
+        return child.history.some((h) => h.status === 'selesai')
+    }
+    return false
 }
 
 const DailyProgressCreatePage = () => {
@@ -361,48 +393,35 @@ const DailyProgressCreatePage = () => {
         )
     }, [selectedJob?.tasks])
 
-    const carriedPendingTasks = useMemo<SelectedTask[]>(() => {
-        if (selectedJob === null) {
-            return []
-        }
-
-        const carriedTasks = new Map<string, SelectedTask>()
-
-        pendingMasterTasks.forEach((pending) => {
-            const key = `master-${pending.taskId}`
-
-            carriedTasks.set(key, {
-                key,
-                als_job_id: selectedJob.id,
-                als_job_task_id: pending.taskId,
-            })
-        })
-
-        return Array.from(carriedTasks.values())
-    }, [
-        pendingMasterTasks,
-        selectedJob,
-    ])
-
-    const carriedPendingTaskKeys = useMemo(() => {
-        return new Set(
-            carriedPendingTasks.map((task) => task.key),
+    const pendingMasterChildMap = useMemo(() => {
+        return new Map<number, PendingMasterTask>(
+            pendingMasterTasks.map((p) => [p.taskId, p]),
         )
-    }, [carriedPendingTasks])
+    }, [pendingMasterTasks])
 
-    const carriedTaskKeys = useMemo(() => {
-        const keys: string[] = []
+    const [openParentIds, setOpenParentIds] = useState<Set<number | string>>(
+        new Set(),
+    )
 
-        pendingMasterTasks.forEach((pending) => {
-            keys.push(`master-${pending.taskId}`)
+    const handleToggleParent = (parentId: number | string): void => {
+        setOpenParentIds((prev) => {
+            const next = new Set(prev)
+            if (next.has(parentId)) {
+                next.delete(parentId)
+            } else {
+                next.add(parentId)
+            }
+            return next
         })
+    }
 
-        return new Set(
-            keys,
-        )
-    }, [
-        pendingMasterTasks,
-    ])
+    const handleExpandAllParents = (ids: Array<number | string>): void => {
+        setOpenParentIds(new Set(ids))
+    }
+
+    const handleCollapseAllParents = (): void => {
+        setOpenParentIds(new Set())
+    }
 
     const existingDailyProgressTaskKeys = useMemo(() => {
         const keys = new Set<string>()
@@ -425,33 +444,141 @@ const DailyProgressCreatePage = () => {
     }, [formData?.daily_progresses])
 
     const isTaskBlocked = (task: SelectedTask): boolean => {
-        if (
-            carriedTaskKeys.has(task.key) ||
-            existingDailyProgressTaskKeys.has(task.key)
-        ) {
+        if (existingDailyProgressTaskKeys.has(task.key)) {
             return true
         }
 
         if (
             task.als_job_task_id !== undefined &&
-            (carriedTaskKeys.has(`master-${task.als_job_task_id}`) ||
-                existingDailyProgressTaskKeys.has(
-                    `master-${task.als_job_task_id}`,
-                ))
+            existingDailyProgressTaskKeys.has(`master-${task.als_job_task_id}`)
         ) {
             return true
         }
 
         return (
             task.als_task_additional_detail_id !== undefined &&
-            (carriedTaskKeys.has(
+            existingDailyProgressTaskKeys.has(
                 `additional-${task.als_task_additional_detail_id}`,
-            ) ||
-                existingDailyProgressTaskKeys.has(
-                    `additional-${task.als_task_additional_detail_id}`,
-                ))
+            )
         )
     }
+
+    const additionalTasksByParentId = useMemo(() => {
+        const map = new Map<
+            number,
+            Array<{
+                additionalTask: AdditionalTask
+                task: AdditionalTask['details'][0]['tasks'][0]
+            }>
+        >()
+
+        additionalTasks.forEach((at) => {
+            at.details.forEach((detail) => {
+                const list = map.get(detail.parent_id) ?? []
+                detail.tasks.forEach((t) => {
+                    list.push({
+                        additionalTask: at,
+                        task: t,
+                    })
+                })
+                map.set(detail.parent_id, list)
+            })
+        })
+
+        return map
+    }, [additionalTasks])
+
+    const getTemuanParentId = useCallback(
+        (
+            temuan: DailyProgressTemuan,
+            tasks: DailyProgressFormJobTask[],
+        ): number | null => {
+            if (!temuan.notes || temuan.notes.length === 0) return null
+
+            for (const note of temuan.notes) {
+                const taskId = note.task?.id
+                if (taskId) {
+                    const parentMatch = tasks.find((p) => p.id === taskId)
+                    if (parentMatch) return parentMatch.id
+
+                    const childMatch = tasks.find((p) =>
+                        p.children.some((c) => c.id === taskId),
+                    )
+                    if (childMatch) return childMatch.id
+                }
+
+                const taskName = note.task?.task_name?.toLowerCase()
+                if (taskName) {
+                    const match = tasks.find(
+                        (p) =>
+                            p.task_name.toLowerCase().includes(taskName) ||
+                            taskName.includes(p.task_name.toLowerCase()) ||
+                            p.children.some(
+                                (c) =>
+                                    c.task_name.toLowerCase().includes(taskName) ||
+                                    taskName.includes(c.task_name.toLowerCase()),
+                            ),
+                    )
+                    if (match) return match.id
+                }
+            }
+
+            return null
+        },
+        [],
+    )
+
+    const getFindingParentId = useCallback(
+        (
+            finding: (typeof selectedFindings)[0],
+            tasks: DailyProgressFormJobTask[],
+        ): number | null => {
+            const ket = finding.keterangan.toLowerCase()
+            const match = tasks.find(
+                (p) =>
+                    ket.includes(p.task_name.toLowerCase()) ||
+                    p.children.some((c) =>
+                        ket.includes(c.task_name.toLowerCase()),
+                    ),
+            )
+            return match ? match.id : null
+        },
+        [],
+    )
+
+    const unmatchedFindings = useMemo(() => {
+        if (!selectedJob) return selectedFindings
+        return selectedFindings.filter(
+            (f) => getFindingParentId(f, selectedJob.tasks) === null,
+        )
+    }, [selectedFindings, selectedJob, getFindingParentId])
+
+    const unmatchedTemuans = useMemo(() => {
+        if (!selectedJob) return selectedTemuans
+        return selectedTemuans.filter(
+            (t) => getTemuanParentId(t, selectedJob.tasks) === null,
+        )
+    }, [selectedTemuans, selectedJob, getTemuanParentId])
+
+    useEffect(() => {
+        if (selectedJob && pendingMasterTasks.length > 0) {
+            setSelectedTasks((prev) => {
+                const map = new Map<string, SelectedTask>()
+                prev.forEach((t) => map.set(t.key, t))
+                pendingMasterTasks.forEach((pending) => {
+                    const key = `master-${pending.taskId}`
+                    if (!map.has(key) && !existingDailyProgressTaskKeys.has(key)) {
+                        map.set(key, {
+                            key,
+                            als_job_id: selectedJob.id,
+                            als_job_task_id: pending.taskId,
+                        })
+                    }
+                })
+                return Array.from(map.values())
+            })
+        }
+    }, [selectedJob, pendingMasterTasks, existingDailyProgressTaskKeys])
 
     const handleClientSearch = useCallback(
         (query: string): void => {
@@ -486,15 +613,6 @@ const DailyProgressCreatePage = () => {
                     const result =
                         await dailyProgressApi.getFormData({
                             client_code: clientCode,
-                            tanggal: tanggal,
-                            bulan:
-                                typeof periodeBulan === 'number'
-                                    ? periodeBulan
-                                    : undefined,
-                            tahun:
-                                typeof periodeTahun === 'number'
-                                    ? periodeTahun
-                                    : undefined,
                         })
 
                     if (
@@ -612,7 +730,7 @@ const DailyProgressCreatePage = () => {
                     const result = await temuanApi.getAll({
                         client_code: clientCode.trim(),
                         als_spk_id: selectedSpk.spk_id,
-                        status: 'open',
+                        status: 'open,pending',
                     })
 
                     setIsLoadingTemuans(false)
@@ -690,6 +808,7 @@ const DailyProgressCreatePage = () => {
         setSelectedFindingIds([])
         setSelectedTemuanIds([])
         setAdditionalTasks([])
+        setOpenParentIds(new Set())
     }
 
     const isSelected = (key: string): boolean => {
@@ -794,25 +913,25 @@ const DailyProgressCreatePage = () => {
             return
         }
 
-        if (selectedJob === null) {
+        const details = selectedTasks.filter(
+            (task) => !isTaskBlocked(task),
+        )
+
+        const hasTask = details.length > 0
+        const hasTemuan =
+            selectedFindingIds.length > 0 ||
+            selectedTemuanIds.length > 0
+
+        if (!hasTask && !hasTemuan) {
             setErrorMessage(
-                'SPK terpilih belum memiliki master pekerjaan.',
+                'Minimal satu pekerjaan atau temuan harus dipilih.',
             )
             return
         }
 
-        const details = [
-            ...carriedPendingTasks,
-            ...selectedTasks.filter(
-                (task) =>
-                    !isTaskBlocked(task) &&
-                    !carriedPendingTaskKeys.has(task.key),
-            ),
-        ]
-
-        if (details.length === 0) {
+        if (hasTask && selectedJob === null) {
             setErrorMessage(
-                'Minimal satu task harus dipilih.',
+                'SPK terpilih belum memiliki master pekerjaan.',
             )
             return
         }
@@ -824,10 +943,11 @@ const DailyProgressCreatePage = () => {
                 tanggal,
                 client_code: clientCode.trim(),
                 als_spk_id: selectedSpk.spk_id,
-                bulan: periodeBulan,
-                tahun: periodeTahun,
+                bulan: Number(periodeBulan),
+                tahun: Number(periodeTahun),
                 finding_ids: selectedFindingIds,
                 temuan_ids: selectedTemuanIds,
+                temuans: selectedTemuanIds,
                 details: details.map((task) => ({
                     als_job_id: task.als_job_id,
                     als_job_task_id:
@@ -852,9 +972,14 @@ const DailyProgressCreatePage = () => {
     return (
         <div className="daily-progress-page">
             <div className="daily-progress-heading">
-                <h1 className="daily-progress-title">
-                    Tambah Daily Progress
-                </h1>
+                <div>
+                    <h1 className="daily-progress-title">
+                        Tambah Daily Progress
+                    </h1>
+                    <p className="daily-progress-subtitle">
+                        Buat pencatatan laporan progress harian untuk pekerjaan operasional
+                    </p>
+                </div>
 
                 <div className="daily-progress-breadcrumb">
                     <span className="active">
@@ -882,11 +1007,22 @@ const DailyProgressCreatePage = () => {
                         </div>
                     )}
 
-                    <div className="row g-3 mb-4">
-                        <div className="col">
-                            <label className="form-label">
-                                Tanggal
-                            </label>
+                    <div className="daily-progress-form-card mb-4">
+                        <div className="daily-progress-panel-heading">
+                            <div className="daily-progress-panel-icon primary">
+                                <i className="bi bi-card-checklist" />
+                            </div>
+                            <div>
+                                <h2>Informasi Dokumen</h2>
+                                <p>Tentukan tanggal, client, SPK, dan periode laporan</p>
+                            </div>
+                        </div>
+
+                        <div className="row g-3 mb-4">
+                            <div className="col">
+                                <label className="form-label">
+                                    Tanggal
+                                </label>
 
                             <input
                                 type="date"
@@ -1000,9 +1136,7 @@ const DailyProgressCreatePage = () => {
                                 }
                             />
                         </div>
-
-
-
+                    </div>
                     </div>
 
                     {isLoadingFormData && (
@@ -1027,9 +1161,61 @@ const DailyProgressCreatePage = () => {
                             </div>
                         )}
 
-                    <div className="daily-progress-task-section">
-                        <div className="daily-progress-panel-heading">
-                            <h2>Pending Progress Report</h2>
+                    <div className="daily-progress-task-section mb-4">
+                        <div className="daily-progress-panel-heading d-flex justify-content-between align-items-center flex-wrap gap-2">
+                            <div className="d-flex align-items-center gap-3">
+                                <div className="daily-progress-panel-icon primary">
+                                    <i className="bi bi-list-task" />
+                                </div>
+                                <div>
+                                    <h2 className="mb-0">
+                                        Daftar Pekerjaan & Sub-Task
+                                        {(isLoadingAdditional || isLoadingTemuans) && (
+                                            <span className="spinner-border spinner-border-sm text-secondary ms-2" />
+                                        )}
+                                    </h2>
+                                    <p className="text-muted small mb-0">
+                                        Pekerjaan utama, pekerjaan tambahan, dan temuan yang terhubung
+                                    </p>
+                                    {additionalErrorMessage !== null && (
+                                        <div className="text-danger small mt-1">{additionalErrorMessage}</div>
+                                    )}
+                                    {temuanErrorMessage !== null && (
+                                        <div className="text-danger small mt-1">{temuanErrorMessage}</div>
+                                    )}
+                                </div>
+                            </div>
+                            {selectedSpk !== null && (
+                                <div className="d-flex gap-2">
+                                    <button
+                                        type="button"
+                                        className="btn btn-sm btn-outline-secondary"
+                                        onClick={() => {
+                                            const allIds: Array<number | string> = selectedJob
+                                                ? selectedJob.tasks.map((p) => p.id)
+                                                : []
+                                            if (
+                                                unmatchedFindings.length > 0 ||
+                                                unmatchedTemuans.length > 0
+                                            ) {
+                                                allIds.push('unmatched-temuan')
+                                            }
+                                            handleExpandAllParents(allIds)
+                                        }}
+                                    >
+                                        <i className="bi bi-chevron-expand me-1" />
+                                        Buka Semua
+                                    </button>
+                                    <button
+                                        type="button"
+                                        className="btn btn-sm btn-outline-secondary"
+                                        onClick={handleCollapseAllParents}
+                                    >
+                                        <i className="bi bi-chevron-contract me-1" />
+                                        Tutup Semua
+                                    </button>
+                                </div>
+                            )}
                         </div>
 
                         {clientCode.trim() === '' && (
@@ -1038,527 +1224,472 @@ const DailyProgressCreatePage = () => {
                             </div>
                         )}
 
-                        {clientCode.trim() !== '' &&
-                            selectedSpk === null && (
-                                <div className="daily-progress-task-empty">
-                                    Pilih SPK terlebih dahulu.
-                                </div>
-                            )}
-
-                        {selectedSpk !== null &&
-                            pendingMasterTasks.length ===
-                            0 && (
-                                <div className="daily-progress-task-empty">
-                                    Tidak ada pending dari Progress Report.
-                                </div>
-                            )}
-
-                        {selectedSpk !== null &&
-                            pendingMasterTasks.map(
-                                (pending) => (
-                                    <div
-                                        className="daily-progress-carry-card"
-                                        key={`master-pending-${pending.detailId}`}
-                                    >
-                                        <div>
-                                            <strong>
-                                                {pending.parentName}{' '}
-                                                /{' '}
-                                                {pending.taskName}
-                                            </strong>
-
-                                            <span>
-                                                {pending.nomor} /{' '}
-                                                {pending.tanggal}
-                                            </span>
-                                        </div>
-
-                                        <span className="daily-progress-carry-badge">
-                                            Pending
-                                        </span>
-                                    </div>
-                                ),
-                            )}
-                    </div>
-
-                    <div className="daily-progress-task-section">
-                        <div className="daily-progress-panel-heading">
-                            <h2>Master Task</h2>
-                        </div>
-
-                        {selectedSpk === null && (
+                        {clientCode.trim() !== '' && selectedSpk === null && (
                             <div className="daily-progress-task-empty">
                                 Pilih SPK terlebih dahulu.
                             </div>
                         )}
 
                         {selectedSpk !== null &&
-                            selectedJob === null && (
+                            selectedJob === null &&
+                            unmatchedTemuans.length === 0 &&
+                            unmatchedFindings.length === 0 && (
                                 <div className="daily-progress-task-empty">
-                                    SPK terpilih belum memiliki master pekerjaan.
+                                    Pekerjaan dan temuan untuk SPK ini tidak ditemukan.
+                                </div>
+                            )}
+
+                        {selectedSpk !== null &&
+                            selectedJob === null &&
+                            (unmatchedTemuans.length > 0 ||
+                                unmatchedFindings.length > 0) && (
+                                <div className="alert alert-info py-2 px-3 small mb-3">
+                                    <i className="bi bi-info-circle me-1" />
+                                    SPK terpilih tidak memiliki master pekerjaan, namun memiliki temuan yang dapat Anda tindaklanjuti di bawah.
                                 </div>
                             )}
 
                         {selectedJob !== null &&
                             selectedJob.tasks.map((parent) => {
-                                const visibleChildren =
-                                    parent.children.filter(
-                                        (child) =>
-                                            !isMasterChildPending(
-                                                child,
-                                            ),
-                                    )
+                                const isOpen = openParentIds.has(parent.id)
+                                const parentAdditional = additionalTasksByParentId.get(parent.id) ?? []
+                                const parentFindings = selectedFindings.filter(
+                                    (f) => getFindingParentId(f, selectedJob.tasks) === parent.id,
+                                )
+                                const parentTemuans = selectedTemuans.filter(
+                                    (t) => getTemuanParentId(t, selectedJob.tasks) === parent.id,
+                                )
+
+                                const totalSubCount =
+                                    parent.children.length +
+                                    parentAdditional.length +
+                                    parentFindings.length +
+                                    parentTemuans.length
+
+                                let selectedCount = 0
+                                parent.children.forEach((child) => {
+                                    const key = `master-${child.id}`
+                                    if (isSelected(key)) selectedCount++
+                                })
+                                parentAdditional.forEach(({ task }) => {
+                                    const key = `additional-${task.id}`
+                                    if (isSelected(key)) selectedCount++
+                                })
+                                parentFindings.forEach((f) => {
+                                    if (selectedFindingIds.includes(f.id)) selectedCount++
+                                })
+                                parentTemuans.forEach((t) => {
+                                    if (selectedTemuanIds.includes(t.id)) selectedCount++
+                                })
 
                                 return (
-                                    <div
-                                        className="daily-progress-task-group"
-                                        key={parent.id}
-                                    >
-                                        <h3>{parent.task_name}</h3>
+                                    <div className="daily-progress-parent-card" key={`parent-${parent.id}`}>
+                                        <div
+                                            className="daily-progress-parent-header"
+                                            onClick={() => handleToggleParent(parent.id)}
+                                            role="button"
+                                            tabIndex={0}
+                                        >
+                                            <div className="daily-progress-parent-summary">
+                                                <i className="bi bi-folder2-open text-primary" />
+                                                <span className="fw-semibold">
+                                                    {parent.task_name}
+                                                </span>
+                                                <span
+                                                    className={`daily-progress-parent-count ${
+                                                        selectedCount > 0 ? 'has-selected' : ''
+                                                    }`}
+                                                >
+                                                    {selectedCount} / {totalSubCount} dipilih
+                                                </span>
+                                            </div>
+                                            <i
+                                                className={`bi bi-chevron-${
+                                                    isOpen ? 'down' : 'right'
+                                                } daily-progress-parent-chevron`}
+                                            />
+                                        </div>
 
-                                        {visibleChildren.length ===
-                                            0 && (
-                                            <div className="daily-progress-task-empty compact">
-                                                Tidak ada sub task.
+                                        {isOpen && (
+                                            <div className="daily-progress-parent-body">
+                                                {/* 1. Master Sub-tasks */}
+                                                {parent.children.map((child) => {
+                                                    const key = `master-${child.id}`
+                                                    const isCompleted = isChildCompleted(child)
+                                                    const isAlreadyInDp = existingDailyProgressTaskKeys.has(key)
+                                                    const isPending = pendingMasterChildMap.has(child.id)
+                                                    const isDisabled = isCompleted || isAlreadyInDp
+                                                    const checked = isDisabled ? false : isSelected(key)
+                                                    const rawStatus = isCompleted ? 'selesai' : isPending ? 'pending' : 'open'
+
+                                                    return (
+                                                        <div className="daily-progress-task-entry" key={key}>
+                                                            <div className="d-flex align-items-center justify-content-between flex-wrap gap-2">
+                                                                <label
+                                                                    className={`daily-progress-task-option ${
+                                                                        isDisabled ? 'disabled' : ''
+                                                                    }`}
+                                                                >
+                                                                    <input
+                                                                        type="checkbox"
+                                                                        checked={checked}
+                                                                        disabled={isDisabled}
+                                                                        onChange={() => {
+                                                                            if (isDisabled) return
+                                                                            handleToggleTask({
+                                                                                key,
+                                                                                als_job_id: selectedJob.id,
+                                                                                als_job_task_id: child.id,
+                                                                            })
+                                                                        }}
+                                                                    />
+                                                                    <span>
+                                                                        {child.task_name}
+                                                                    </span>
+                                                                </label>
+
+                                                                <div className="d-flex align-items-center gap-2">
+                                                                    {isPending && (
+                                                                        <span className="daily-progress-status pending">
+                                                                            Pending PR
+                                                                        </span>
+                                                                    )}
+                                                                    {isCompleted ? (
+                                                                        <span className="daily-progress-status selesai">
+                                                                            Selesai
+                                                                        </span>
+                                                                    ) : isAlreadyInDp ? (
+                                                                        <span className="daily-progress-status selesai">
+                                                                            Sudah di DP
+                                                                        </span>
+                                                                    ) : (
+                                                                        <span
+                                                                            className={`daily-progress-status ${rawStatus}`}
+                                                                        >
+                                                                            {progressStatusLabels[rawStatus] ??
+                                                                                rawStatus}
+                                                                        </span>
+                                                                    )}
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    )
+                                                })}
+
+                                                {/* 2. Additional Tasks */}
+                                                {parentAdditional.map(({ additionalTask, task }) => {
+                                                    const key = `additional-${task.id}`
+                                                    const isCompleted = task.status === 'selesai'
+                                                    const isAlreadyInDp = existingDailyProgressTaskKeys.has(key)
+                                                    const isPending = pendingMasterChildMap.has(task.id)
+                                                    const isDisabled = isCompleted || isAlreadyInDp
+                                                    const checked = isDisabled ? false : isSelected(key)
+
+                                                    return (
+                                                        <div className="daily-progress-task-entry" key={key}>
+                                                            <div className="d-flex align-items-center justify-content-between flex-wrap gap-2">
+                                                                <label
+                                                                    className={`daily-progress-task-option ${
+                                                                        isDisabled ? 'disabled' : ''
+                                                                    }`}
+                                                                >
+                                                                    <input
+                                                                        type="checkbox"
+                                                                        checked={checked}
+                                                                        disabled={isDisabled}
+                                                                        onChange={() => {
+                                                                            if (isDisabled) return
+                                                                            handleToggleTask({
+                                                                                key,
+                                                                                als_job_id: additionalTask.job.id,
+                                                                                als_task_additional_detail_id: task.id,
+                                                                            })
+                                                                        }}
+                                                                    />
+                                                                    <span>{task.task_name}</span>
+                                                                </label>
+
+                                                                <div className="d-flex align-items-center gap-2">
+                                                                    <span
+                                                                        className={`daily-progress-subtask-badge ${
+                                                                            additionalTask.type === 'custom'
+                                                                                ? 'custom'
+                                                                                : 'tambahan'
+                                                                        }`}
+                                                                    >
+                                                                        {additionalTask.type === 'custom'
+                                                                            ? 'Custom Pekerjaan'
+                                                                            : 'Pekerjaan Tambahan'}
+                                                                    </span>
+                                                                    {isPending && (
+                                                                        <span className="daily-progress-status pending">
+                                                                            Pending PR
+                                                                        </span>
+                                                                    )}
+                                                                    {isCompleted ? (
+                                                                        <span className="daily-progress-status selesai">
+                                                                            Selesai
+                                                                        </span>
+                                                                    ) : isAlreadyInDp ? (
+                                                                        <span className="daily-progress-status selesai">
+                                                                            Sudah di DP
+                                                                        </span>
+                                                                    ) : (
+                                                                        <span
+                                                                            className={`daily-progress-status ${task.status}`}
+                                                                        >
+                                                                            {progressStatusLabels[task.status] ??
+                                                                                task.status}
+                                                                        </span>
+                                                                    )}
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    )
+                                                })}
+
+                                                {/* 3. Findings / Temuan PR under this parent */}
+                                                {parentFindings.map((finding) => {
+                                                    const isOpenFinding = finding.status === 'open'
+                                                    return (
+                                                        <div
+                                                            className="daily-progress-task-entry"
+                                                            key={`finding-${finding.id}`}
+                                                        >
+                                                            <div className="d-flex align-items-center justify-content-between flex-wrap gap-2">
+                                                                <label
+                                                                    className={`daily-progress-task-option ${
+                                                                        isOpenFinding ? '' : 'disabled'
+                                                                    }`}
+                                                                >
+                                                                    <input
+                                                                        type="checkbox"
+                                                                        checked={selectedFindingIds.includes(finding.id)}
+                                                                        disabled={!isOpenFinding}
+                                                                        onChange={() =>
+                                                                            handleToggleFinding(finding.id)
+                                                                        }
+                                                                    />
+                                                                    <span>{finding.keterangan}</span>
+                                                                </label>
+                                                                <div className="d-flex align-items-center gap-2">
+                                                                    <span className="daily-progress-subtask-badge temuan">
+                                                                        Temuan PR
+                                                                    </span>
+                                                                    <span
+                                                                        className={`daily-progress-status ${finding.status}`}
+                                                                    >
+                                                                        {finding.status}
+                                                                    </span>
+                                                                </div>
+                                                            </div>
+                                                            {finding.status !== 'selesai' && (
+                                                                <div className="daily-progress-task-compact-note">
+                                                                    {finding.nomor_pr ? `${finding.nomor_pr} • ` : ''}
+                                                                    {finding.tanggal}
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    )
+                                                })}
+
+                                                {/* 4. Global Temuan under this parent */}
+                                                {parentTemuans.map((temuan) => {
+                                                    const isSelectableTemuan =
+                                                        temuan.status === 'open' ||
+                                                        temuan.status === 'pending'
+                                                    const isChecked =
+                                                        selectedTemuanIds.includes(temuan.id)
+                                                    return (
+                                                        <div
+                                                            className="daily-progress-task-entry"
+                                                            key={`temuan-${temuan.id}`}
+                                                        >
+                                                            <div className="d-flex align-items-center justify-content-between flex-wrap gap-2">
+                                                                <label
+                                                                    className={`daily-progress-task-option ${
+                                                                        isSelectableTemuan ? '' : 'disabled'
+                                                                    }`}
+                                                                >
+                                                                    <input
+                                                                        type="checkbox"
+                                                                        checked={isChecked}
+                                                                        disabled={!isSelectableTemuan}
+                                                                        onChange={() =>
+                                                                            handleToggleTemuan(temuan.id)
+                                                                        }
+                                                                    />
+                                                                    <span>{temuan.nomor}</span>
+                                                                </label>
+                                                                <div className="d-flex align-items-center gap-2">
+                                                                    <span className="daily-progress-subtask-badge temuan">
+                                                                        Temuan
+                                                                    </span>
+                                                                    <span
+                                                                        className={`daily-progress-status ${temuan.status}`}
+                                                                    >
+                                                                        {temuan.status}
+                                                                    </span>
+                                                                </div>
+                                                            </div>
+                                                            {temuan.status !== 'selesai' && (
+                                                                <div className="daily-progress-task-compact-note">
+                                                                    {temuan.tanggal} • {getTemuanNotes(temuan)}
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    )
+                                                })}
                                             </div>
                                         )}
+                                    </div>
+                                )
+                            })}
 
-                                        {visibleChildren.map(
-                                            (child) => {
-                                            const key = `master-${child.id}`
-                                            const isCompleted =
-                                                isChildCompleted(
-                                                    child,
-                                                )
-                                            const isAlreadyInDp =
-                                                existingDailyProgressTaskKeys.has(
-                                                    key,
-                                                )
-                                            const isDisabled =
-                                                isCompleted || isAlreadyInDp
-                                            const history =
-                                                getChildHistory(
-                                                    child,
-                                                )
+                        {/* Unmatched Findings & Temuans */}
+                        {(unmatchedFindings.length > 0 || unmatchedTemuans.length > 0) && (
+                            <div className="daily-progress-parent-card mt-3" key="unmatched-temuan">
+                                <div
+                                    className="daily-progress-parent-header"
+                                    onClick={() => handleToggleParent('unmatched-temuan')}
+                                    role="button"
+                                    tabIndex={0}
+                                >
+                                    <div className="daily-progress-parent-summary">
+                                        <i className="bi bi-shield-exclamation text-warning" />
+                                        <span className="fw-semibold">Temuan Lainnya / Umum</span>
+                                        <span
+                                            className={`daily-progress-parent-count ${
+                                                unmatchedFindings.filter((f) =>
+                                                    selectedFindingIds.includes(f.id),
+                                                ).length +
+                                                    unmatchedTemuans.filter((t) =>
+                                                        selectedTemuanIds.includes(t.id),
+                                                    ).length >
+                                                0
+                                                    ? 'has-selected'
+                                                    : ''
+                                            }`}
+                                        >
+                                            {unmatchedFindings.filter((f) =>
+                                                selectedFindingIds.includes(f.id),
+                                            ).length +
+                                                unmatchedTemuans.filter((t) =>
+                                                    selectedTemuanIds.includes(t.id),
+                                                ).length}{' '}
+                                            /{' '}
+                                            {unmatchedFindings.length +
+                                                unmatchedTemuans.length}{' '}
+                                            dipilih
+                                        </span>
+                                    </div>
+                                    <i
+                                        className={`bi bi-chevron-${
+                                            openParentIds.has('unmatched-temuan') ? 'down' : 'right'
+                                        } daily-progress-parent-chevron`}
+                                    />
+                                </div>
 
+                                {openParentIds.has('unmatched-temuan') && (
+                                    <div className="daily-progress-parent-body">
+                                        {unmatchedFindings.map((finding) => {
+                                            const isOpenFinding = finding.status === 'open'
                                             return (
                                                 <div
                                                     className="daily-progress-task-entry"
-                                                    key={key}
+                                                    key={`unmatched-finding-${finding.id}`}
                                                 >
-                                                    <label
-                                                        className={`daily-progress-task-option ${
-                                                            isDisabled
-                                                                ? 'disabled'
-                                                                : ''
-                                                        }`}
-                                                    >
-                                                        <input
-                                                            type="checkbox"
-                                                            checked={
-                                                                isDisabled
-                                                                    ? false
-                                                                    : isSelected(
-                                                                        key,
-                                                                    )
-                                                            }
-                                                            disabled={
-                                                                isDisabled
-                                                            }
-                                                            onChange={() => {
-                                                                if (
-                                                                    isDisabled
-                                                                ) {
-                                                                    return
+                                                    <div className="d-flex align-items-center justify-content-between flex-wrap gap-2">
+                                                        <label
+                                                            className={`daily-progress-task-option ${
+                                                                isOpenFinding ? '' : 'disabled'
+                                                            }`}
+                                                        >
+                                                            <input
+                                                                type="checkbox"
+                                                                checked={selectedFindingIds.includes(finding.id)}
+                                                                disabled={!isOpenFinding}
+                                                                onChange={() =>
+                                                                    handleToggleFinding(finding.id)
                                                                 }
-
-                                                                handleToggleTask(
-                                                                    {
-                                                                        key,
-                                                                        als_job_id:
-                                                                            selectedJob.id,
-                                                                        als_job_task_id:
-                                                                            child.id,
-                                                                    },
-                                                                )
-                                                            }}
-                                                        />
-
-                                                        <span>
-                                                            {
-                                                                child.task_name
-                                                            }
-                                                            {isAlreadyInDp && (
-                                                                <small className="text-muted ms-2">
-                                                                    (Sudah ada di Daily Progress)
-                                                                </small>
-                                                            )}
-                                                        </span>
-                                                    </label>
-
-                                                    {history.length >
-                                                        0 && (
-                                                            <div className="daily-progress-task-history">
-                                                                {history.map((progress) => (
-                                                                        <div
-                                                                            className="daily-progress-task-history-item"
-                                                                            key={`${getProgressHeaderId(progress)}-${getProgressDetailId(progress)}`}
-                                                                        >
-                                                                            <div>
-                                                                                <strong>
-                                                                                    {
-                                                                                        progress.nomor
-                                                                                    }{' '}
-                                                                                    /{' '}
-                                                                                    {
-                                                                                        progress.tanggal
-                                                                                    }
-                                                                                </strong>
-
-                                                                                <span
-                                                                                    className={`daily-progress-status ${progress.status}`}
-                                                                                >
-                                                                                    {
-                                                                                        progressStatusLabels[
-                                                                                            progress
-                                                                                                .status
-                                                                                        ]
-                                                                                    }
-                                                                                </span>
-                                                                            </div>
-
-                                                                            {getProgressNoteText(progress) !==
-                                                                                null && (
-                                                                                    <p>
-                                                                                        {
-                                                                                            getProgressNoteText(progress)
-                                                                                        }
-                                                                                    </p>
-                                                                                )}
-                                                                        </div>
-                                                                ))}
-                                                            </div>
-                                                        )}
+                                                            />
+                                                            <span>{finding.keterangan}</span>
+                                                        </label>
+                                                        <div className="d-flex align-items-center gap-2">
+                                                            <span className="daily-progress-subtask-badge temuan">
+                                                                Temuan PR
+                                                            </span>
+                                                            <span
+                                                                className={`daily-progress-status ${finding.status}`}
+                                                            >
+                                                                {finding.status}
+                                                            </span>
+                                                        </div>
+                                                    </div>
+                                                    {finding.status !== 'selesai' && (
+                                                        <div className="daily-progress-task-compact-note">
+                                                            {finding.nomor_pr ? `${finding.nomor_pr} • ` : ''}
+                                                            {finding.tanggal}
+                                                        </div>
+                                                    )}
                                                 </div>
                                             )
-                                            },
-                                        )}
-                                    </div>
-                                )
-                            })}
-                    </div>
+                                        })}
 
-                    <div className="daily-progress-task-section mt-4">
-                        <div className="daily-progress-panel-heading">
-                            <h2>Additional Task</h2>
-                        </div>
-
-                        {selectedJob === null && (
-                            <div className="daily-progress-task-empty">
-                                Pilih SPK dengan master pekerjaan terlebih dahulu.
-                            </div>
-                        )}
-
-                        {selectedJob !== null &&
-                            isLoadingAdditional && (
-                                <div className="daily-progress-task-empty">
-                                    Memuat additional task...
-                                </div>
-                            )}
-
-                        {selectedJob !== null &&
-                            !isLoadingAdditional &&
-                            additionalErrorMessage !==
-                            null && (
-                                <div className="daily-progress-task-empty error">
-                                    {additionalErrorMessage}
-                                </div>
-                            )}
-
-                        {selectedJob !== null &&
-                            !isLoadingAdditional &&
-                            additionalErrorMessage === null &&
-                            additionalTasks.length === 0 && (
-                                <div className="daily-progress-task-empty">
-                                    Tidak ada additional task.
-                                </div>
-                            )}
-
-                        {selectedJob !== null &&
-                            !isLoadingAdditional &&
-                            additionalErrorMessage === null &&
-                            additionalTasks.map(
-                                (additionalTask) =>
-                                    additionalTask.details.map(
-                                        (detail) => (
-                                            <div
-                                                className="daily-progress-task-group"
-                                                key={`${additionalTask.id}-${detail.parent_id}`}
-                                            >
-                                                <h3>
-                                                    {
-                                                        detail.parent_task
-                                                    }
-                                                </h3>
-
-                                                {detail.tasks.map(
-                                                    (task) => {
-                                                        const key = `additional-${task.id}`
-
-                                                        if (
-                                                            carriedTaskKeys.has(
-                                                                key,
-                                                            )
-                                                        ) {
-                                                            return null
-                                                        }
-
-                                                        const isCompleted =
-                                                            task.status ===
-                                                            'selesai'
-                                                        const isAlreadyInDp =
-                                                            existingDailyProgressTaskKeys.has(
-                                                                key,
-                                                            )
-                                                        const isDisabled =
-                                                            isCompleted ||
-                                                            isAlreadyInDp
-
-                                                        return (
-                                                            <label
-                                                                className={`daily-progress-task-option ${
-                                                                    isDisabled
-                                                                        ? 'disabled'
-                                                                        : ''
-                                                                }`}
-                                                                key={
-                                                                    key
+                                        {unmatchedTemuans.map((temuan) => {
+                                            const isSelectableTemuan =
+                                                temuan.status === 'open' ||
+                                                temuan.status === 'pending'
+                                            const isChecked =
+                                                selectedTemuanIds.includes(temuan.id)
+                                            return (
+                                                <div
+                                                    className="daily-progress-task-entry"
+                                                    key={`unmatched-temuan-${temuan.id}`}
+                                                >
+                                                    <div className="d-flex align-items-center justify-content-between flex-wrap gap-2">
+                                                        <label
+                                                            className={`daily-progress-task-option ${
+                                                                isSelectableTemuan ? '' : 'disabled'
+                                                            }`}
+                                                        >
+                                                            <input
+                                                                type="checkbox"
+                                                                checked={isChecked}
+                                                                disabled={!isSelectableTemuan}
+                                                                onChange={() =>
+                                                                    handleToggleTemuan(temuan.id)
                                                                 }
+                                                            />
+                                                            <span>{temuan.nomor}</span>
+                                                        </label>
+                                                        <div className="d-flex align-items-center gap-2">
+                                                            <span className="daily-progress-subtask-badge temuan">
+                                                                Temuan
+                                                            </span>
+                                                            <span
+                                                                className={`daily-progress-status ${temuan.status}`}
                                                             >
-                                                                <input
-                                                                    type="checkbox"
-                                                                    checked={
-                                                                        isDisabled
-                                                                            ? false
-                                                                            : isSelected(
-                                                                                key,
-                                                                            )
-                                                                    }
-                                                                    disabled={
-                                                                        isDisabled
-                                                                    }
-                                                                    onChange={() => {
-                                                                        if (
-                                                                            isDisabled
-                                                                        ) {
-                                                                            return
-                                                                        }
-                                                                        handleToggleTask(
-                                                                            {
-                                                                                key,
-                                                                                als_job_id:
-                                                                                    additionalTask
-                                                                                        .job
-                                                                                        .id,
-                                                                                als_task_additional_detail_id:
-                                                                                    task.id,
-                                                                            },
-                                                                        )
-                                                                    }}
-                                                                />
-
-                                                                <span>
-                                                                    {
-                                                                        task.task_name
-                                                                    }
-                                                                    {isAlreadyInDp && (
-                                                                        <small className="text-muted ms-2">
-                                                                            (Sudah ada di Daily Progress)
-                                                                        </small>
-                                                                    )}
-                                                                </span>
-                                                            </label>
-                                                        )
-                                                    },
-                                                )}
-                                            </div>
-                                        ),
-                                    ),
-                            )}
-                    </div>
-
-                    <div className="daily-progress-task-section mt-4">
-                        <div className="daily-progress-panel-heading">
-                            <h2>Temuan Progress Report</h2>
-                        </div>
-
-                        {selectedSpk === null && (
-                            <div className="daily-progress-task-empty">
-                                Pilih SPK terlebih dahulu.
-                            </div>
-                        )}
-
-                        {selectedSpk !== null &&
-                            selectedFindings.length === 0 && (
-                                <div className="daily-progress-task-empty">
-                                    Tidak ada temuan open untuk SPK ini.
-                                </div>
-                            )}
-
-                        {selectedSpk !== null &&
-                            selectedFindings.map((finding) => {
-                                const isOpen =
-                                    finding.status === 'open'
-
-                                return (
-                                    <div
-                                        className="daily-progress-task-entry"
-                                        key={finding.id}
-                                    >
-                                        <label
-                                            className={`daily-progress-task-option ${
-                                                isOpen
-                                                    ? ''
-                                                    : 'disabled'
-                                            }`}
-                                        >
-                                            <input
-                                                type="checkbox"
-                                                checked={selectedFindingIds.includes(
-                                                    finding.id,
-                                                )}
-                                                disabled={!isOpen}
-                                                onChange={() =>
-                                                    handleToggleFinding(
-                                                        finding.id,
-                                                    )
-                                                }
-                                            />
-
-                                            <span>
-                                                {finding.keterangan}
-                                            </span>
-                                        </label>
-
-                                        <div className="daily-progress-task-history">
-                                            <div className="daily-progress-task-history-item">
-                                                <div>
-                                                    <strong>
-                                                        {finding.nomor_pr}{' '}
-                                                        /{' '}
-                                                        {finding.tanggal}
-                                                    </strong>
-
-                                                    <span
-                                                        className={`daily-progress-status ${finding.status}`}
-                                                    >
-                                                        {finding.status}
-                                                    </span>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                )
-                            })}
-                    </div>
-
-                    <div className="daily-progress-task-section mt-4">
-                        <div className="daily-progress-panel-heading">
-                            <h2>Temuan Global</h2>
-                        </div>
-
-                        {selectedSpk === null && (
-                            <div className="daily-progress-task-empty">
-                                Pilih SPK terlebih dahulu.
-                            </div>
-                        )}
-
-                        {selectedSpk !== null &&
-                            isLoadingTemuans && (
-                                <div className="daily-progress-task-empty">
-                                    Memuat Temuan Global...
-                                </div>
-                            )}
-
-                        {selectedSpk !== null &&
-                            !isLoadingTemuans &&
-                            temuanErrorMessage !== null && (
-                                <div className="daily-progress-task-empty error">
-                                    {temuanErrorMessage}
-                                </div>
-                            )}
-
-                        {selectedSpk !== null &&
-                            !isLoadingTemuans &&
-                            temuanErrorMessage === null &&
-                            selectedTemuans.length === 0 && (
-                                <div className="daily-progress-task-empty">
-                                    Tidak ada Temuan Global open untuk SPK ini.
-                                </div>
-                            )}
-
-                        {selectedSpk !== null &&
-                            !isLoadingTemuans &&
-                            temuanErrorMessage === null &&
-                            selectedTemuans.map((temuan) => {
-                                const isOpen =
-                                    temuan.status === 'open'
-
-                                return (
-                                    <div
-                                        className="daily-progress-task-entry"
-                                        key={temuan.id}
-                                    >
-                                        <label
-                                            className={`daily-progress-task-option ${
-                                                isOpen
-                                                    ? ''
-                                                    : 'disabled'
-                                            }`}
-                                        >
-                                            <input
-                                                type="checkbox"
-                                                checked={selectedTemuanIds.includes(
-                                                    temuan.id,
-                                                )}
-                                                disabled={!isOpen}
-                                                onChange={() =>
-                                                    handleToggleTemuan(
-                                                        temuan.id,
-                                                    )
-                                                }
-                                            />
-
-                                            <span>
-                                                {temuan.nomor}
-                                            </span>
-                                        </label>
-
-                                        <div className="daily-progress-task-history">
-                                            <div className="daily-progress-task-history-item">
-                                                <div>
-                                                    <strong>
-                                                        {temuan.tanggal}
-                                                    </strong>
-
-                                                    <span
-                                                        className={`daily-progress-status ${temuan.status}`}
-                                                    >
-                                                        {temuan.status}
-                                                    </span>
-                                                </div>
-
-                                                <p>
-                                                    {getTemuanNotes(
-                                                        temuan,
+                                                                {temuan.status}
+                                                            </span>
+                                                        </div>
+                                                    </div>
+                                                    {temuan.status !== 'selesai' && (
+                                                        <div className="daily-progress-task-compact-note">
+                                                            {temuan.tanggal} • {getTemuanNotes(temuan)}
+                                                        </div>
                                                     )}
-                                                </p>
-                                            </div>
-                                        </div>
+                                                </div>
+                                            )
+                                        })}
                                     </div>
-                                )
-                            })}
+                                )}
+                            </div>
+                        )}
                     </div>
+
+
+
 
                     <div className="daily-progress-form-page-footer">
                         <button

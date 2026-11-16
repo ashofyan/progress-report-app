@@ -69,6 +69,8 @@ export interface ProgressReportHistory {
     progress_report_id: number
     nomor_pr: string
     tanggal: string
+    bulan?: number | null
+    tahun?: number | null
     client_code: string
     spk_id: number
     source_type: ProgressReportSourceType
@@ -142,8 +144,12 @@ export interface ProgressReportDetail {
     id: number
     daily_progress_detail_id: number
     source_type: ProgressReportSourceType
-    task: ProgressReportTask
+    task?: ProgressReportTask | null
+    parent_id?: number | null
+    task_name?: string
+    parent_task_name?: string | null
     status: ProgressReportStatus
+    status_display?: string
     catatan?: string | null
     notes?: ProgressReportNote[]
     documents?: ProgressReportDocument[]
@@ -155,20 +161,35 @@ export interface ProgressReportFinding {
     master_task: ProgressReportFindingMasterTask | null
     additional_task: ProgressReportFindingAdditionalTask | null
     keterangan: string
+    priority?: number
     documents?: ProgressReportDocument[]
 }
+
+export type ProgressReportApprovalStatus =
+    | 'pending'
+    | 'approved'
+    | 'rejected'
 
 export interface ProgressReport {
     id: number
     nomor: string
     tanggal: string
+    bulan?: number | null
+    tahun?: number | null
     client_code: string
-    spk: ProgressReportSpk
-    job: ProgressReportJob
+    spk: ProgressReportSpk | null
+    job?: ProgressReportJob | null
     notes?: ProgressReportNote[]
     documents?: ProgressReportDocument[]
     created_by: string
+    created_by_name?: string
     created_by_level: number
+    approval_status?: ProgressReportApprovalStatus
+    approved_by?: string | null
+    approved_by_name?: string | null
+    approved_by_level?: number | null
+    approved_at?: string | null
+    rejection_note?: string | null
     details: ProgressReportDetail[]
     findings: ProgressReportFinding[]
     created_at: string
@@ -179,13 +200,24 @@ export interface ProgressReportSummary {
     id: number
     nomor: string
     tanggal: string
+    bulan?: number | null
+    tahun?: number | null
     client_code: string
-    spk: ProgressReportSpk
-    job: ProgressReportJob
+    spk: ProgressReportSpk | null
+    job?: ProgressReportJob | null
     total_task: number
     total_temuan: number
     total_catatan: number
     total_dokumen: number
+    created_by?: string
+    created_by_name?: string
+    created_by_level?: number | null
+    approval_status?: ProgressReportApprovalStatus
+    approved_by?: string | null
+    approved_by_name?: string | null
+    approved_by_level?: number | null
+    approved_at?: string | null
+    rejection_note?: string | null
     created_at: string
 }
 
@@ -194,6 +226,19 @@ export interface ProgressReportFilters {
     als_spk_id?: number
     tanggal_awal?: string
     tanggal_akhir?: string
+    bulan?: number
+    tahun?: number
+    approval_status?: ProgressReportApprovalStatus
+    search?: string
+    page?: number
+    per_page?: number
+}
+
+export interface ProgressReportPendingApprovalsFilters {
+    client_code?: string
+    als_spk_id?: number
+    bulan?: number
+    tahun?: number
     search?: string
     page?: number
     per_page?: number
@@ -236,10 +281,13 @@ export interface CreateProgressReportFindingRequest {
     als_job_task_id?: number
     als_task_additional_detail_id?: number
     keterangan: string
+    priority?: number
 }
 
 export interface CreateProgressReportRequest {
     tanggal: string
+    bulan: number
+    tahun: number
     client_code: string
     als_spk_id: number
     notes?: Array<{
@@ -248,6 +296,25 @@ export interface CreateProgressReportRequest {
     }>
     details: CreateProgressReportDetailRequest[]
     findings?: CreateProgressReportFindingRequest[]
+}
+
+export interface EditProgressReportFindingRequest
+    extends CreateProgressReportFindingRequest {
+    id?: number
+}
+
+export interface EditProgressReportRequest {
+    tanggal: string
+    bulan: number
+    tahun: number
+    client_code: string
+    als_spk_id: number
+    notes?: Array<{
+        judul?: string
+        catatan: string
+    }>
+    details: CreateProgressReportDetailRequest[]
+    findings?: EditProgressReportFindingRequest[]
 }
 
 export interface ProgressReportMeta {
@@ -280,6 +347,12 @@ export interface ProgressReportDetailResponse {
     status: true
     message: string
     data: ProgressReport
+}
+
+export interface ProgressReportActionResponse {
+    status: boolean
+    message: string
+    data?: ProgressReport
 }
 
 export interface ProgressReportMutationResponse {
@@ -317,4 +390,72 @@ export interface ProgressReportApiResult<T> {
     data?: T
     meta?: ProgressReportMeta
     errors?: Record<string, string[]>
+}
+
+export interface ProgressReportTeamFilters {
+    client_code: string
+    als_spk_id: number
+    tanggal?: string
+    tanggal_awal?: string
+    tanggal_akhir?: string
+    bulan?: number
+    tahun?: number
+    employee_code?: string
+    search?: string
+}
+
+export interface ProgressReportTeamMember {
+    kode_employee: string
+    name_employee: string
+    tingkat: number
+}
+
+export interface ProgressReportTeamSpk {
+    id: number
+    no_spk: string
+    source_pt: string
+    kode_product_jasa?: string | null
+    job?: {
+        id?: number
+        job_code: string
+        description: string
+    } | null
+    teams: ProgressReportTeamMember[]
+}
+
+export interface ProgressReportTeamSummary {
+    total_progress_report: number
+    total_task: number
+    total_temuan: number
+    total_catatan: number
+    total_dokumen: number
+    total_employee: number
+}
+
+export interface ProgressReportTeamItem {
+    id: number
+    nomor: string
+    tanggal: string
+    client_code: string
+    als_spk_id: number
+    no_spk: string
+    created_by: string
+    created_by_name: string
+    created_by_level: number
+    details_count: number
+    findings_count: number
+    notes_count: number
+    documents_count: number
+}
+
+export interface ProgressReportTeamData {
+    spk: ProgressReportTeamSpk
+    summary: ProgressReportTeamSummary
+    items: ProgressReportTeamItem[]
+}
+
+export interface ProgressReportTeamResponse {
+    status: true
+    message: string
+    data: ProgressReportTeamData
 }

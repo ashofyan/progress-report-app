@@ -26,22 +26,12 @@ const AppSidebar = ({ isOpen = false, onClose }: AppSidebarProps) => {
         setIsRepresentativeLetterOpen,
     ] = useState<boolean>(isRepresentativeLetterActive)
 
-    const isToolsActive =
-        location.pathname.startsWith('/notes')
-
-    const [isToolsOpen, setIsToolsOpen] =
-        useState<boolean>(isToolsActive)
-
     const handleToggleMasterData = (): void => {
         setIsMasterDataOpen((previous) => !previous)
     }
 
     const handleToggleRepresentativeLetter = (): void => {
         setIsRepresentativeLetterOpen((previous) => !previous)
-    }
-
-    const handleToggleTools = (): void => {
-        setIsToolsOpen((previous) => !previous)
     }
 
     const handleLinkClick = (): void => {
@@ -117,7 +107,7 @@ const AppSidebar = ({ isOpen = false, onClose }: AppSidebarProps) => {
                             </NavLink>
 
                             <NavLink
-                                to="/master-data/task"
+                                to="/master-data/custom-pekerjaan"
                                 onClick={handleLinkClick}
                                 className={({ isActive }) =>
                                     `app-sidebar-submenu-link ${
@@ -125,11 +115,41 @@ const AppSidebar = ({ isOpen = false, onClose }: AppSidebarProps) => {
                                     }`
                                 }
                             >
-                                Pekerjaan Tambahan
+                                Custom Pekerjaan
                             </NavLink>
                         </div>
                     )}
                 </div>
+
+                <NavLink
+                    to="/data-legalitas"
+                    onClick={handleLinkClick}
+                    className={({ isActive }) =>
+                        `app-sidebar-link ${
+                            isActive || location.pathname.startsWith('/data-legalitas') || location.pathname.startsWith('/legalitas')
+                                ? 'active'
+                                : ''
+                        }`
+                    }
+                >
+                    <i className="bi bi-file-earmark-check" />
+                    <span>Data Perusahaan</span>
+                </NavLink>
+
+                <NavLink
+                    to="/pekerjaan-tambahan"
+                    onClick={handleLinkClick}
+                    className={({ isActive }) =>
+                        `app-sidebar-link ${
+                            isActive || location.pathname.startsWith('/pekerjaan-tambahan')
+                                ? 'active'
+                                : ''
+                        }`
+                    }
+                >
+                    <i className="bi bi-plus-square-dotted" />
+                    <span>Pekerjaan Tambahan</span>
+                </NavLink>
 
                 <NavLink
                     to="/daily-progress"
@@ -170,6 +190,19 @@ const AppSidebar = ({ isOpen = false, onClose }: AppSidebarProps) => {
                 >
                     <i className="bi bi-check2-square" />
                     <span>Temuan & Solusi</span>
+                </NavLink>
+
+                <NavLink
+                    to="/notulen"
+                    onClick={handleLinkClick}
+                    className={({ isActive }) =>
+                        `app-sidebar-link ${
+                            isActive ? 'active' : ''
+                        }`
+                    }
+                >
+                    <i className="bi bi-journal-bookmark-fill" />
+                    <span> Notulen </span>
                 </NavLink>
 
                 <div className="app-sidebar-group">
@@ -226,46 +259,18 @@ const AppSidebar = ({ isOpen = false, onClose }: AppSidebarProps) => {
                     )}
                 </div>
 
-                <div className="app-sidebar-group">
-                    <button
-                        type="button"
-                        className={`app-sidebar-link app-sidebar-button ${
-                            isToolsActive
-                                ? 'active'
-                                : ''
-                        }`}
-                        onClick={handleToggleTools}
-                    >
-                        <div className="app-sidebar-link-content">
-                            <i className="bi bi-tools" />
-                            <span>Tools</span>
-                        </div>
-
-                        <i
-                            className={`bi ${
-                                isToolsOpen
-                                    ? 'bi-chevron-down'
-                                    : 'bi-chevron-right'
-                            } app-sidebar-arrow`}
-                        />
-                    </button>
-
-                    {isToolsOpen && (
-                        <div className="app-sidebar-submenu">
-                            <NavLink
-                                to="/notes"
-                                onClick={handleLinkClick}
-                                className={({ isActive }) =>
-                                    `app-sidebar-submenu-link ${
-                                        isActive ? 'active' : ''
-                                    }`
-                                }
-                            >
-                                Notes
-                            </NavLink>
-                        </div>
-                    )}
-                </div>
+                <NavLink
+                    to="/notes"
+                    onClick={handleLinkClick}
+                    className={({ isActive }) =>
+                        `app-sidebar-link ${
+                            isActive ? 'active' : ''
+                        }`
+                    }
+                >
+                    <i className="bi bi-journal-text" />
+                    <span>Notes</span>
+                </NavLink>
             </nav>
         </aside>
     )

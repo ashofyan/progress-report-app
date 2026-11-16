@@ -23,6 +23,9 @@ import type {
     PendingDailyProgress,
     PendingDailyProgressResponse,
     UpdateDailyProgressRequest,
+    DailyProgressTeamData,
+    DailyProgressTeamFilters,
+    DailyProgressTeamResponse,
 } from '@/features/daily-progress/types/daily-progress.types'
 
 type ProgressError =
@@ -423,6 +426,38 @@ const deleteDocument = async (
         }))
 }
 
+const getTeam = async (
+    filters: DailyProgressTeamFilters,
+): Promise<DailyProgressApiResult<DailyProgressTeamData>> => {
+    return httpClient
+        .get<DailyProgressTeamResponse | ProgressError>(
+            '/daily-progress/team',
+            { params: filters },
+        )
+        .then((response) => {
+            if (
+                'status' in response.data &&
+                response.data.status
+            ) {
+                return {
+                    success: true,
+                    status: response.status,
+                    message: response.data.message,
+                    data: response.data.data,
+                }
+            }
+
+            return getErrorResult(
+                response as AxiosResponse<ProgressError>,
+            )
+        })
+        .catch(() => ({
+            success: false,
+            status: 0,
+            message: 'Tidak dapat terhubung ke server.',
+        }))
+}
+
 export const dailyProgressApi = {
     getAll,
     getFormData,
@@ -432,6 +467,7 @@ export const dailyProgressApi = {
     edit,
     remove,
     getPending,
+    getTeam,
     deleteDetail,
     uploadDocuments,
     deleteDocument,

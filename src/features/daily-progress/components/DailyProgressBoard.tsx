@@ -39,6 +39,28 @@ const DailyProgressBoard = () => {
     const [progressToView, setProgressToView] =
         useState<DailyProgress | null>(null)
 
+    // Summary Statistics
+    const stats = useMemo(() => {
+        const total = progresses.length
+        const uniqueClients = new Set(
+            progresses.map((p) => p.client_code).filter(Boolean),
+        ).size
+        const uniqueSpk = new Set(
+            progresses.map((p) => p.no_spk).filter(Boolean),
+        ).size
+        const totalTasks = progresses.reduce(
+            (acc, p) => acc + (p.details?.length ?? 0),
+            0,
+        )
+
+        return {
+            total,
+            uniqueClients,
+            uniqueSpk,
+            totalTasks,
+        }
+    }, [progresses])
+
     const filteredProgresses = useMemo(() => {
         const query =
             searchQuery.trim().toLowerCase()
@@ -102,24 +124,116 @@ const DailyProgressBoard = () => {
         setCurrentPage(1)
     }
 
+    const handleClearSearch = (): void => {
+        setSearchQuery('')
+        setCurrentPage(1)
+    }
+
+    const startItem =
+        filteredProgresses.length === 0
+            ? 0
+            : (currentPage - 1) * ITEMS_PER_PAGE + 1
+    const endItem = Math.min(
+        currentPage * ITEMS_PER_PAGE,
+        filteredProgresses.length,
+    )
+
     return (
         <>
             <div className="daily-progress-layout">
+                {/* Stats Metric Strip */}
+                <div className="daily-progress-stats-grid">
+                    <div className="daily-progress-stat-card primary">
+                        <div className="daily-progress-stat-icon">
+                            <i className="bi bi-journal-text" />
+                        </div>
+                        <div className="daily-progress-stat-content">
+                            <span className="daily-progress-stat-label">
+                                Total Laporan
+                            </span>
+                            <strong className="daily-progress-stat-value">
+                                {stats.total}
+                            </strong>
+                        </div>
+                    </div>
+
+                    <div className="daily-progress-stat-card purple">
+                        <div className="daily-progress-stat-icon">
+                            <i className="bi bi-buildings" />
+                        </div>
+                        <div className="daily-progress-stat-content">
+                            <span className="daily-progress-stat-label">
+                                Klien Aktif
+                            </span>
+                            <strong className="daily-progress-stat-value">
+                                {stats.uniqueClients}
+                            </strong>
+                        </div>
+                    </div>
+
+                    <div className="daily-progress-stat-card blue">
+                        <div className="daily-progress-stat-icon">
+                            <i className="bi bi-file-earmark-text" />
+                        </div>
+                        <div className="daily-progress-stat-content">
+                            <span className="daily-progress-stat-label">
+                                SPK Terkait
+                            </span>
+                            <strong className="daily-progress-stat-value">
+                                {stats.uniqueSpk}
+                            </strong>
+                        </div>
+                    </div>
+
+                    <div className="daily-progress-stat-card emerald">
+                        <div className="daily-progress-stat-icon">
+                            <i className="bi bi-check2-all" />
+                        </div>
+                        <div className="daily-progress-stat-content">
+                            <span className="daily-progress-stat-label">
+                                Total Pekerjaan
+                            </span>
+                            <strong className="daily-progress-stat-value">
+                                {stats.totalTasks}
+                            </strong>
+                        </div>
+                    </div>
+                </div>
+
                 <section className="daily-progress-board">
                     <div className="daily-progress-board-header">
-                        <div className="daily-progress-search">
-                            <i className="bi bi-search" />
+                        <div className="daily-progress-header-left">
+                            <div className="daily-progress-search">
+                                <i className="bi bi-search" />
 
-                            <input
-                                type="text"
-                                value={searchQuery}
-                                placeholder="Cari daily progress..."
-                                onChange={(event) =>
-                                    handleSearchChange(
-                                        event.target.value,
-                                    )
-                                }
-                            />
+                                <input
+                                    type="text"
+                                    value={searchQuery}
+                                    placeholder="Cari nomor, client, SPK, tanggal..."
+                                    onChange={(event) =>
+                                        handleSearchChange(
+                                            event.target.value,
+                                        )
+                                    }
+                                />
+
+                                {searchQuery.trim() !== '' && (
+                                    <button
+                                        type="button"
+                                        className="daily-progress-search-clear"
+                                        onClick={handleClearSearch}
+                                        title="Hapus pencarian"
+                                    >
+                                        <i className="bi bi-x-circle-fill" />
+                                    </button>
+                                )}
+                            </div>
+
+                            {searchQuery.trim() !== '' && (
+                                <span className="daily-progress-search-count">
+                                    {filteredProgresses.length} ditemukan
+                                </span>
+                            )}
                         </div>
 
                         <div className="daily-progress-header-actions">
@@ -133,7 +247,7 @@ const DailyProgressBoard = () => {
                                 }
                             >
                                 <i className="bi bi-plus-lg" />
-                                <span>Tambah</span>
+                                <span>Tambah Daily Progress</span>
                             </button>
                         </div>
                     </div>
@@ -142,10 +256,10 @@ const DailyProgressBoard = () => {
                         {isLoading && (
                             <div className="daily-progress-loading">
                                 <div
-                                    className="spinner-border"
+                                    className="spinner-border text-primary"
                                     role="status"
                                 />
-                                <span>Memuat data...</span>
+                                <span>Memuat data daily progress...</span>
                             </div>
                         )}
 
@@ -156,6 +270,7 @@ const DailyProgressBoard = () => {
                                         className="alert alert-danger"
                                         role="alert"
                                     >
+                                        <i className="bi bi-exclamation-triangle-fill me-2" />
                                         {errorMessage}
                                     </div>
                                 </div>
@@ -193,53 +308,64 @@ const DailyProgressBoard = () => {
 
                     {!isLoading &&
                         errorMessage === null &&
-                        totalPages > 1 && (
+                        filteredProgresses.length > 0 && (
                             <div className="daily-progress-pagination">
-                                <button
-                                    type="button"
-                                    className="btn btn-outline-secondary btn-sm"
-                                    disabled={
-                                        currentPage === 1
-                                    }
-                                    onClick={() =>
-                                        setCurrentPage(
-                                            (prev) =>
-                                                Math.max(
-                                                    1,
-                                                    prev -
-                                                        1,
-                                                ),
-                                        )
-                                    }
-                                >
-                                    Sebelumnya
-                                </button>
-
-                                <span className="daily-progress-page-info">
-                                    {currentPage} /{' '}
-                                    {totalPages}
+                                <span className="daily-progress-pagination-info">
+                                    Menampilkan <strong>{startItem}</strong> -{' '}
+                                    <strong>{endItem}</strong> dari{' '}
+                                    <strong>{filteredProgresses.length}</strong> data
                                 </span>
 
-                                <button
-                                    type="button"
-                                    className="btn btn-outline-secondary btn-sm"
-                                    disabled={
-                                        currentPage ===
-                                        totalPages
-                                    }
-                                    onClick={() =>
-                                        setCurrentPage(
-                                            (prev) =>
-                                                Math.min(
-                                                    totalPages,
-                                                    prev +
-                                                        1,
-                                                ),
-                                        )
-                                    }
-                                >
-                                    Berikutnya
-                                </button>
+                                {totalPages > 1 && (
+                                    <div className="daily-progress-pagination-controls">
+                                        <button
+                                            type="button"
+                                            className="btn btn-outline-secondary btn-sm"
+                                            disabled={
+                                                currentPage === 1
+                                            }
+                                            onClick={() =>
+                                                setCurrentPage(
+                                                    (prev) =>
+                                                        Math.max(
+                                                            1,
+                                                            prev -
+                                                                1,
+                                                        ),
+                                                )
+                                            }
+                                        >
+                                            <i className="bi bi-chevron-left" />
+                                            <span>Sebelumnya</span>
+                                        </button>
+
+                                        <span className="daily-progress-page-info">
+                                            Halaman {currentPage} dari {totalPages}
+                                        </span>
+
+                                        <button
+                                            type="button"
+                                            className="btn btn-outline-secondary btn-sm"
+                                            disabled={
+                                                currentPage ===
+                                                totalPages
+                                            }
+                                            onClick={() =>
+                                                setCurrentPage(
+                                                    (prev) =>
+                                                        Math.min(
+                                                            totalPages,
+                                                            prev +
+                                                                1,
+                                                        ),
+                                                )
+                                            }
+                                        >
+                                            <span>Berikutnya</span>
+                                            <i className="bi bi-chevron-right" />
+                                        </button>
+                                    </div>
+                                )}
                             </div>
                         )}
                 </section>

@@ -2,11 +2,12 @@ import {
     useCallback,
     useEffect,
     useMemo,
+    useRef,
     useState,
     type ChangeEvent,
     type FormEvent,
 } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 
 import ClientSelect from '@/features/additional-task/components/ClientSelect'
 import { useMarketingClients } from '@/features/additional-task/hooks/useMarketingClients'
@@ -47,6 +48,7 @@ interface FindingForm {
     als_job_task_id?: number
     als_task_additional_detail_id?: number
     task_name: string
+    priority?: number
     notes: NoteForm[]
 }
 
@@ -105,6 +107,15 @@ const getYearFromDate = (date: string): number => {
     return Number(date.slice(0, 4))
 }
 
+interface NavigationState {
+    client_code?: string
+    spk_id?: number | string
+    no_spk?: string
+    bulan?: number | string
+    tahun?: number | string
+    tanggal?: string
+}
+
 const monthOptions = [
     { value: 1, label: 'Januari' },
     { value: 2, label: 'Februari' },
@@ -159,20 +170,29 @@ const getDefaultDetailState = (
 const getHistoryNoteText = (
     history: ProgressReportHistory,
 ): string | null => {
+    const noteList: string[] = []
+
     if (
         history.notes !== undefined &&
         history.notes.length > 0
     ) {
-        const notes = history.notes
-            .map((note) => note.catatan.trim())
-            .filter((note) => note !== '')
-
-        return notes.length === 0
-            ? null
-            : notes.join('\n')
+        history.notes.forEach((note) => {
+            const trimmed = note.catatan?.trim()
+            if (trimmed) {
+                noteList.push(trimmed)
+            }
+        })
     }
 
-    return history.catatan ?? null
+    if (
+        history.catatan &&
+        history.catatan.trim() !== '' &&
+        !noteList.includes(history.catatan.trim())
+    ) {
+        noteList.push(history.catatan.trim())
+    }
+
+    return noteList.length === 0 ? null : noteList.join('\n')
 }
 
 const getNoteFiles = (notes: NoteForm[]): File[] => {
@@ -260,18 +280,65 @@ const getFindingKey = (finding: FindingForm): string => {
 
 const ProgressReportCreatePage = () => {
     const navigate = useNavigate()
+    const [searchParams] = useSearchParams()
+    const location = useLocation()
+    const navState = (location.state as NavigationState | null) ?? null
+
+    const initialClientCode =
+        searchParams.get('client_code') ??
+        navState?.client_code ??
+        ''
+
+    const initialTanggal =
+        searchParams.get('tanggal') ??
+        navState?.tanggal ??
+        getToday()
+
+    const initialBulanParam =
+        searchParams.get('bulan') ??
+        (navState?.bulan !== undefined ? String(navState.bulan) : null)
+    const initialBulan =
+        initialBulanParam !== null && initialBulanParam !== ''
+            ? Number(initialBulanParam)
+            : getMonthFromDate(initialTanggal)
+
+    const initialTahunParam =
+        searchParams.get('tahun') ??
+        (navState?.tahun !== undefined ? String(navState.tahun) : null)
+    const initialTahun =
+        initialTahunParam !== null && initialTahunParam !== ''
+            ? Number(initialTahunParam)
+            : getYearFromDate(initialTanggal)
+
+    const initialSpkIdParam =
+        searchParams.get('spk_id') ??
+        (navState?.spk_id !== undefined ? String(navState.spk_id) : null)
+    const initialSpkId =
+        initialSpkIdParam !== null && initialSpkIdParam !== ''
+            ? Number(initialSpkIdParam)
+            : null
+
+    const initialNoSpk =
+        searchParams.get('no_spk') ??
+        navState?.no_spk ??
+        ''
+
+    const pendingSpkIdRef = useRef<number | null>(initialSpkId)
+    const pendingNoSpkRef = useRef<string | null>(
+        initialNoSpk.trim() !== '' ? initialNoSpk.trim() : null,
+    )
 
     const [tanggal, setTanggal] =
-        useState<string>(getToday())
+        useState<string>(initialTanggal)
 
     const [periodeBulan, setPeriodeBulan] =
-        useState<number | ''>(getMonthFromDate(getToday()))
+        useState<number | ''>(initialBulan)
 
     const [periodeTahun, setPeriodeTahun] =
-        useState<number | ''>(getYearFromDate(getToday()))
+        useState<number | ''>(initialTahun)
 
     const [clientCode, setClientCode] =
-        useState<string>('')
+        useState<string>(initialClientCode)
 
     const [spks, setSpks] =
         useState<DailyProgressFormSpk[]>([])
@@ -319,6 +386,12 @@ const ProgressReportCreatePage = () => {
         searchClients,
     } = useMarketingClients()
 
+    useEffect(() => {
+        if (initialClientCode.trim() !== '') {
+            void searchClients(initialClientCode.trim())
+        }
+    }, [initialClientCode, searchClients])
+
     const currentStepIndex = steps.findIndex(
         (step) => step.key === currentStep,
     )
@@ -349,6 +422,8 @@ const ProgressReportCreatePage = () => {
     const handlePeriodMonthChange = (
         event: ChangeEvent<HTMLSelectElement>,
     ): void => {
+        pendingSpkIdRef.current = null
+        pendingNoSpkRef.current = null
         setPeriodeBulan(
             event.target.value === ''
                 ? ''
@@ -360,6 +435,8 @@ const ProgressReportCreatePage = () => {
     const handlePeriodYearChange = (
         event: ChangeEvent<HTMLInputElement>,
     ): void => {
+        pendingSpkIdRef.current = null
+        pendingNoSpkRef.current = null
         const value = event.target.value
         setPeriodeTahun(value === '' ? '' : Number(value))
         setSelectedSpkId('')
@@ -413,8 +490,41 @@ const ProgressReportCreatePage = () => {
                     result.data !== undefined
                 ) {
                     setSpks(result.data.spks)
-                    setSelectedSpkId('')
-                    resetFormState()
+                    const targetSpkId = pendingSpkIdRef.current
+                    const targetNoSpk = pendingNoSpkRef.current?.trim().toLowerCase()
+                    const matchedSpk =
+                        result.data.spks.find((spk) => {
+                            if (
+                                targetSpkId !== null &&
+                                (spk.spk_id === targetSpkId ||
+                                    spk.source_id === targetSpkId ||
+                                    String(spk.spk_id) === String(targetSpkId) ||
+                                    String(spk.source_id) === String(targetSpkId))
+                            ) {
+                                return true
+                            }
+                            if (
+                                targetNoSpk !== undefined &&
+                                targetNoSpk !== '' &&
+                                spk.no_spk?.trim().toLowerCase() === targetNoSpk
+                            ) {
+                                return true
+                            }
+                            return false
+                        }) ??
+                        (result.data.spks.length === 1 &&
+                        (targetSpkId !== null || (targetNoSpk !== undefined && targetNoSpk !== ''))
+                            ? result.data.spks[0]
+                            : null)
+
+                    if (matchedSpk) {
+                        setSelectedSpkId(matchedSpk.spk_id)
+                        pendingSpkIdRef.current = null
+                        pendingNoSpkRef.current = null
+                    } else {
+                        setSelectedSpkId('')
+                        resetFormState()
+                    }
                     setIsLoadingSpks(false)
                     return
                 }
@@ -489,6 +599,7 @@ const ProgressReportCreatePage = () => {
                                     source_type: 'master',
                                     als_job_task_id: task.id,
                                     task_name: task.task_name,
+                                    priority: 3,
                                     notes: [emptyNote()],
                                 }),
                             ),
@@ -498,6 +609,7 @@ const ProgressReportCreatePage = () => {
                                     als_task_additional_detail_id:
                                         task.id,
                                     task_name: task.task_name,
+                                    priority: 3,
                                     notes: [emptyNote()],
                                 }),
                             ),
@@ -527,60 +639,6 @@ const ProgressReportCreatePage = () => {
         event: ChangeEvent<HTMLInputElement>,
     ): File | null => {
         return event.target.files?.[0] ?? null
-    }
-
-    const updateDetailState = (
-        task: ProgressReportFormTask,
-        updater: (
-            current: SelectedDetail,
-        ) => SelectedDetail,
-    ): void => {
-        setDetailState((previous) => {
-            const current =
-                previous[task.daily_progress_detail_id] ??
-                getDefaultDetailState(task)
-
-            return {
-                ...previous,
-                [task.daily_progress_detail_id]:
-                    updater(current),
-            }
-        })
-    }
-
-    const handleToggleDetail = (
-        task: ProgressReportFormTask,
-    ): void => {
-        if (isTaskLockedByProgressReport(task)) {
-            return
-        }
-
-        updateDetailState(task, (current) => ({
-            ...current,
-            isSelected: !current.isSelected,
-        }))
-    }
-
-    const handleSelectAll = (select: boolean): void => {
-        if (formData === null) {
-            return
-        }
-
-        setDetailState((previous) => {
-            const next = { ...previous }
-            formData.tasks.forEach((task) => {
-                if (!isTaskLockedByProgressReport(task)) {
-                    const current =
-                        next[task.daily_progress_detail_id] ??
-                        getDefaultDetailState(task)
-                    next[task.daily_progress_detail_id] = {
-                        ...current,
-                        isSelected: select,
-                    }
-                }
-            })
-            return next
-        })
     }
 
     const updateFindingNote = (
@@ -698,18 +756,62 @@ const ProgressReportCreatePage = () => {
         }))
     }
 
+    const handleToggleDetail = (task: ProgressReportFormTask): void => {
+        if (isTaskLockedByProgressReport(task)) return
+
+        setDetailState((previous) => {
+            const current =
+                previous[task.daily_progress_detail_id] ??
+                getDefaultDetailState(task)
+
+            return {
+                ...previous,
+                [task.daily_progress_detail_id]: {
+                    ...current,
+                    isSelected: !current.isSelected,
+                },
+            }
+        })
+    }
+
+    const handleSelectAll = (select: boolean): void => {
+        if (formData === null) {
+            return
+        }
+
+        setDetailState((previous) => {
+            const next = { ...previous }
+            formData.tasks.forEach((task) => {
+                if (!isTaskLockedByProgressReport(task)) {
+                    const current =
+                        next[task.daily_progress_detail_id] ??
+                        getDefaultDetailState(task)
+                    next[task.daily_progress_detail_id] = {
+                        ...current,
+                        isSelected: select,
+                    }
+                }
+            })
+            return next
+        })
+    }
+
     const getSelectedDetails = () => {
         return getPreparedDetails().filter(
             ({ task, state }) =>
-                !isTaskLockedByProgressReport(task) &&
-                state.isSelected,
+                !isTaskLockedByProgressReport(task) && state.isSelected,
         )
     }
 
     const validateDetailsStep = (): boolean => {
-        if (formData === null || selectedSpkId === '') {
+        if (
+            formData === null ||
+            selectedSpkId === '' ||
+            periodeBulan === '' ||
+            periodeTahun === ''
+        ) {
             setErrorMessage(
-                'Pilih client, SPK, dan tanggal terlebih dahulu.',
+                'Pilih client, SPK, tanggal, dan periode terlebih dahulu.',
             )
             return false
         }
@@ -718,7 +820,7 @@ const ProgressReportCreatePage = () => {
 
         if (selectedDetails.length === 0) {
             setErrorMessage(
-                'Pilih minimal satu pekerjaan Daily Progress untuk dimasukkan ke Progress Report.',
+                'Minimal satu pekerjaan Daily Progress harus dichecklist untuk dimasukkan ke Progress Report.',
             )
             return false
         }
@@ -837,6 +939,7 @@ const ProgressReportCreatePage = () => {
                         source_type: 'master',
                         als_job_task_id: finding.als_job_task_id,
                         keterangan,
+                        priority: finding.priority ?? 3,
                     }
                 }
 
@@ -845,6 +948,7 @@ const ProgressReportCreatePage = () => {
                     als_task_additional_detail_id:
                         finding.als_task_additional_detail_id,
                     keterangan,
+                    priority: finding.priority ?? 3,
                 }
             })
 
@@ -862,6 +966,8 @@ const ProgressReportCreatePage = () => {
 
         const result = await progressReportApi.create({
             tanggal,
+            bulan: Number(periodeBulan),
+            tahun: Number(periodeTahun),
             client_code: clientCode.trim(),
             als_spk_id: Number(selectedSpkId),
             notes:
@@ -1282,10 +1388,16 @@ const ProgressReportCreatePage = () => {
                             </span>
                         </div>
 
-                        {getHistoryNoteText(history) === null ? (
-                            <p>Tidak ada catatan.</p>
-                        ) : (
-                            <p>{getHistoryNoteText(history)}</p>
+                        {getHistoryNoteText(history) !== null && (
+                            <div className="progress-report-history-note">
+                                <i className="bi bi-chat-left-text" />
+                                <span className="progress-report-history-note-label">
+                                    Catatan:
+                                </span>
+                                <span className="progress-report-history-note-text">
+                                    {getHistoryNoteText(history)}
+                                </span>
+                            </div>
                         )}
 
                         {renderHistoryDocuments(
@@ -1302,38 +1414,27 @@ const ProgressReportCreatePage = () => {
             formData?.tasks.filter(
                 (task) => !isTaskLockedByProgressReport(task),
             ) ?? []
-
-        const selectedCount =
-            formData?.tasks.filter((task) => {
-                if (isTaskLockedByProgressReport(task)) {
-                    return false
-                }
-                const state =
-                    detailState[task.daily_progress_detail_id] ??
-                    getDefaultDetailState(task)
-                return state.isSelected
-            }).length ?? 0
-
         return (
             <div className="progress-report-section">
-                <div className="d-flex align-items-center justify-content-between mb-3 flex-wrap gap-2">
+                <div className="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-3">
                     <div>
                         <h2 className="progress-report-section-title mb-1">
-                            Pilih Pekerjaan Daily Progress
+                            Detail Pekerjaan Daily Progress
                         </h2>
                         <span className="text-muted" style={{ fontSize: '12px' }}>
-                            Checklist pekerjaan Daily Progress (status pending maupun selesai) yang akan dimasukkan ke nomor Progress Report ini
-                            {formData !== null && ` (${selectedCount}/${availableTasks.length} dipilih)`}.
+                            Daftar pekerjaan Daily Progress yang dimasukkan ke nomor Progress Report ini
+                            {availableTasks.length > 0 && ` (${availableTasks.length} pekerjaan)`}.
                         </span>
                     </div>
 
                     {availableTasks.length > 0 && (
-                        <div className="d-flex gap-2">
+                        <div className="d-flex align-items-center gap-2">
                             <button
                                 type="button"
                                 className="btn btn-outline-primary btn-sm"
                                 onClick={() => handleSelectAll(true)}
                             >
+                                <i className="bi bi-check-all me-1" />
                                 Pilih Semua
                             </button>
                             <button
@@ -1341,7 +1442,7 @@ const ProgressReportCreatePage = () => {
                                 className="btn btn-outline-secondary btn-sm"
                                 onClick={() => handleSelectAll(false)}
                             >
-                                Batal Pilih
+                                Batal Semua
                             </button>
                         </div>
                     )}
@@ -1399,20 +1500,16 @@ const ProgressReportCreatePage = () => {
                     )}
 
                 {formData?.tasks.map((task) => {
-                    const state =
-                        detailState[
-                            task.daily_progress_detail_id
-                        ] ?? getDefaultDetailState(task)
-
                     const lockedByProgressReport =
                         isTaskLockedByProgressReport(task)
+                    const state =
+                        detailState[task.daily_progress_detail_id] ??
+                        getDefaultDetailState(task)
 
                     return (
                         <div
                             className={`progress-report-task-card ${
-                                !state.isSelected && !lockedByProgressReport
-                                    ? 'opacity-75'
-                                    : ''
+                                lockedByProgressReport || !state.isSelected ? 'opacity-75' : ''
                             }`}
                             key={task.daily_progress_detail_id}
                         >
@@ -1420,23 +1517,23 @@ const ProgressReportCreatePage = () => {
                                 <input
                                     type="checkbox"
                                     className="form-check-input mt-2"
-                                    checked={
-                                        !lockedByProgressReport &&
-                                        state.isSelected
-                                    }
+                                    checked={!lockedByProgressReport && state.isSelected}
                                     disabled={lockedByProgressReport}
-                                    onChange={() =>
-                                        handleToggleDetail(task)
+                                    title={
+                                        lockedByProgressReport
+                                            ? 'Sudah dimasukkan ke Progress Report sebelumnya'
+                                            : undefined
                                     }
+                                    onChange={() => handleToggleDetail(task)}
                                 />
 
-                                <div className="progress-report-task-title">
+                                <div className="progress-report-task-title flex-grow-1">
                                     <strong>
-                                        {task.task.parent
+                                        {task.task?.parent
                                             ?.task_name ??
                                             'Task'}
                                         {' / '}
-                                        {task.task.task_name}
+                                        {task.task?.task_name ?? 'Task'}
                                     </strong>
                                     <div
                                         className="d-flex align-items-center gap-2 flex-wrap text-muted"
@@ -1503,13 +1600,38 @@ const ProgressReportCreatePage = () => {
                     className="progress-report-finding-card"
                     key={getFindingKey(finding)}
                 >
-                    <div className="progress-report-finding-parent">
-                        <span>
-                            {finding.source_type === 'master'
-                                ? 'Master Pekerjaan'
-                                : 'Additional Task'}
-                        </span>
-                        <strong>{finding.task_name}</strong>
+                    <div className="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-2">
+                        <div className="progress-report-finding-parent mb-0">
+                            <span>
+                                {finding.source_type === 'master'
+                                    ? 'Master Pekerjaan'
+                                    : 'Additional Task'}
+                            </span>
+                            <strong>{finding.task_name}</strong>
+                        </div>
+                        <div className="d-flex align-items-center gap-2">
+                            <label className="form-label mb-0 small text-secondary fw-semibold" style={{ fontSize: '11.5px' }}>
+                                Prioritas:
+                            </label>
+                            <select
+                                className="form-select form-select-sm"
+                                style={{ width: '150px', fontSize: '12px' }}
+                                value={finding.priority ?? 3}
+                                onChange={(e) =>
+                                    setFindings((prev) =>
+                                        prev.map((f, i) =>
+                                            i === index ? { ...f, priority: Number(e.target.value) } : f
+                                        )
+                                    )
+                                }
+                            >
+                                <option value={1}>1 - Rendah</option>
+                                <option value={2}>2 - Minor</option>
+                                <option value={3}>3 - Sedang (Default)</option>
+                                <option value={4}>4 - Tinggi</option>
+                                <option value={5}>5 - Kritis</option>
+                            </select>
+                        </div>
                     </div>
 
                     {renderNoteRows(finding.notes, {
@@ -1704,6 +1826,8 @@ const ProgressReportCreatePage = () => {
                                 }
                                 onSearch={handleClientSearch}
                                 onSelect={(client) => {
+                                    pendingSpkIdRef.current = null
+                                    pendingNoSpkRef.current = null
                                     setClientCode(
                                         client.customer_code,
                                     )

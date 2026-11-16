@@ -28,14 +28,36 @@ Bagian ini merangkum perubahan kontrak Progress Report dibanding dokumentasi seb
 18. **Payload Periode Bulan dan Tahun pada Form Data**: Endpoint `GET /api/progress-report/form-data` mendukung query parameter opsional `bulan` (`1` sampai `12`) dan `tahun` (`2000` sampai `2100`) untuk memfilter Daily Progress spesifik ke periode tertentu jika pada tanggal tersebut terdapat Daily Progress dengan periode bulan/tahun yang berbeda.
 19. **Field Periode pada Response Form Data**: Response root `GET /api/progress-report/form-data` mengembalikan field `bulan` dan `tahun`, dan setiap item di `daily_progress[]` juga menyertakan field `bulan` dan `tahun`.
 20. **Status Task Dinamis pada Form Data**: Pada response `GET /api/progress-report/form-data`, properti `tasks[].allowed_progress_report_statuses` bernilai `["pending", "selesai"]`, dan `tasks[].default_progress_report_status` bernilai dinamis sesuai status Daily Progress Detail (`selesai` jika DP selesai, `pending` jika DP pending).
+21. **Payload Periode Bulan dan Tahun pada Progress Report**: Endpoint `POST /api/progress-report` mewajibkan payload `bulan` (`1` sampai `12`) dan `tahun` (`2000` sampai `2100`). Hal ini memungkinkan user melaporkan Progress Report untuk periode bulan sebelumnya atau bulan-bulan yang terlewat. Periode ini juga disimpan di database dan menjadi filter otomatis riwayat PR di Daily Progress.
+22. **Fitur Edit / Update Progress Report (`PUT /api/progress-report/{progressReport}` & `PUT /api/progress-report/{progressReport}/edit`)**: Tersedia endpoint PUT untuk mengedit/mengoreksi data Progress Report (header SPK, tanggal, bulan, tahun, catatan umum, sinkronisasi detail pekerjaan, serta temuan). Hanya pembuat PR yang dapat mengubah, dan request ditolak apabila PR sudah digunakan pada Representative Letter.
+23. **Penyimpanan Snapshot Nama Pembuat (`created_by_name`)**: Kolom `created_by_name` ditambahkan pada tabel `als_progress_reports` untuk menyimpan nama pembuat saat Progress Report diterbitkan/diedit. Hal ini memudahkan monitoring pada Timeline dan laporan tanpa perlu melakukan lookup berulang.
+24. **Fitur Approval Progress Report Berbasis Hirarki Tim SPK**:
+   - Setiap Progress Report memiliki atribut approval: `approval_status` (`pending`, `approved`, `rejected`), `approved_by`, `approved_by_name`, `approved_by_level`, `approved_at`, dan `rejection_note`.
+   - **Auto-Approval**: Jika pembuat laporan adalah anggota dengan tingkatan jabatan tertinggi pada tim SPK aktif (tidak ada anggota lain dengan `tingkat` lebih kecil), laporan langsung otomatis berstatus `approved` (*auto-approved*).
+   - **Pending Approval**: Jika terdapat anggota tim dengan tingkatan lebih tinggi di SPK tersebut, laporan berstatus `pending`.
+   - **Approval Atasan**: Cukup salah satu atasan di SPK bersangkutan (yang memiliki `tingkat` lebih kecil daripada pembuat laporan) untuk menyetujui laporan melalui `POST /api/progress-report/{id}/approve`.
+   - **Proteksi Status**: Progress Report yang sudah `approved` terkunci permanen dari perubahan (`PUT /api/progress-report/{id}`).
+   - **Antrean Approval**: Tersedia endpoint `GET /api/progress-report/pending-approvals` untuk menampilkan daftar laporan yang menunggu persetujuan dari user login.
+   - **Filter Approval**: Endpoint `GET /api/progress-report` menerima parameter query `approval_status` (`pending`, `approved`, `rejected`).
+25. **Temuan dari Daily Progress pada Form-Data (`temuans`)**:
+   - Pada response `GET /api/progress-report/form-data`, sistem kini mengembalikan top-level `temuans` yang berisi seluruh temuan yang telah ditindaklanjuti/di-update statusnya pada Daily Progress tanggal/periode tersebut.
+   - Setiap item temuan memuat informasi detail temuan (`id`, `nomor`, `type`, `priority`, `status`, `notes`, `files`) dan tindak lanjut DP (`dp_followup`: `status`, `alasan_pending`, `solusi`, `daily_progress_id`, `daily_progress_nomor`).
+   - Setiap item pada `daily_progress[]` juga menyertakan `total_task`, `total_temuan`, dan ringkasan `temuans[]`.
 
 ```php
 Route::prefix('progress-report')->group(function () {
     Route::get('/form-data', ProgressReportFormController::class);
     Route::get('/history', [ProgressReportController::class, 'history']);
+    Route::get('/pending-approvals', [ProgressReportController::class, 'pendingApprovals']);
     Route::get('/', [ProgressReportController::class, 'index']);
     Route::post('/', [ProgressReportController::class, 'store']);
     Route::get('/{progressReport}', [ProgressReportController::class, 'show'])
+        ->whereNumber('progressReport');
+    Route::put('/{progressReport}', [ProgressReportController::class, 'update'])
+        ->whereNumber('progressReport');
+    Route::put('/{progressReport}/edit', [ProgressReportController::class, 'edit'])
+        ->whereNumber('progressReport');
+    Route::post('/{progressReport}/approve', [ProgressReportController::class, 'approve'])
         ->whereNumber('progressReport');
     Route::post('/{progressReport}/documents', [ProgressReportDocumentController::class, 'storeProgressReportDocument'])
         ->whereNumber('progressReport');
@@ -86,10 +108,13 @@ Authorization: Bearer {token}
 | Method | Endpoint | Deskripsi |
 | --- | --- | --- |
 | `GET` | `/api/progress-report/form-data` | Mengambil data pendukung form Progress Report berdasarkan client, SPK, dan tanggal (serta opsional bulan dan tahun periode DP). Menampilkan task DP (status pending maupun selesai). |
-| `GET` | `/api/progress-report` | Mengambil daftar Progress Report milik user login. |
+| `GET` | `/api/progress-report` | Mengambil daftar Progress Report milik user login (menerima filter `approval_status`). |
+| `GET` | `/api/progress-report/pending-approvals` | Mengambil antrean daftar Progress Report yang membutuhkan persetujuan oleh user login. |
+| `POST` | `/api/progress-report/{progressReport}/approve` | Menyetujui (*approve*) Progress Report oleh atasan dalam tim SPK yang sama. |
 | `GET` | `/api/progress-report/history` | Mengambil riwayat Progress Report untuk satu master task atau Additional Task. |
 | `POST` | `/api/progress-report` | Membuat Progress Report dari task Daily Progress (checklist pending maupun selesai). |
 | `GET` | `/api/progress-report/{progressReport}` | Mengambil detail Progress Report berdasarkan ID. |
+| `PUT` | `/api/progress-report/{progressReport}` | Mengedit data Progress Report (hanya jika belum berstatus approved). |
 | `POST` | `/api/progress-report/{progressReport}/documents` | Upload dokumen umum Progress Report. |
 | `DELETE` | `/api/progress-report/{progressReport}/documents/{document}` | Menghapus satu dokumen umum Progress Report. |
 | `POST` | `/api/progress-report/{progressReport}/details/{detail}/documents` | Upload dokumen untuk satu detail pekerjaan Progress Report. |
@@ -103,8 +128,8 @@ Response endpoint ini menggunakan key `status`, bukan `success`.
 
 Header Progress Report disimpan pada tabel tenant `als_progress_reports`.
 Detail Progress Report disimpan pada tabel tenant `als_progress_report_details`.
-Temuan Progress Report disimpan pada tabel tenant `als_progress_report_findings`.
-Dokumen temuan Progress Report disimpan pada tabel tenant `als_progress_report_finding_documents`.
+Temuan Progress Report disimpan pada tabel tenant `als_progress_report_findings` dan secara otomatis disinkronkan ke sistem Temuan Terpadu (`als_temuan` dan `als_temuan_notes`) dengan `type: "PR"`, `no_pr`, dan `priority` (1-5).
+Dokumen temuan Progress Report disimpan pada tabel tenant `als_progress_report_finding_documents` dan disalin ke `als_temuan_files`.
 Catatan umum Progress Report disimpan pada tabel tenant `als_progress_report_notes`.
 Dokumen umum Progress Report disimpan pada tabel tenant `als_progress_report_documents`.
 Catatan detail Progress Report disimpan pada tabel tenant `als_progress_report_detail_notes`.
@@ -118,7 +143,7 @@ PR-YYYYMMDD-0001
 
 Contoh: `PR-20260819-0001`.
 
-Satu Progress Report dibuat untuk kombinasi SPK, master pekerjaan, client, tanggal, dan user login. Detail Progress Report berasal dari `als_daily_progress_details` (baik yang berstatus `selesai` maupun `pending`).
+Satu Progress Report dibuat untuk kombinasi SPK, master pekerjaan, client, tanggal, periode (bulan dan tahun), dan user login. Detail Progress Report berasal dari `als_daily_progress_details` (baik yang berstatus `selesai` maupun `pending`).
 
 ## Status Detail
 
@@ -164,6 +189,8 @@ Catatan: field `documents`, `details[].documents`, dan `findings[].documents` mu
   "id": 1,
   "nomor": "PR-20260819-0001",
   "tanggal": "2026-08-19",
+  "bulan": 8,
+  "tahun": 2026,
   "client_code": "CLIENT-001",
   "spk": {
     "id": 10,
@@ -247,6 +274,8 @@ Data diurutkan dari tanggal terbaru, lalu ID terbaru. Response menggunakan pagin
 | `als_spk_id` | integer | Tidak | Filter berdasarkan ID SPK. |
 | `tanggal_awal` | date | Tidak | Filter tanggal mulai, format `YYYY-MM-DD`. |
 | `tanggal_akhir` | date | Tidak | Filter tanggal akhir, format `YYYY-MM-DD`. Harus lebih besar atau sama dengan `tanggal_awal`. |
+| `bulan` | integer | Tidak | Filter bulan periode (`1` sampai `12`). |
+| `tahun` | integer | Tidak | Filter tahun periode (`2000` sampai `2100`). |
 | `search` | string | Tidak | Pencarian pada nomor PR, nomor SPK, client code, job code, atau deskripsi job. |
 | `per_page` | integer | Tidak | Jumlah data per halaman, `1` sampai `100`. Default `20`. |
 
@@ -271,6 +300,8 @@ Status: `200 OK`
       "id": 1,
       "nomor": "PR-20260819-0001",
       "tanggal": "2026-08-19",
+      "bulan": 8,
+      "tahun": 2026,
       "client_code": "CLIENT-001",
       "spk": {
         "id": 10,
@@ -527,6 +558,8 @@ Status: `200 OK`
       "progress_report_id": 1,
       "nomor_pr": "PR-20260819-0001",
       "tanggal": "2026-08-19",
+      "bulan": 8,
+      "tahun": 2026,
       "client_code": "CLIENT-001",
       "spk_id": 10,
       "source_type": "master",
@@ -571,6 +604,8 @@ Jika status tidak dikirim pada objek detail, sistem akan otomatis menggunakan st
 | Field | Tipe | Wajib | Keterangan |
 | --- | --- | --- | --- |
 | `tanggal` | date | Ya | Tanggal Progress Report, format `YYYY-MM-DD`. |
+| `bulan` | integer | Ya | Periode bulan Progress Report (`1` sampai `12`). |
+| `tahun` | integer | Ya | Periode tahun Progress Report (`2000` sampai `2100`). |
 | `client_code` | string | Ya | Kode client. |
 | `als_spk_id` | integer | Ya | ID SPK. User login harus terdaftar pada team SPK tersebut. |
 | `notes` | array | Tidak | Daftar catatan umum Progress Report. |
@@ -586,11 +621,12 @@ Jika status tidak dikirim pada objek detail, sistem akan otomatis menggunakan st
 | `details.*.documents.*.original_name` | string | Ya jika `details.*.documents` dikirim | Nama asli file dokumen. |
 | `details.*.documents.*.mime_type` | string | Tidak | MIME type file dokumen. |
 | `details.*.documents.*.size` | integer | Tidak | Ukuran file dokumen dalam byte. |
-| `findings` | array | Tidak | Daftar temuan Progress Report. |
+| `findings` | array | Tidak | Daftar temuan Progress Report. Setiap temuan otomatis dibuatkan nomor Temuan Global `TM-xxx` dengan `type: "PR"` dan `no_pr`. |
 | `findings.*.source_type` | string | Ya jika `findings` dikirim | `master` atau `additional`. |
-| `findings.*.als_job_task_id` | integer | Kondisional | Wajib jika `source_type` adalah `master`; harus root/master task dari job SPK. Tidak boleh diisi jika `additional`. |
+| `findings.*.als_job_task_id` | integer | Kondisional | Wajib jika `source_type` adalah `master`; task dari job SPK (bisa Parent Task maupun Child/Sub-Task). Tidak boleh diisi jika `additional`. |
 | `findings.*.als_task_additional_detail_id` | integer | Kondisional | Wajib jika `source_type` adalah `additional`; tidak boleh diisi jika `master`. |
 | `findings.*.keterangan` | string | Ya jika `findings` dikirim | Keterangan temuan. |
+| `findings.*.priority` | integer | Tidak | Skala prioritas temuan: `1` (Rendah) sampai `5` (Kritis). Default: `3` (Sedang). |
 
 ### Request (Contoh Checklist ID Sederhana)
 
@@ -604,6 +640,8 @@ Content-Type: application/json
 ```json
 {
   "tanggal": "2026-08-19",
+  "bulan": 8,
+  "tahun": 2026,
   "client_code": "CLIENT-001",
   "als_spk_id": 10,
   "notes": [
@@ -628,6 +666,8 @@ Content-Type: application/json
 ```json
 {
   "tanggal": "2026-08-19",
+  "bulan": 8,
+  "tahun": 2026,
   "client_code": "CLIENT-001",
   "als_spk_id": 10,
   "notes": [
@@ -664,6 +704,8 @@ Status: `201 Created`
     "id": 1,
     "nomor": "PR-20260819-0001",
     "tanggal": "2026-08-19",
+    "bulan": 8,
+    "tahun": 2026,
     "client_code": "CLIENT-001",
     "spk": {
       "id": 10,
@@ -811,6 +853,8 @@ Status: `200 OK`
     "id": 1,
     "nomor": "PR-20260819-0001",
     "tanggal": "2026-08-19",
+    "bulan": 8,
+    "tahun": 2026,
     "client_code": "CLIENT-001",
     "spk": {
       "id": 10,
@@ -852,6 +896,164 @@ Status: `404 Not Found`
 {
   "status": false,
   "message": "Progress Report tidak ditemukan."
+}
+```
+
+## PUT /api/progress-report/{progressReport} & PUT /api/progress-report/{progressReport}/edit
+
+Endpoint untuk mengedit / memperbarui data Progress Report secara menyeluruh (koreksi pemilihan SPK, tanggal, bulan, tahun, catatan umum, detail pekerjaan yang dipilih, serta daftar temuan).
+
+Kedua URL route (`/{progressReport}` dan `/{progressReport}/edit`) mengarah ke aksi yang sama.
+
+### Aturan Edit
+
+1. Progress Report hanya dapat diubah oleh pembuatnya (`created_by === employee_code`). Jika bukan pembuat, request menghasilkan `403 Forbidden`.
+2. Progress Report yang **sudah digunakan pada Representative Letter** tidak dapat diubah (menghasilkan `422 Unprocessable Content`).
+3. Temuan yang **sudah ditindaklanjuti pada Daily Progress** (`als_daily_progress_findings`) tidak dapat dihapus (menghasilkan `422 Unprocessable Content`).
+4. Detail Daily Progress yang dipilih harus valid, sesuai dengan client, SPK, master pekerjaan, tanggal, serta periode bulan dan tahun yang dikirim.
+5. Detail Daily Progress yang sudah pernah masuk ke Progress Report lain tidak dapat digunakan. Namun, detail yang sudah termasuk dalam Progress Report yang sedang diedit ini tetap valid.
+6. Detail pekerjaan disinkronkan:
+   - Detail yang tidak lagi disertakan dalam payload akan dilepas/dihapus dari Progress Report.
+   - Detail baru yang disertakan akan ditambahkan.
+   - Detail yang tetap ada akan diperbarui status dan catatannya.
+7. Catatan umum (`notes`) dan temuan (`findings`) disinkronkan sesuai data payload terbaru.
+
+### Path Parameter
+
+| Parameter | Tipe | Wajib | Keterangan |
+| --- | --- | --- | --- |
+| `progressReport` | integer | Ya | ID Progress Report. |
+
+### Body Parameter
+
+| Parameter | Tipe | Wajib | Keterangan |
+| --- | --- | --- | --- |
+| `tanggal` | date | Ya | Tanggal Progress Report, format `YYYY-MM-DD`. |
+| `bulan` | integer | Ya | Periode bulan Progress Report (`1` sampai `12`). |
+| `tahun` | integer | Ya | Periode tahun Progress Report (`2000` sampai `2100`). |
+| `client_code` | string | Ya | Kode client. |
+| `als_spk_id` | integer | Ya | ID SPK. User login harus terdaftar pada team SPK ini. |
+| `notes` | array | Tidak | Array catatan umum Progress Report. |
+| `notes.*.judul` | string | Tidak | Judul catatan umum, maksimal 256 karakter. |
+| `notes.*.catatan` | string | Ya (jika item dikirim) | Isi catatan umum. |
+| `details` | array | Ya | Minimal 1 item detail pekerjaan. |
+| `details.*.daily_progress_detail_id` | integer | Ya | ID detail Daily Progress. |
+| `details.*.status` | string | Tidak | Status pekerjaan pada Progress Report: `pending` atau `selesai`. |
+| `details.*.notes` | array | Tidak | Array catatan per pekerjaan. |
+| `details.*.notes.*.catatan` | string | Ya (jika item dikirim) | Isi catatan per pekerjaan. |
+| `findings` | array | Tidak | Array temuan pekerjaan. |
+| `findings.*.id` | integer | Tidak | ID temuan lama jika ingin memperbarui temuan yang ada. |
+| `findings.*.source_type` | string | Ya | Tipe sumber temuan: `master` atau `additional`. |
+| `findings.*.als_job_task_id` | integer | Kondisional | ID task dari job SPK jika `source_type === 'master'` (bisa Parent Task maupun Child/Sub-Task). |
+| `findings.*.als_task_additional_detail_id` | integer | Kondisional | ID detail Task Tambahan jika `source_type === 'additional'`. |
+| `findings.*.keterangan` | string | Ya | Keterangan temuan. |
+| `findings.*.priority` | integer | Tidak | Skala prioritas temuan: `1` (Rendah) sampai `5` (Kritis). Default: `3` (Sedang). |
+
+### Request
+
+```http
+PUT /api/progress-report/1
+Accept: application/json
+Content-Type: application/json
+Authorization: Bearer {token}
+```
+
+Body:
+
+```json
+{
+  "tanggal": "2026-08-19",
+  "bulan": 8,
+  "tahun": 2026,
+  "client_code": "CLIENT-001",
+  "als_spk_id": 10,
+  "notes": [
+    {
+      "judul": "Catatan Umum Revisi",
+      "catatan": "Catatan umum Progress Report setelah diedit"
+    }
+  ],
+  "details": [
+    {
+      "daily_progress_detail_id": 500,
+      "status": "selesai",
+      "notes": [
+        {
+          "catatan": "Hasil pekerjaan selesai dan terverifikasi."
+        }
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "source_type": "master",
+      "als_job_task_id": 19,
+      "keterangan": "Area kerja perlu dibersihkan ulang."
+    }
+  ]
+}
+```
+
+### Response Berhasil
+
+Status: `200 OK`
+
+```json
+{
+  "status": true,
+  "message": "Progress Report berhasil diperbarui.",
+  "data": {
+    "id": 1,
+    "nomor": "PR-20260819-0001",
+    "tanggal": "2026-08-19",
+    "bulan": 8,
+    "tahun": 2026,
+    "client_code": "CLIENT-001",
+    "spk": {
+      "id": 10,
+      "source_pt": "ALS",
+      "source_id": 1001,
+      "no_spk": "SPK-001",
+      "kode_product_jasa": "PJ-001",
+      "status_spk": "active",
+      "status_spk_display": "Active"
+    },
+    "job": {
+      "id": 5,
+      "job_code": "JOB-001",
+      "description": "Cleaning Service"
+    },
+    "created_by": "EMP-001",
+    "created_by_name": "Budi Santoso",
+    "created_by_level": 3,
+    "details": [
+      {
+        "id": 100,
+        "daily_progress_detail_id": 500,
+        "source_type": "master",
+        "task_name": "Pembersihan Lantai 1",
+        "parent_task_name": "Cleaning Area Utama",
+        "status": "selesai",
+        "status_display": "Selesai"
+      }
+    ],
+    "findings": [
+      {
+        "id": 200,
+        "source_type": "master",
+        "keterangan": "Area kerja perlu dibersihkan ulang."
+      }
+    ],
+    "notes": [
+      {
+        "id": 300,
+        "judul": "Catatan Umum Revisi",
+        "catatan": "Catatan umum Progress Report setelah diedit"
+      }
+    ],
+    "created_at": "2026-08-19T08:00:00.000000Z",
+    "updated_at": "2026-08-19T09:30:00.000000Z"
+  }
 }
 ```
 
@@ -1333,6 +1535,8 @@ curl -X POST "http://localhost:8000/api/progress-report" \
   -H "Content-Type: application/json" \
   -d '{
     "tanggal": "2026-08-19",
+    "bulan": 8,
+    "tahun": 2026,
     "client_code": "CLIENT-001",
     "als_spk_id": 10,
     "notes": [
@@ -1410,3 +1614,99 @@ curl -X GET "http://localhost:8000/api/progress-report/1" \
   -H "Accept: application/json" \
   -H "Authorization: Bearer {token}"
 ```
+
+---
+
+## 12. Monitoring Progress Report Team (Read-Only)
+
+Digunakan untuk melihat dan memonitor seluruh Progress Report dari semua anggota tim yang terdaftar pada SPK yang sama secara **read-only**.
+
+### Endpoint
+
+- **Method**: `GET`
+- **URL**: `/api/progress-report/team`
+- **Auth**: Bearer Token (`progress.auth`, `tenant.database`)
+
+### Query Parameters
+
+| Parameter | Type | Required | Description |
+|---|---|---|---|
+| `client_code` | string | **Ya** | Kode klien (contoh: `YSSI`, `LUBE`) |
+| `als_spk_id` | integer | **Ya** | ID SPK (user login harus terdaftar di SPK ini) |
+| `tanggal` | date (Y-m-d) | Tidak | Filter tanggal spesifik |
+| `tanggal_awal` | date (Y-m-d) | Tidak | Filter range tanggal mulai |
+| `tanggal_akhir` | date (Y-m-d) | Tidak | Filter range tanggal selesai |
+| `bulan` | integer (1-12) | Tidak | Filter bulan |
+| `tahun` | integer (4 digit) | Tidak | Filter tahun |
+| `employee_code` | string | Tidak | Filter data hanya untuk anggota tim tertentu |
+| `search` | string | Tidak | Pencarian nomor PR atau nomor SPK |
+
+### Contoh Request
+
+```bash
+curl -X GET "http://localhost:8000/api/progress-report/team?client_code=YSSI&als_spk_id=1325&tanggal=2026-09-30" \
+  -H "Accept: application/json" \
+  -H "Authorization: Bearer {token}"
+```
+
+### Format Response Sukses (200 OK)
+
+```json
+{
+  "status": true,
+  "message": "Monitoring Progress Report Team berhasil diambil.",
+  "data": {
+    "spk": {
+      "id": 1325,
+      "no_spk": "SPK-2026/09/YSSI/001",
+      "source_pt": "ALS",
+      "kode_product_jasa": "JASA-01",
+      "job": {
+        "id": 10,
+        "job_code": "JOB-01",
+        "description": "Perawatan Rutin"
+      },
+      "teams": [
+        {
+          "kode_employee": "EMP01",
+          "name_employee": "Budi Santoso",
+          "tingkat": 3
+        },
+        {
+          "kode_employee": "EMP02",
+          "name_employee": "Ahmad Dani",
+          "tingkat": 2
+        }
+      ]
+    },
+    "summary": {
+      "total_progress_report": 2,
+      "total_task": 6,
+      "total_temuan": 1,
+      "total_catatan": 2,
+      "total_dokumen": 4,
+      "total_employee": 2
+    },
+    "items": [
+      {
+        "id": 12,
+        "nomor": "PR-20260930-0001",
+        "tanggal": "2026-09-30",
+        "client_code": "YSSI",
+        "als_spk_id": 1325,
+        "no_spk": "SPK-2026/09/YSSI/001",
+        "created_by": "EMP02",
+        "created_by_name": "Ahmad Dani",
+        "created_by_level": 2,
+        "details_count": 3,
+        "findings_count": 1,
+        "notes_count": 1,
+        "documents_count": 2
+      }
+    ]
+  }
+}
+```
+
+> **Catatan Keamanan:**
+> Rekan satu SPK dapat melihat detail PR secara read-only (`GET /api/progress-report/{id}`).

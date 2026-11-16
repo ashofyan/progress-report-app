@@ -105,10 +105,51 @@ export const NoteBlockViewer = ({
                     }
 
                     case 'list': {
-                        const style = data.style === 'ordered' ? 'ordered' : 'unordered'
+                        const style =
+                            data.style === 'ordered'
+                                ? 'ordered'
+                                : data.style === 'checklist'
+                                ? 'checklist'
+                                : 'unordered'
                         const items = Array.isArray(data.items)
-                            ? (data.items as Array<string | { content?: string }>)
+                            ? (data.items as Array<string | { content?: string; meta?: { checked?: boolean } }>)
                             : []
+
+                        if (style === 'checklist') {
+                            return (
+                                <div key={key} className="notes-content-checklist">
+                                    {items.map((item, itemIdx) => {
+                                        const itemText =
+                                            typeof item === 'string'
+                                                ? item
+                                                : item?.content || ''
+                                        const isChecked =
+                                            typeof item === 'object' && item !== null && item.meta?.checked === true
+                                        return (
+                                            <div
+                                                key={itemIdx}
+                                                className={`notes-checklist-item ${
+                                                    isChecked ? 'checked' : ''
+                                                }`}
+                                            >
+                                                <input
+                                                    type="checkbox"
+                                                    className="form-check-input me-2"
+                                                    checked={isChecked}
+                                                    disabled
+                                                    readOnly
+                                                />
+                                                <span
+                                                    dangerouslySetInnerHTML={{
+                                                        __html: itemText,
+                                                    }}
+                                                />
+                                            </div>
+                                        )
+                                    })}
+                                </div>
+                            )
+                        }
 
                         if (style === 'ordered') {
                             return (

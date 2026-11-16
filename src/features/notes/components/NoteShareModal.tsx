@@ -16,17 +16,21 @@ import type {
 
 interface NoteShareModalProps {
     note: Note
-    isOpen: boolean
+    isOpen?: boolean
     onClose: () => void
     onUpdated: (updatedNote: Note) => void
 }
 
 export const NoteShareModal = ({
     note,
-    isOpen,
+    isOpen = true,
     onClose,
     onUpdated,
 }: NoteShareModalProps) => {
+    const isMeeting =
+        note.type === 'meeting' ||
+        (note.meeting_scope !== undefined && note.meeting_scope !== null)
+
     const [activeTab, setActiveTab] = useState<'invited' | 'public'>('invited')
     const [invitedList, setInvitedList] = useState<ShareInvitedItem[]>(() => {
         if (!note.shares || note.shares.length === 0) return []
@@ -108,9 +112,9 @@ export const NoteShareModal = ({
         }
 
         setIsSubmitting(true)
-        const result = await notesApi.shareInvited(note.id, {
-            shares: invitedList,
-        })
+        const result = isMeeting
+            ? await notesApi.shareMeetingInvited(note.id, { shares: invitedList })
+            : await notesApi.shareStandardInvited(note.id, { shares: invitedList })
         setIsSubmitting(false)
 
         if (result.success && result.data) {
@@ -125,7 +129,10 @@ export const NoteShareModal = ({
     }
 
     const handleMakePublic = async () => {
-        if (!window.confirm('Catatan ini akan dapat dibaca oleh seluruh anggota tim. Lanjutkan?')) {
+        const confirmMsg = isMeeting
+            ? 'Notulen ini akan dapat dibaca oleh seluruh anggota tim. Lanjutkan?'
+            : 'Catatan ini akan dapat dibaca oleh seluruh anggota tim. Lanjutkan?'
+        if (!window.confirm(confirmMsg)) {
             return
         }
 
@@ -133,11 +140,18 @@ export const NoteShareModal = ({
         setSuccessMessage(null)
         setIsSubmitting(true)
 
-        const result = await notesApi.sharePublic(note.id)
+        const result = isMeeting
+            ? await notesApi.shareMeetingPublic(note.id)
+            : await notesApi.shareStandardPublic(note.id)
         setIsSubmitting(false)
 
         if (result.success && result.data) {
-            setSuccessMessage(result.message || 'Catatan berhasil dibagikan ke publik.')
+            setSuccessMessage(
+                result.message ||
+                    (isMeeting
+                        ? 'Notulen berhasil dibagikan ke publik.'
+                        : 'Catatan berhasil dibagikan ke publik.'),
+            )
             onUpdated(result.data)
             setTimeout(() => {
                 onClose()
@@ -156,7 +170,7 @@ export const NoteShareModal = ({
                 <div className="notes-modal-header">
                     <h2>
                         <i className="bi bi-share text-danger" />
-                        <span>Bagikan Catatan</span>
+                        <span>Bagikan {isMeeting ? 'Notulen Rapat' : 'Catatan'}</span>
                     </h2>
                     <button
                         type="button"

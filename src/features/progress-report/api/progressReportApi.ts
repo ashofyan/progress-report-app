@@ -4,6 +4,7 @@ import httpClient from '@/shared/services/httpClient'
 
 import type {
     CreateProgressReportRequest,
+    EditProgressReportRequest,
     LaravelValidationErrorResponse,
     ProgressReport,
     ProgressReportApiResult,
@@ -21,7 +22,11 @@ import type {
     ProgressReportHistoryResponse,
     ProgressReportListResponse,
     ProgressReportMutationResponse,
+    ProgressReportPendingApprovalsFilters,
     ProgressReportSummary,
+    ProgressReportTeamData,
+    ProgressReportTeamFilters,
+    ProgressReportTeamResponse,
 } from '@/features/progress-report/types/progress-report.types'
 
 type ProgressReportError =
@@ -214,6 +219,104 @@ const getById = async (
         }))
 }
 
+const update = async (
+    id: number,
+    payload: EditProgressReportRequest,
+): Promise<ProgressReportApiResult<ProgressReport>> => {
+    return httpClient
+        .put<
+            ProgressReportMutationResponse | ProgressReportError
+        >(`/progress-report/${id}`, payload)
+        .then((response) => {
+            if (
+                'status' in response.data &&
+                response.data.status
+            ) {
+                return {
+                    success: true,
+                    status: response.status,
+                    message: response.data.message,
+                    data: response.data.data,
+                }
+            }
+
+            return getErrorResult(
+                response as AxiosResponse<ProgressReportError>,
+            )
+        })
+        .catch(() => ({
+            success: false,
+            status: 0,
+            message: 'Tidak dapat terhubung ke server.',
+        }))
+}
+
+const approve = async (
+    id: number,
+): Promise<ProgressReportApiResult<ProgressReport>> => {
+    return httpClient
+        .post<
+            ProgressReportMutationResponse | ProgressReportError
+        >(`/progress-report/${id}/approve`)
+        .then((response) => {
+            if (
+                'status' in response.data &&
+                response.data.status
+            ) {
+                return {
+                    success: true,
+                    status: response.status,
+                    message: response.data.message,
+                    data: response.data.data,
+                }
+            }
+
+            return getErrorResult(
+                response as AxiosResponse<ProgressReportError>,
+            )
+        })
+        .catch(() => ({
+            success: false,
+            status: 0,
+            message: 'Tidak dapat terhubung ke server.',
+        }))
+}
+
+const getPendingApprovals = async (
+    filters: ProgressReportPendingApprovalsFilters = {},
+): Promise<
+    ProgressReportApiResult<ProgressReportSummary[]>
+> => {
+    return httpClient
+        .get<ProgressReportListResponse | ProgressReportError>(
+            '/progress-report/pending-approvals',
+            { params: filters },
+        )
+        .then((response) => {
+            if (
+                'status' in response.data &&
+                response.data.status
+            ) {
+                return {
+                    success: true,
+                    status: response.status,
+                    message: response.data.message,
+                    data: response.data.data,
+                    meta: response.data.meta,
+                }
+            }
+
+            return getErrorResult(
+                response as AxiosResponse<ProgressReportError>,
+            )
+        })
+        .catch(() => ({
+            success: false,
+            status: 0,
+            message: 'Tidak dapat terhubung ke server.',
+        }))
+}
+
 const uploadDocumentRequest = async (
     endpoint: string,
     files: File[],
@@ -358,12 +461,48 @@ const deleteFindingDocument = async (
     )
 }
 
+const getTeam = async (
+    filters: ProgressReportTeamFilters,
+): Promise<ProgressReportApiResult<ProgressReportTeamData>> => {
+    return httpClient
+        .get<ProgressReportTeamResponse | ProgressReportError>(
+            '/progress-report/team',
+            { params: filters },
+        )
+        .then((response) => {
+            if (
+                'status' in response.data &&
+                response.data.status
+            ) {
+                return {
+                    success: true,
+                    status: response.status,
+                    message: response.data.message,
+                    data: response.data.data,
+                }
+            }
+
+            return getErrorResult(
+                response as AxiosResponse<ProgressReportError>,
+            )
+        })
+        .catch(() => ({
+            success: false,
+            status: 0,
+            message: 'Tidak dapat terhubung ke server.',
+        }))
+}
+
 export const progressReportApi = {
     getAll,
     getFormData,
     getHistory,
     create,
+    update,
+    approve,
+    getPendingApprovals,
     getById,
+    getTeam,
     uploadDocuments,
     uploadDetailDocuments,
     uploadFindingDocuments,

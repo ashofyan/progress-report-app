@@ -7,7 +7,12 @@ import {
 } from 'react'
 import { useNavigate } from 'react-router-dom'
 
+import ClientSelect from '@/features/additional-task/components/ClientSelect'
+import { useMarketingClients } from '@/features/additional-task/hooks/useMarketingClients'
+import { getPeriodeLabel } from '@/features/daily-progress/utils/dailyProgressPeriod'
 import { progressReportApi } from '@/features/progress-report/api/progressReportApi'
+import ProgressReportPendingApprovals from '@/features/progress-report/components/ProgressReportPendingApprovals'
+import ProgressReportTeamMonitoring from '@/features/progress-report/components/ProgressReportTeamMonitoring'
 import type {
     ProgressReport,
     ProgressReportDetail,
@@ -524,7 +529,7 @@ const ProgressReportDetailModal = ({
                                         <input
                                             className="form-control"
                                             value={
-                                                detail.spk.no_spk
+                                                detail.spk?.no_spk ?? '-'
                                             }
                                             readOnly
                                         />
@@ -594,15 +599,13 @@ const ProgressReportDetailModal = ({
                                                 <div className="progress-report-task-title">
                                                     <div className="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-1">
                                                         <strong>
-                                                            {item.task
-                                                                .parent
-                                                                ?.task_name ??
-                                                                'Task'}
-                                                            {' / '}
-                                                            {
-                                                                item.task
-                                                                    .task_name
-                                                            }
+                                                            {(item.task?.parent?.task_name ?? item.parent_task_name) && (
+                                                                <>
+                                                                    {item.task?.parent?.task_name ?? item.parent_task_name}
+                                                                    {' / '}
+                                                                </>
+                                                            )}
+                                                            {item.task?.task_name ?? item.task_name ?? `Detail Pekerjaan #${item.id}`}
                                                         </strong>
                                                         <span
                                                             className={`progress-report-status ${item.status}`}
@@ -776,11 +779,32 @@ const ProgressReportDetailModal = ({
 const ProgressReportPage = () => {
     const navigate = useNavigate()
 
+    const {
+        clients,
+        isLoading: isLoadingClients,
+        errorMessage: clientErrorMessage,
+        searchClients,
+    } = useMarketingClients()
+
     const [reports, setReports] =
         useState<ProgressReportSummary[]>([])
 
     const [meta, setMeta] =
         useState<ProgressReportMeta>(defaultMeta)
+
+    const [activeTab, setActiveTab] =
+        useState<'my' | 'approvals' | 'team'>('my')
+
+    const [pendingCount, setPendingCount] = useState<number>(0)
+
+    const [clientFilter, setClientFilter] =
+        useState<string>('')
+
+    const [bulanFilter, setBulanFilter] =
+        useState<number | ''>('')
+
+    const [tahunFilter, setTahunFilter] =
+        useState<number | ''>('')
 
     const [searchQuery, setSearchQuery] =
         useState<string>('')
@@ -799,6 +823,12 @@ const ProgressReportPage = () => {
 
     const filters = useMemo(
         () => ({
+            client_code:
+                clientFilter.trim() !== ''
+                    ? clientFilter.trim()
+                    : undefined,
+            bulan: bulanFilter !== '' ? Number(bulanFilter) : undefined,
+            tahun: tahunFilter !== '' ? Number(tahunFilter) : undefined,
             search:
                 searchQuery.trim() === ''
                     ? undefined
@@ -807,6 +837,9 @@ const ProgressReportPage = () => {
             per_page: 20,
         }),
         [
+            clientFilter,
+            bulanFilter,
+            tahunFilter,
             currentPage,
             searchQuery,
         ],
@@ -834,6 +867,21 @@ const ProgressReportPage = () => {
         setErrorMessage(result.message)
         setIsLoading(false)
     }, [filters])
+
+    const fetchPendingCount = useCallback(async (): Promise<void> => {
+        try {
+            const res = await progressReportApi.getPendingApprovals({ per_page: 1 })
+            if (res.success && res.meta) {
+                setPendingCount(res.meta.total)
+            }
+        } catch {
+            // Silently ignore error for badge counter
+        }
+    }, [])
+
+    useEffect(() => {
+        void fetchPendingCount()
+    }, [fetchPendingCount])
 
     useEffect(() => {
         const timeoutId = window.setTimeout(() => {
@@ -868,29 +916,185 @@ const ProgressReportPage = () => {
                 </div>
             </div>
 
-            <section className="progress-report-board">
-                <div className="progress-report-board-header">
-                    <div className="progress-report-search">
-                        <i className="bi bi-search" />
-                        <input
-                            type="text"
-                            value={searchQuery}
-                            placeholder="Cari progress report..."
-                            onChange={handleSearchChange}
-                        />
-                    </div>
+            {/* Tab Navigation */}
+            <div className="d-flex align-items-center gap-2 mb-3">
+                <button
+                    type="button"
+                    className={`btn btn-sm ${
+                        activeTab === 'my'
+                            ? 'btn-primary'
+                            : 'btn-outline-secondary'
+                    }`}
+                    style={{
+                        borderRadius: '8px',
+                        padding: '6px 16px',
+                        fontWeight: 500,
+                    }}
+                    onClick={() => setActiveTab('my')}
+                >
+                    <i className="bi bi-person me-1" />
+                    Progress Report Saya
+                </button>
+                <button
+                    type="button"
+                    className={`btn btn-sm ${
+                        activeTab === 'approvals'
+                            ? 'btn-primary'
+                            : 'btn-outline-secondary'
+                    }`}
+                    style={{
+                        borderRadius: '8px',
+                        padding: '6px 16px',
+                        fontWeight: 500,
+                    }}
+                    onClick={() => setActiveTab('approvals')}
+                >
+                    <i className="bi bi-clock-history me-1" />
+                    Menunggu Approval
+                    {pendingCount > 0 && (
+                        <span className="badge bg-danger ms-2">
+                            {pendingCount}
+                        </span>
+                    )}
+                </button>
+                <button
+                    type="button"
+                    className={`btn btn-sm ${
+                        activeTab === 'team'
+                            ? 'btn-primary'
+                            : 'btn-outline-secondary'
+                    }`}
+                    style={{
+                        borderRadius: '8px',
+                        padding: '6px 16px',
+                        fontWeight: 500,
+                    }}
+                    onClick={() => setActiveTab('team')}
+                >
+                    <i className="bi bi-people me-1" />
+                    Monitoring Tim (Read-Only)
+                </button>
+            </div>
 
-                    <button
-                        type="button"
-                        className="progress-report-add-button"
-                        onClick={() =>
-                            navigate('/progress-report/tambah')
-                        }
-                    >
-                        <i className="bi bi-plus-lg" />
-                        <span>Tambah</span>
-                    </button>
-                </div>
+            {activeTab === 'team' ? (
+                <ProgressReportTeamMonitoring />
+            ) : activeTab === 'approvals' ? (
+                <ProgressReportPendingApprovals
+                    onApproved={() => {
+                        void fetchReports()
+                        void fetchPendingCount()
+                    }}
+                />
+            ) : (
+                <section className="progress-report-board">
+                    <div className="progress-report-board-header flex-wrap">
+                        <div className="d-flex align-items-center gap-2 flex-wrap flex-grow-1">
+                            <div className="progress-report-search">
+                                <i className="bi bi-search" />
+                                <input
+                                    type="text"
+                                    value={searchQuery}
+                                    placeholder="Cari progress report..."
+                                    onChange={handleSearchChange}
+                                />
+                            </div>
+
+                            <div style={{ width: '180px' }}>
+                                <ClientSelect
+                                    clients={clients}
+                                    selectedCode={clientFilter}
+                                    isLoading={isLoadingClients}
+                                    errorMessage={clientErrorMessage}
+                                    onSearch={(query) => {
+                                        void searchClients(query)
+                                    }}
+                                    onSelect={(client) => {
+                                        setClientFilter(client.customer_code)
+                                        setCurrentPage(1)
+                                    }}
+                                />
+                            </div>
+
+                            <select
+                                className="form-select form-select-sm"
+                                style={{ width: '130px', height: '36px' }}
+                                value={bulanFilter}
+                                onChange={(e) => {
+                                    setBulanFilter(
+                                        e.target.value
+                                            ? Number(e.target.value)
+                                            : '',
+                                    )
+                                    setCurrentPage(1)
+                                }}
+                            >
+                                <option value="">Semua Bulan</option>
+                                <option value={1}>Januari</option>
+                                <option value={2}>Februari</option>
+                                <option value={3}>Maret</option>
+                                <option value={4}>April</option>
+                                <option value={5}>Mei</option>
+                                <option value={6}>Juni</option>
+                                <option value={7}>Juli</option>
+                                <option value={8}>Agustus</option>
+                                <option value={9}>September</option>
+                                <option value={10}>Oktober</option>
+                                <option value={11}>November</option>
+                                <option value={12}>Desember</option>
+                            </select>
+
+                            <input
+                                type="number"
+                                min={2000}
+                                max={2100}
+                                placeholder="Tahun"
+                                className="form-control form-control-sm"
+                                style={{ width: '90px', height: '36px' }}
+                                value={tahunFilter}
+                                onChange={(e) => {
+                                    setTahunFilter(
+                                        e.target.value
+                                            ? Number(e.target.value)
+                                            : '',
+                                    )
+                                    setCurrentPage(1)
+                                }}
+                            />
+
+                            {(clientFilter !== '' ||
+                                bulanFilter !== '' ||
+                                tahunFilter !== '' ||
+                                searchQuery !== '') && (
+                                <button
+                                    type="button"
+                                    className="btn btn-outline-secondary btn-sm"
+                                    style={{ height: '36px' }}
+                                    title="Reset Filter"
+                                    onClick={() => {
+                                        setClientFilter('')
+                                        setBulanFilter('')
+                                        setTahunFilter('')
+                                        setSearchQuery('')
+                                        setCurrentPage(1)
+                                    }}
+                                >
+                                    <i className="bi bi-x-circle me-1" />
+                                    Reset
+                                </button>
+                            )}
+                        </div>
+
+                        <button
+                            type="button"
+                            className="progress-report-add-button"
+                            onClick={() =>
+                                navigate('/progress-report/tambah')
+                            }
+                        >
+                            <i className="bi bi-plus-lg" />
+                            <span>Tambah</span>
+                        </button>
+                    </div>
 
                 {isLoading && (
                     <div className="progress-report-loading">
@@ -922,7 +1126,8 @@ const ProgressReportPage = () => {
 
                 {!isLoading &&
                     errorMessage === null &&
-                    reports.length === 0 && (                        <div className="progress-report-empty">
+                    reports.length === 0 && (
+                        <div className="progress-report-empty">
                             <i className="bi bi-inbox" />
                             <span>
                                 Belum ada progress report.
@@ -937,105 +1142,121 @@ const ProgressReportPage = () => {
                             <table className="table progress-report-table">
                                 <thead>
                                 <tr>
-                                    <th>No</th>
                                     <th>Nomor</th>
                                     <th>Tanggal</th>
+                                    <th>Periode</th>
                                     <th>Client</th>
                                     <th>SPK</th>
-                                    <th>Pekerjaan</th>
-                                    <th>Task</th>
-                                    <th>Temuan</th>
-                                    <th>Catatan</th>
-                                    <th>Dokumen</th>
+                                    <th className="text-center">
+                                        Status Approval
+                                    </th>
                                     <th className="text-center">
                                         Aksi
                                     </th>
                                 </tr>
                                 </thead>
                                 <tbody>
-                                {reports.map(
-                                    (report, index) => (
-                                        <tr
-                                            key={report.id}
-                                            className="progress-report-clickable-row"
-                                            onClick={() =>
-                                                navigate(
-                                                    `/progress-report/${report.id}`,
-                                                )
-                                            }
-                                        >
-                                            <td>
-                                                {index + 1}
-                                            </td>
-                                            <td>
-                                                <strong>
-                                                    {
-                                                        report.nomor
+                                {reports.map((report) => (
+                                    <tr
+                                        key={report.id}
+                                        className="progress-report-clickable-row"
+                                        onClick={() =>
+                                            navigate(
+                                                `/progress-report/${report.id}`,
+                                            )
+                                        }
+                                    >
+                                        <td>
+                                            <strong>
+                                                {report.nomor}
+                                            </strong>
+                                        </td>
+                                        <td>
+                                            {report.tanggal}
+                                        </td>
+                                        <td>
+                                            {getPeriodeLabel(
+                                                report.bulan,
+                                                report.tahun,
+                                                report.tanggal,
+                                            )}
+                                        </td>
+                                        <td>
+                                            {report.client_code}
+                                        </td>
+                                        <td>
+                                            {report.spk?.no_spk ?? '-'}
+                                        </td>
+                                        <td className="text-center">
+                                            {report.approval_status === 'approved' ? (
+                                                <span
+                                                    className="badge bg-success"
+                                                    title={
+                                                        report.approved_by_name
+                                                            ? `Disetujui oleh ${report.approved_by_name}`
+                                                            : undefined
                                                     }
-                                                </strong>
-                                            </td>
-                                            <td>
-                                                {report.tanggal}
-                                            </td>
-                                            <td>
-                                                {
-                                                    report.client_code
-                                                }
-                                            </td>
-                                            <td>
-                                                {
-                                                    report.spk
-                                                        .no_spk
-                                                }
-                                            </td>
-                                            <td>
-                                                {
-                                                    report.job
-                                                        .description
-                                                }
-                                            </td>
-                                            <td>
-                                                {
-                                                    report.total_task
-                                                }
-                                            </td>
-                                            <td>
-                                                {
-                                                    report.total_temuan
-                                                }
-                                            </td>
-                                            <td>
-                                                {
-                                                    report.total_catatan
-                                                }
-                                            </td>
-                                            <td>
-                                                {
-                                                    report.total_dokumen
-                                                }
-                                            </td>
-                                            <td>
-                                                <div className="progress-report-row-actions">
+                                                >
+                                                    <i className="bi bi-check-circle me-1" />
+                                                    Approved
+                                                </span>
+                                            ) : report.approval_status === 'rejected' ? (
+                                                <span
+                                                    className="badge bg-danger"
+                                                    title={
+                                                        report.rejection_note ??
+                                                        undefined
+                                                    }
+                                                >
+                                                    <i className="bi bi-x-circle me-1" />
+                                                    Rejected
+                                                </span>
+                                            ) : (
+                                                <span className="badge bg-warning text-dark">
+                                                    <i className="bi bi-clock me-1" />
+                                                    Pending
+                                                </span>
+                                            )}
+                                        </td>
+                                        <td>
+                                            <div className="progress-report-row-actions">
+                                                <button
+                                                    type="button"
+                                                    className="progress-report-action-button"
+                                                    title="Lihat"
+                                                    onClick={(
+                                                        event,
+                                                    ) => {
+                                                        event.stopPropagation()
+                                                        navigate(
+                                                            `/progress-report/${report.id}`,
+                                                        )
+                                                    }}
+                                                >
+                                                    <i className="bi bi-eye" />
+                                                </button>
+
+                                                {report.approval_status !== 'approved' && (
                                                     <button
                                                         type="button"
                                                         className="progress-report-action-button"
-                                                        title="Lihat"
+                                                        title="Edit"
                                                         onClick={(
                                                             event,
                                                         ) => {
                                                             event.stopPropagation()
                                                             navigate(
-                                                                `/progress-report/${report.id}`,
+                                                                `/progress-report/${report.id}/edit`,
                                                             )
                                                         }}
                                                     >
-                                                        <i className="bi bi-eye" />
+                                                        <i className="bi bi-pencil" />
                                                     </button>
-                                                </div>
-                                            </td>
-                                        </tr>
-                                    ),
-                                )}
+                                                )}
+                                            </div>
+                                        </td>
+                                    </tr>
+                                ))}
                                 </tbody>
                             </table>
                         </div>
@@ -1086,6 +1307,7 @@ const ProgressReportPage = () => {
                         </div>
                     )}
             </section>
+            )}
 
             <ProgressReportDetailModal
                 report={selectedReport}

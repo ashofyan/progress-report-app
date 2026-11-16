@@ -14,13 +14,18 @@ Bagian ini merangkum perubahan kontrak Daily Progress dibanding dokumentasi sebe
 6. `GET /api/daily-progress/pending` sekarang hanya membaca query `client_code`; query `bulan` dan `tahun` tidak lagi dipakai oleh controller.
 7. Message sukses endpoint pending berubah menjadi `Data pending berhasil diambil.`
 8. Response pending berubah: field `type` menjadi `task_type`, ditambahkan object `client`, object `spk` lebih lengkap, serta `created_at` dan `updated_at`.
-9. Response pending tidak lagi mengembalikan `bulan` dan `tahun` di dalam `daily_progress`.\n10. Endpoint pending sekarang mengambil semua detail berstatus `pending` milik user login berdasarkan client, tanpa filter "belum memiliki kelanjutan" di service.
+9. Response pending tidak lagi mengembalikan `bulan` dan `tahun` di dalam `daily_progress`.
+10. Endpoint pending sekarang mengambil semua detail berstatus `pending` milik user login berdasarkan client, tanpa filter "belum memiliki kelanjutan" di service.
 11. Endpoint `POST /api/daily-progress/resolve` tetap tidak tersedia pada route terbaru.
 12. Response Daily Progress sekarang dapat mengembalikan top-level `findings` ketika relasi findings di-load. Field ini berisi daftar temuan Progress Report yang ditautkan ke Daily Progress.
 13. `POST /api/daily-progress` dan `PUT /api/daily-progress/{dailyProgress}` menerima `finding_ids` opsional untuk menautkan atau melepas temuan Progress Report yang masih open.
-14. `POST /api/daily-progress` dan `PUT /api/daily-progress/{dailyProgress}` menerima `temuan_ids` opsional untuk menautkan atau melepas Temuan Global yang masih open.
-15. Response Daily Progress sekarang dapat mengembalikan top-level `temuans` ketika relasi Temuan Global di-load. Field ini berisi daftar Temuan Global yang ditautkan ke Daily Progress.
-16. Tersedia endpoint baru `PUT /api/daily-progress/{dailyProgress}/edit` untuk koreksi/edit total form Daily Progress (pemilihan SPK, tanggal, bulan, tahun, daftar task/detail pekerjaan, finding, dan temuan).
+14. `POST /api/daily-progress` dan `PUT /api/daily-progress/{dailyProgress}` menerima `temuans` atau `temuan_ids` opsional untuk menautkan dan menindaklanjuti Temuan Global (status `open` atau `pending`).
+15. Response Daily Progress sekarang mengembalikan top-level `temuans` lengkap dengan unifikasi: `type` (`TM` / `PR`), `priority` (1-5), `no_pr`, `dp_followup` (`status`: `pending`/`selesai`, `alasan_pending`, `solusi`), serta informasi `notes` dengan `task_category` (`master`/`tambahan`/`custom`).
+16. Tindak lanjut temuan di Daily Progress: Jika dikirim object dengan `status: "selesai"` dan `solusi`, sistem otomatis menutup temuan dan mencatat entri solusi dengan `source: "daily_progress"`. Jika dikirim `status: "pending"` dan `alasan_pending`, temuan tetap pending agar dilanjutkan pada DP berikutnya.
+17. Tersedia endpoint baru `PUT /api/daily-progress/{dailyProgress}/edit` untuk koreksi/edit total form Daily Progress (pemilihan SPK, tanggal, bulan, tahun, daftar task/detail pekerjaan, finding, dan temuan).
+18. **Proteksi Task Selesai**: Task/detail yang sudah berstatus `selesai` dikunci permanen: tidak dapat diubah status/isinya, tidak dapat dihapus (baik melalui delete detail, delete DP, maupun melalui payload edit), dan header DP tidak dapat diubah jika memiliki task yang sudah selesai.
+19. **Batasan Hari Edit DP**: Daily Progress hanya dapat diubah pada hari yang sama. Jika sudah berbeda hari, Daily Progress tidak dapat diedit.
+20. **Daily Progress Khusus Temuan**: Daily Progress kini dapat disimpan/diperbarui meskipun user **hanya menyelesaikan/menindaklanjuti temuan** (`temuans`, `temuan_ids`, atau `finding_ids`) tanpa memilih task pekerjaan (`details: []` atau dihilangkan). Minimal salah satu antara `details` atau temuan wajib diisi.
 
 ```php
 Route::prefix('daily-progress')->group(function () {
@@ -51,7 +56,8 @@ Route::prefix('daily-progress')->group(function () {
 
 ## Ringkasan
 
-Semua endpoint berada di bawah prefix `/api/daily-progress`.\n
+Semua endpoint berada di bawah prefix `/api/daily-progress`.
+
 Endpoint Daily Progress berada di dalam middleware:
 
 ```php
@@ -121,7 +127,7 @@ Status detail yang valid:
 | `open` | Task masih terbuka. |
 | `pending` | Task belum selesai dan perlu dilanjutkan. |
 | `batal` | Task dibatalkan. |
-| `selesai` | Task selesai. |
+| `selesai` | Task selesai (terkunci, tidak dapat diubah/dihapus lagi). |
 
 Jika status `pending`, field `catatan` wajib diisi pada create, edit, dan update.
 
@@ -176,6 +182,7 @@ Setiap detail harus memilih salah satu tipe task:
           "id": 500,
           "als_daily_progress_detail_id": 100,
           "path": "daily-progress/1/details/100/documents/example.pdf",
+          "url": "http://localhost:8000/storage/daily-progress/1/details/100/documents/example.pdf",
           "original_name": "example.pdf",
           "mime_type": "application/pdf",
           "size": 204800,
@@ -202,18 +209,30 @@ Setiap detail harus memilih salah satu tipe task:
     {
       "id": 901,
       "nomor": "TM-20260827-001",
+      "type": "PR",
+      "priority": 4,
+      "no_pr": "PR-20260813-001",
       "tanggal": "2026-08-27",
-      "status": "open",
+      "status": "pending",
+      "dp_followup": {
+        "status": "pending",
+        "alasan_pending": "Menunggu komponen pengganti tiba besok",
+        "solusi": null
+      },
       "notes": [
         {
           "id": 910,
+          "source_type": "master",
+          "task_category": "master",
           "task": {
             "id": 20,
-            "task_name": "Persiapan lahan"
+            "task_name": "Persiapan lahan",
+            "category": "master"
           },
           "note": "Area kerja perlu dibersihkan ulang."
         }
-      ]
+      ],
+      "files": []
     }
   ],
   "created_at": "2026-08-14T02:00:00.000000Z",
@@ -223,7 +242,7 @@ Setiap detail harus memilih salah satu tipe task:
 
 Field `findings` hanya muncul pada response yang memuat relasi `findings`. Setiap item berasal dari temuan Progress Report yang ditautkan ke Daily Progress melalui `finding_ids`.
 
-Field `temuans` hanya muncul pada response yang memuat relasi `temuans`. Setiap item berasal dari Temuan Global endpoint `/api/temuan` yang ditautkan ke Daily Progress melalui `temuan_ids`.
+Field `temuans` hanya muncul pada response yang memuat relasi `temuans`. Setiap item berasal dari Temuan Global endpoint `/api/temuan` yang ditautkan ke Daily Progress melalui `temuan_ids` atau `temuans`. Field `dp_followup` memuat status penanganan temuan khusus pada Daily Progress bersangkutan (`status`: `pending`/`selesai`, `alasan_pending`, `solusi`).
 
 ## GET /api/daily-progress/form-data
 
@@ -329,8 +348,40 @@ Status: `200 OK`
                 }
               ]
             }
+          ],
+          "additional_tasks": [
+            {
+              "parent_id": 10,
+              "parent_task": "Persiapan lahan",
+              "children": [
+                {
+                  "id": 100,
+                  "task_name": "Pembersihan saluran khusus",
+                  "parent_id": 10,
+                  "status": "open",
+                  "last_progress_report": null,
+                  "history": []
+                }
+              ]
+            }
           ]
-        }
+        },
+        "additional_tasks": [
+          {
+            "parent_id": 10,
+            "parent_task": "Persiapan lahan",
+            "children": [
+              {
+                "id": 100,
+                "task_name": "Pembersihan saluran khusus",
+                "parent_id": 10,
+                "status": "open",
+                "last_progress_report": null,
+                "history": []
+              }
+            ]
+          }
+        ]
       }
     ]
   }
@@ -339,11 +390,13 @@ Status: `200 OK`
 
 Jika `kode_product_jasa` pada SPK belum ada di master `als_jobs`, field `job` akan bernilai `null`.
 
-Parent task pada `spks[].job.tasks[]` hanya digunakan sebagai grouping. Task yang dapat dipilih untuk `POST /api/daily-progress` adalah child task, yaitu `spks[].job.tasks[].children[].id`.
+Task utama/parent pada `spks[].job.tasks[]` atau `spks[].job.additional_tasks[]` digunakan sebagai grouping. Task yang dapat dipilih untuk `POST /api/daily-progress` adalah:
+- Master child task: dikirim via field `als_job_task_id` dengan nilai `spks[].job.tasks[].children[].id`.
+- Additional / Custom task: dikirim via field `als_task_additional_detail_id` dengan nilai `spks[].job.additional_tasks[].children[].id`.
 
-Field `spks[].job.tasks[].children[].last_progress_report` berisi Progress Report terbaru child task tersebut pada SPK yang sama. Nilainya `null` jika task belum pernah masuk Progress Report.
+Field `last_progress_report` berisi Progress Report terbaru task tersebut pada SPK yang sama. Nilainya `null` jika task belum pernah masuk Progress Report.
 
-Field `spks[].job.tasks[].children[].history` berisi semua histori Progress Report child task tersebut pada SPK yang sama. Setiap item histori menyertakan `progress_report_detail_id`, `progress_report_id`, `nomor`, `tanggal`, `status`, dan array `notes`.
+Field `history` berisi semua histori Progress Report task tersebut pada SPK yang sama. Setiap item histori menyertakan `progress_report_detail_id`, `progress_report_id`, `nomor`, `tanggal`, `status`, dan array `notes`.
 
 ### Response Gagal
 
@@ -485,6 +538,25 @@ Body dengan additional task:
 }
 ```
 
+Body hanya menyelesaikan Temuan (tanpa detail pekerjaan):
+
+```json
+{
+  "tanggal": "2026-08-14",
+  "client_code": "CLIENT-001",
+  "als_spk_id": 1,
+  "bulan": 8,
+  "tahun": 2026,
+  "temuans": [
+    {
+      "id": 901,
+      "status": "selesai",
+      "solusi": "Penggantian kran valve yang bocor telah selesai dilakukan."
+    }
+  ]
+}
+```
+
 ### Validasi
 
 | Field | Rule | Keterangan |
@@ -496,9 +568,12 @@ Body dengan additional task:
 | `tahun` | `required`, `integer`, `min:2000`, `max:2100` | Tahun periode. |
 | `finding_ids` | `nullable`, `array` | Opsional. ID temuan Progress Report yang akan ditautkan ke Daily Progress. Kirim `[]` atau kosongkan untuk tidak menautkan temuan. |
 | `finding_ids.*` | `integer`, `distinct` | ID temuan harus unik. Temuan harus masih `open`, milik user login, memiliki client yang sama, dan berada pada SPK yang sama. |
-| `temuan_ids` | `nullable`, `array` | Opsional. ID Temuan Global dari endpoint `/api/temuan` yang akan ditautkan ke Daily Progress. Kirim `[]` atau kosongkan untuk tidak menautkan Temuan Global. |
-| `temuan_ids.*` | `integer`, `distinct` | ID Temuan Global harus unik. Temuan harus masih `open`, dapat diakses oleh team user login, memiliki client yang sama, dan berada pada SPK yang sama. |
-| `details` | `required`, `array`, `min:1` | Minimal satu pekerjaan harus dipilih. |
+| `temuans` / `temuan_ids` | `nullable`, `array` | Opsional. Daftar Temuan Global dari `/api/temuan` (status `open` atau `pending`) pada SPK yang sama. Mendukung 2 format: **Array ID sederhana** `[901, 902]` (default status `pending`), atau **Array Object Tindak Lanjut** `[{"id": 901, "status": "selesai", "solusi": "Perbaikan baut"}, {"id": 902, "status": "pending", "alasan_pending": "Menunggu part"}]`. |
+| `temuans.*.id` | `nullable`, `integer` | ID temuan. |
+| `temuans.*.status` | `nullable`, `in:pending,selesai` | Status penanganan temuan pada DP ini. Jika `selesai`, temuan langsung ditutup dan dicatat ke Solusi (`source: 'daily_progress'`). |
+| `temuans.*.alasan_pending` | `nullable`, `string` | Alasan jika temuan belum tuntas dan berstatus pending. |
+| `temuans.*.solusi` | `nullable`, `string` | Uraian solusi jika temuan dinyatakan selesai pada DP ini. |
+| `details` | `nullable`, `array` | Opsional jika temuan disertakan. Minimal satu pekerjaan atau temuan (`details`, `temuans`, `temuan_ids`, atau `finding_ids`) harus diisi. |
 | `details.*.als_job_id` | `required`, `integer` | ID master pekerjaan. Job harus sesuai dengan `kode_product_jasa` pada SPK. |
 | `details.*.als_job_task_id` | `nullable`, `integer` | ID child task master pekerjaan. Parent/root task tidak dapat dipilih. |
 | `details.*.als_task_additional_detail_id` | `nullable`, `integer` | ID detail additional task. Additional task harus berada pada job yang dipilih. |
@@ -810,14 +885,19 @@ Berbeda dari `PUT /api/daily-progress/{dailyProgress}` yang hanya digunakan untu
 ### Aturan Edit
 
 1. Daily Progress hanya dapat diubah oleh pembuatnya (`created_by === employee_code`).
-2. Header Daily Progress (tanggal, client_code, als_spk_id, bulan, tahun) diperbarui. Jika tanggal berubah, nomor DP otomatis disesuaikan.
-3. User login harus terdaftar pada team SPK terpilih (`als_spk_id`).
-4. Detail pekerjaan (`details`) disinkronkan:
-   - Jika `details.*.id` dikirim dan ada pada DP tersebut, detail tersebut akan diupdate (`als_job_id`, task, status, catatan).
+2. Daily Progress hanya dapat diubah pada hari yang sama. Jika sudah berbeda hari (`tanggal` atau `created_at` berbeda dari hari ini), request edit akan ditolak. Tanggal Daily Progress juga tidak dapat diubah ke hari yang berbeda dari hari ini.
+3. Header Daily Progress (client_code, als_spk_id, bulan, tahun) dapat diperbarui selama belum ada task yang berstatus selesai.
+4. **Proteksi Task Selesai**:
+   - Jika Daily Progress memiliki task/detail yang sudah berstatus `selesai`, header Daily Progress tidak dapat diubah.
+   - Detail task yang sudah berstatus `selesai` tidak dapat diubah status maupun field isiannya.
+   - Detail task yang sudah berstatus `selesai` tidak dapat dihapus.
+5. User login harus terdaftar pada team SPK terpilih (`als_spk_id`).
+6. Detail pekerjaan (`details`) disinkronkan:
+   - Jika `details.*.id` dikirim dan ada pada DP tersebut, detail tersebut akan diupdate (`als_job_id`, task, status, catatan) asalkan belum berstatus `selesai`.
    - Jika `details.*.id` kosong/baru, detail baru akan dibuat.
-   - Detail yang tidak lagi disertakan dalam request akan dihapus (jika detail belum masuk ke Progress Report).
-5. Jika detail lama yang dihapus sudah pernah masuk ke `AlsProgressReportDetail`, request akan ditolak untuk menjaga integritas relasi.
-6. Relasi `finding_ids` dan `temuan_ids` akan disinkronkan. Kirim `[]` untuk mengosongkan relasi temuan.
+   - Detail yang tidak lagi disertakan dalam request akan dihapus (jika detail belum masuk ke Progress Report dan belum berstatus `selesai`).
+7. Jika detail lama yang dihapus sudah pernah masuk ke `AlsProgressReportDetail`, request akan ditolak untuk menjaga integritas relasi.
+8. Relasi `finding_ids` dan `temuan_ids` akan disinkronkan. Kirim `[]` untuk mengosongkan relasi temuan.
 
 ### Request
 
@@ -958,6 +1038,39 @@ Status: `403 Forbidden`
 }
 ```
 
+Task sudah selesai dan dicoba diubah:
+
+Status: `422 Unprocessable Entity`
+
+```json
+{
+  "status": false,
+  "message": "Detail ID 100 sudah berstatus selesai dan tidak dapat diubah."
+}
+```
+
+Header diubah padahal memiliki task selesai:
+
+Status: `422 Unprocessable Entity`
+
+```json
+{
+  "status": false,
+  "message": "Header Daily Progress tidak dapat diubah karena memiliki task yang sudah berstatus selesai."
+}
+```
+
+Sudah berbeda hari:
+
+Status: `422 Unprocessable Entity`
+
+```json
+{
+  "status": false,
+  "message": "Daily Progress tidak dapat diubah karena sudah berbeda hari."
+}
+```
+
 SPK tidak ditemukan atau bukan team:
 
 Status: `422 Unprocessable Entity`
@@ -991,12 +1104,13 @@ Jika update catatan penyelesaian membutuhkan dokumen, lakukan upload file setela
 
 1. Daily Progress hanya dapat diubah oleh pembuatnya.
 2. Semua `details.*.id` harus berasal dari Daily Progress yang sama.
-3. Update hanya mengubah `no_spk`, `status`, `catatan`, relasi temuan jika `finding_ids` dikirim, dan relasi Temuan Global jika `temuan_ids` dikirim.
-4. Jika status detail diubah menjadi `pending`, `catatan` wajib diisi.
-5. Jika `finding_ids` dikirim, daftar temuan yang tertaut akan disinkronkan sesuai isi array. Kirim `[]` untuk melepas semua temuan dari Daily Progress tersebut.
-6. Temuan yang boleh ditautkan harus masih `open`, milik user login, memiliki client yang sama, dan berada pada SPK yang sama.
-7. Jika `temuan_ids` dikirim, daftar Temuan Global yang tertaut akan disinkronkan sesuai isi array. Kirim `[]` untuk melepas semua Temuan Global dari Daily Progress tersebut.
-8. Temuan Global yang boleh ditautkan harus masih `open`, dapat diakses oleh team user login, memiliki client yang sama, dan berada pada SPK yang sama.
+3. Detail task yang sudah berstatus `selesai` dikunci dan tidak dapat diubah lagi.
+4. Update hanya mengubah `no_spk`, `status`, `catatan`, relasi temuan jika `finding_ids` dikirim, dan relasi Temuan Global jika `temuan_ids` dikirim.
+5. Jika status detail diubah menjadi `pending`, `catatan` wajib diisi.
+6. Jika `finding_ids` dikirim, daftar temuan yang tertaut akan disinkronkan sesuai isi array. Kirim `[]` untuk melepas semua temuan dari Daily Progress tersebut.
+7. Temuan yang boleh ditautkan harus masih `open`, milik user login, memiliki client yang sama, dan berada pada SPK yang sama.
+8. Jika `temuan_ids` dikirim, daftar Temuan Global yang tertaut akan disinkronkan sesuai isi array. Kirim `[]` untuk melepas semua Temuan Global dari Daily Progress tersebut.
+9. Temuan Global yang boleh ditautkan harus masih `open`, dapat diakses oleh team user login, memiliki client yang sama, dan berada pada SPK yang sama.
 
 ### Request
 
@@ -1112,6 +1226,17 @@ Status: `403 Forbidden`
 }
 ```
 
+Detail sudah berstatus selesai:
+
+Status: `422 Unprocessable Entity`
+
+```json
+{
+  "status": false,
+  "message": "Detail Daily Progress ID 100 sudah berstatus selesai dan tidak dapat diubah."
+}
+```
+
 Detail tidak ditemukan pada Daily Progress tersebut:
 
 Status: `404 Not Found`
@@ -1152,7 +1277,8 @@ Endpoint untuk menghapus Daily Progress berdasarkan ID.
 ### Aturan Delete
 
 1. Daily Progress hanya dapat dihapus oleh pembuatnya.
-2. Jika berhasil, detail akan ikut terhapus karena relasi database memakai cascade delete.
+2. Daily Progress yang memiliki task dengan status `selesai` tidak dapat dihapus.
+3. Jika berhasil, detail akan ikut terhapus karena relasi database memakai cascade delete.
 
 ### Request
 
@@ -1173,6 +1299,19 @@ Status: `200 OK`
 }
 ```
 
+### Response Gagal
+
+Daily Progress memiliki task yang sudah selesai:
+
+Status: `422 Unprocessable Entity`
+
+```json
+{
+  "status": false,
+  "message": "Daily Progress tidak dapat dihapus karena memiliki task yang sudah berstatus selesai."
+}
+```
+
 ## DELETE /api/daily-progress/{dailyProgress}/details/{detail}
 
 Endpoint untuk menghapus satu detail Daily Progress.
@@ -1181,6 +1320,7 @@ Endpoint untuk menghapus satu detail Daily Progress.
 
 1. Daily Progress hanya dapat diubah oleh pembuatnya.
 2. Detail harus berasal dari Daily Progress yang ada di URL.
+3. Detail yang sudah berstatus `selesai` tidak dapat dihapus.
 
 ### Request
 
@@ -1218,6 +1358,17 @@ Status: `200 OK`
 ```
 
 ### Response Gagal
+
+Detail sudah berstatus selesai:
+
+Status: `422 Unprocessable Entity`
+
+```json
+{
+  "status": false,
+  "message": "Detail Daily Progress yang sudah berstatus selesai tidak dapat dihapus."
+}
+```
 
 Detail tidak ditemukan:
 
@@ -1273,6 +1424,7 @@ Status: `201 Created`
       "id": 500,
       "als_daily_progress_detail_id": 100,
       "path": "daily-progress/1/details/100/documents/example.pdf",
+      "url": "http://localhost:8000/storage/daily-progress/1/details/100/documents/example.pdf",
       "original_name": "example.pdf",
       "mime_type": "application/pdf",
       "size": 204800,
@@ -1439,7 +1591,7 @@ curl -X POST "http://localhost:8000/api/daily-progress" \
   -H "Accept: application/json" \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer {token}" \
-  -d '{"tanggal":"2026-08-14","client_code":"CLIENT-001","als_spk_id":1,"bulan":8,"tahun":2026,"finding_ids Sheryl":[900],"temuan_ids":[901],"details":[{"als_job_id":1,"als_job_task_id":11,"status":"open","catatan":null}]}'
+  -d '{"tanggal":"2026-08-14","client_code":"CLIENT-001","als_spk_id":1,"bulan":8,"tahun":2026,"finding_ids":[900],"temuan_ids":[901],"details":[{"als_job_id":1,"als_job_task_id":11,"status":"open","catatan":null}]}'
 ```
 
 Ambil pending:
@@ -1502,3 +1654,102 @@ curl -X DELETE "http://localhost:8000/api/daily-progress/1" \
   -H "Accept: application/json" \
   -H "Authorization: Bearer {token}"
 ```
+
+---
+
+## 11. Monitoring Daily Progress Team (Read-Only)
+
+Digunakan untuk melihat dan memonitor seluruh Daily Progress dari semua rekan tim yang terdaftar pada SPK yang sama secara **read-only**.
+
+### Endpoint
+
+- **Method**: `GET`
+- **URL**: `/api/daily-progress/team`
+- **Auth**: Bearer Token (`progress.auth`, `tenant.database`)
+
+### Query Parameters
+
+| Parameter | Type | Required | Description |
+|---|---|---|---|
+| `client_code` | string | **Ya** | Kode klien (contoh: `YSSI`, `LUBE`) |
+| `als_spk_id` | integer | **Ya** | ID SPK (user login harus terdaftar di SPK ini) |
+| `tanggal` | date (Y-m-d) | Tidak | Filter tanggal tertentu (contoh: `2026-09-30`) |
+| `bulan` | integer (1-12) | Tidak | Filter periode bulan |
+| `tahun` | integer (4 digit) | Tidak | Filter periode tahun |
+| `employee_code` | string | Tidak | Filter data hanya untuk anggota tim tertentu |
+
+### Contoh Request
+
+```bash
+curl -X GET "http://localhost:8000/api/daily-progress/team?client_code=YSSI&als_spk_id=1325&tanggal=2026-09-30" \
+  -H "Accept: application/json" \
+  -H "Authorization: Bearer {token}"
+```
+
+### Format Response Sukses (200 OK)
+
+```json
+{
+  "status": true,
+  "message": "Monitoring Daily Progress Team berhasil diambil.",
+  "data": {
+    "spk": {
+      "id": 1325,
+      "no_spk": "SPK-2026/09/YSSI/001",
+      "source_pt": "ALS",
+      "kode_product_jasa": "JASA-01",
+      "job": {
+        "id": 10,
+        "job_code": "JOB-01",
+        "description": "Perawatan Rutin"
+      },
+      "teams": [
+        {
+          "kode_employee": "EMP01",
+          "name_employee": "Budi Santoso",
+          "tingkat": 3
+        },
+        {
+          "kode_employee": "EMP02",
+          "name_employee": "Ahmad Dani",
+          "tingkat": 2
+        }
+      ]
+    },
+    "summary": {
+      "total_daily_progress": 2,
+      "total_task": 5,
+      "total_task_selesai": 4,
+      "total_task_pending": 1,
+      "total_employee": 2
+    },
+    "items": [
+      {
+        "id": 55,
+        "nomor": "DP-20260930-001",
+        "tanggal": "2026-09-30",
+        "client_code": "YSSI",
+        "als_spk_id": 1325,
+        "no_spk": "SPK-2026/09/YSSI/001",
+        "bulan": 9,
+        "tahun": 2026,
+        "created_by": "EMP02",
+        "created_by_name": "Ahmad Dani",
+        "created_by_level": 2,
+        "details": [
+          {
+            "id": 101,
+            "status": "selesai",
+            "catatan": null,
+            "job": { "id": 10, "job_code": "JOB-01" },
+            "job_task": { "id": 15, "task_name": "Pemeriksaan Panel" }
+          }
+        ]
+      }
+    ]
+  }
+}
+```
+
+> **Catatan Keamanan:**
+> Rekan satu SPK dapat melihat detail DP secara read-only (`GET /api/daily-progress/{id}`), namun aksi manipulasi (Edit, Update status, Delete, Delete Detail, Dokumen) tetap dibatasi hanya dapat dilakukan oleh pemilik data asli (`created_by`).

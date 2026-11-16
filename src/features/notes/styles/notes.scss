@@ -457,8 +457,6 @@ $notes-text-muted: #6b7280;
   margin-bottom: 20px;
 }
 
-
-
 .notes-meta-bar {
   display: flex;
   align-items: center;
@@ -896,9 +894,10 @@ $notes-text-muted: #6b7280;
 }
 
 /* =========================================================
- * EditorJS Workspace Canvas (Normal Native & Bounded)
+ * EditorJS Workspace Canvas (Left-Aligned / Mulai dari Pinggir)
  * ========================================================= */
 
+.editorjs-workspace-wrapper,
 .notes-editor-workspace,
 .notion-editor-canvas,
 .notes-editor-wrapper {
@@ -910,6 +909,7 @@ $notes-text-muted: #6b7280;
   border-radius: 0 !important;
   padding: 8px 0 0 0 !important;
   overflow: visible;
+  position: relative;
 
   &:focus-within {
     border: none !important;
@@ -928,7 +928,7 @@ $notes-text-muted: #6b7280;
   }
 }
 
-// Ensure EditorJS container and content never exceed the card boundary
+// Ensure EditorJS container and content start from the left edge (pinggir)
 .codex-editor {
   box-sizing: border-box;
   width: 100%;
@@ -937,14 +937,31 @@ $notes-text-muted: #6b7280;
 
 .codex-editor__redactor {
   padding-bottom: 80px !important;
+  padding-left: 0 !important;
+  padding-right: 0 !important;
+  margin: 0 !important;
 }
 
-// Bounded content and toolbar so that the actions (+ and tune) never overflow the card
+// Konten dan toolbar EditorJS diposisikan ke kiri (pinggir)
+// Diberikan margin-left 64px agar tombol aksi hover '+' dan tune menu muat di sebelah kiri teks tanpa keluar dari card
 .ce-block__content,
 .ce-toolbar__content {
-  max-width: min(850px, calc(100% - 90px));
-  margin: 0 auto;
+  max-width: calc(100% - 70px) !important;
+  margin-left: 64px !important;
+  margin-right: auto !important;
   box-sizing: border-box;
+}
+
+// Pada mode read-only, ratakan penuh ke pinggir kiri (0px) karena tidak ada toolbar
+.editorjs-workspace-wrapper.read-only,
+.notes-editor-workspace.read-only,
+.notion-editor-canvas.read-only,
+.codex-editor--read-only {
+  .ce-block__content {
+    max-width: 100% !important;
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+  }
 }
 
 // Block text styling
@@ -978,7 +995,7 @@ h3.ce-header {
   font-weight: 600;
 }
 
-// Checklist styling
+// Checklist styling - tanpa coret huruf
 .cdx-checklist__item {
   display: flex;
   align-items: flex-start;
@@ -991,8 +1008,8 @@ h3.ce-header {
 }
 
 .cdx-checklist__item--checked .cdx-checklist__item-text {
-  text-decoration: line-through;
-  color: #9ca3af;
+  text-decoration: none;
+  color: inherit;
 }
 
 /* =========================================================
@@ -1073,3 +1090,699 @@ h3.ce-header {
   gap: 6px;
   flex-wrap: wrap;
 }
+
+/* =========================================================
+ * View Mode Switcher & Table List Views
+ * ========================================================= */
+
+.notes-view-mode-toggle {
+  display: inline-flex;
+  align-items: center;
+  background-color: #f3f4f6;
+  padding: 3px;
+  border-radius: 8px;
+  gap: 2px;
+}
+
+.notes-view-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 30px;
+  padding: 0 10px;
+  font-size: 12.5px;
+  font-weight: 500;
+  color: #6b7280;
+  background: transparent;
+  border: 0;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+
+  &:hover {
+    color: #111827;
+  }
+
+  &.active {
+    background-color: #ffffff;
+    color: $primary-color;
+    font-weight: 600;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
+  }
+}
+
+.notes-table-container {
+  background-color: #ffffff;
+  border: 1px solid $notes-border;
+  border-radius: 10px;
+  overflow: hidden;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
+  margin-top: 4px;
+}
+
+.notes-table {
+  width: 100%;
+  font-size: 13px;
+
+  thead th {
+    padding: 12px 14px;
+    font-size: 12px;
+    font-weight: 600;
+    color: #6b7280;
+    background-color: #f9fafb;
+    border-bottom: 1px solid $notes-border;
+    white-space: nowrap;
+  }
+
+  tbody tr {
+    transition: background-color 0.15s ease;
+
+    &:hover {
+      background-color: #f8fafc;
+    }
+
+    td {
+      padding: 12px 14px;
+      color: #374151;
+      border-bottom: 1px solid #f3f4f6;
+    }
+
+    &:last-child td {
+      border-bottom: 0;
+    }
+  }
+}
+
+.notes-table-title {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: #1f2937;
+  text-decoration: none;
+  max-width: 480px;
+  transition: color 0.15s ease;
+
+  &:hover {
+    color: $primary-color;
+  }
+}
+
+.notes-table-excerpt {
+  color: #6b7280;
+  font-size: 11.5px;
+  max-width: 480px;
+  margin-top: 2px;
+}
+
+.notes-table-btn {
+  height: 28px;
+  font-size: 11.5px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 10px;
+  border-radius: 6px;
+}
+
+/* =========================================================
+ * Library Catatan / Notulen - Minimalist Notion Style (ALS Holdings Red Accent)
+ * ========================================================= */
+
+.notes-library-view {
+  width: 100%;
+  padding: 4px 0 32px 0;
+}
+
+.notes-library-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 22px;
+}
+
+.notes-library-title {
+  font-size: 26px;
+  font-weight: 700;
+  color: #111827;
+  letter-spacing: -0.02em;
+  margin: 0 0 6px 0;
+}
+
+.notes-library-subtitle {
+  font-size: 13.5px;
+  color: #6b7280;
+  margin: 0;
+}
+
+.notes-btn-header-add {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 38px;
+  padding: 0 16px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #ffffff !important;
+  background-color: $primary-color;
+  border: 1px solid $primary-color;
+  border-radius: 8px;
+  text-decoration: none;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+  box-shadow: 0 2px 6px rgba($primary-color, 0.22);
+
+  &:hover {
+    background-color: color-mix(in srgb, $primary-color 88%, #000);
+    border-color: color-mix(in srgb, $primary-color 88%, #000);
+    color: #ffffff !important;
+    box-shadow: 0 4px 10px rgba($primary-color, 0.3);
+    transform: translateY(-1px);
+  }
+
+  &:active {
+    transform: translateY(0);
+  }
+
+  i {
+    font-size: 13px;
+    color: #ffffff;
+  }
+}
+
+.notes-library-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 22px;
+  flex-wrap: wrap;
+}
+
+.notes-library-search {
+  display: flex;
+  align-items: center;
+  width: min(100%, 380px);
+  height: 40px;
+  padding: 0 14px;
+  background-color: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+
+  &:focus-within {
+    border-color: $primary-color;
+    box-shadow: 0 0 0 3px rgba($primary-color, 0.12);
+  }
+
+  i {
+    margin-right: 10px;
+    color: #9ca3af;
+    font-size: 13px;
+  }
+
+  input {
+    width: 100%;
+    padding: 0;
+    color: #1f2937;
+    background: transparent;
+    font-size: 13px;
+    border: 0;
+    outline: none;
+
+    &::placeholder {
+      color: #9ca3af;
+    }
+  }
+}
+
+.notes-library-controls {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.notes-sort-dropdown {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  height: 40px;
+  padding: 0 14px;
+  background-color: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  color: #374151;
+  font-size: 13px;
+  font-weight: 500;
+  gap: 8px;
+  cursor: pointer;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+
+  &:hover {
+    border-color: #cbd5e1;
+  }
+
+  &:focus-within {
+    border-color: $primary-color;
+    box-shadow: 0 0 0 3px rgba($primary-color, 0.08);
+  }
+
+  i {
+    color: #6b7280;
+    font-size: 13px;
+  }
+
+  select {
+    appearance: none;
+    background: transparent;
+    border: 0;
+    color: #374151;
+    font-size: 13px;
+    font-weight: 500;
+    padding-right: 2px;
+    cursor: pointer;
+    outline: none;
+  }
+}
+
+.notes-view-switcher {
+  display: inline-flex;
+  align-items: center;
+  background-color: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  padding: 3px;
+  gap: 2px;
+}
+
+.notes-view-switcher-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  color: #9ca3af;
+  background: transparent;
+  border: 0;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: all 0.15s ease;
+
+  &:hover {
+    color: #374151;
+  }
+
+  &.active {
+    background-color: #fef2f2;
+    color: $primary-color;
+    font-weight: 600;
+  }
+}
+
+/* =========================================================
+ * Grid View (ALS Red Accent)
+ * ========================================================= */
+
+.notes-library-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 20px;
+}
+
+.notes-card-new-dashed {
+  min-height: 200px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background-color: #ffffff;
+  border: 1.5px dashed #cbd5e1;
+  border-radius: 16px;
+  text-decoration: none;
+  padding: 24px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+
+  .notes-card-new-circle {
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    background-color: #fef2f2;
+    color: $primary-color;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    margin-bottom: 12px;
+    transition: all 0.15s ease;
+  }
+
+  .notes-card-new-title {
+    font-size: 13.5px;
+    font-weight: 600;
+    color: #1f2937;
+    margin-bottom: 4px;
+    transition: color 0.15s ease;
+  }
+
+  .notes-card-new-desc {
+    font-size: 12px;
+    color: #9ca3af;
+  }
+
+  &:hover {
+    border-color: $primary-color;
+    background-color: #fffbfb;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 14px rgba($primary-color, 0.08);
+
+    .notes-card-new-circle {
+      background-color: $primary-color;
+      color: #ffffff;
+      box-shadow: 0 2px 6px rgba($primary-color, 0.3);
+    }
+
+    .notes-card-new-title {
+      color: $primary-color;
+    }
+  }
+}
+
+.notes-library-card {
+  min-height: 200px;
+  background-color: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 16px;
+  padding: 22px 24px;
+  display: flex;
+  flex-direction: column;
+  text-decoration: none;
+  cursor: pointer;
+  position: relative;
+  transition: all 0.2s ease;
+
+  &:hover {
+    border-color: rgba($primary-color, 0.35);
+    box-shadow: 0 6px 16px rgba($primary-color, 0.06);
+    transform: translateY(-2px);
+
+    .notes-card-top-icon {
+      background-color: #fef2f2;
+      color: $primary-color;
+    }
+
+    .notes-card-item-title {
+      color: $primary-color;
+    }
+
+    .notes-card-item-arrow {
+      color: $primary-color;
+      transform: translateX(3px);
+    }
+  }
+
+  .notes-card-top-icon {
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    background-color: #f3f4f6;
+    color: #6b7280;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    margin-bottom: 14px;
+    flex-shrink: 0;
+    transition: all 0.15s ease;
+  }
+
+  .notes-card-item-title {
+    font-size: 14.5px;
+    font-weight: 600;
+    color: #111827;
+    margin: 0 0 8px 0;
+    line-height: 1.4;
+    overflow: hidden;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    transition: color 0.15s ease;
+  }
+
+  .notes-card-item-excerpt {
+    font-size: 12.5px;
+    color: #6b7280;
+    line-height: 1.5;
+    margin: 0 0 16px 0;
+    flex-grow: 1;
+    overflow: hidden;
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+  }
+
+  .notes-card-item-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-top: auto;
+    padding-top: 10px;
+    font-size: 12px;
+    color: #9ca3af;
+  }
+
+  .notes-card-item-date {
+    display: inline-flex;
+    align-items: center;
+    color: #6b7280;
+    font-weight: 400;
+
+    i {
+      margin-right: 4px;
+      font-size: 12px;
+      color: #9ca3af;
+    }
+  }
+
+  .notes-card-item-arrow {
+    font-size: 13px;
+    color: #9ca3af;
+    transition: transform 0.15s ease, color 0.15s ease;
+  }
+}
+
+/* =========================================================
+ * List View (ALS Red Accent)
+ * ========================================================= */
+
+.notes-library-list-container {
+  background-color: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 16px;
+  overflow: hidden;
+}
+
+.notes-library-list-row {
+  display: flex;
+  align-items: center;
+  padding: 16px 22px;
+  border-bottom: 1px solid #f3f4f6;
+  text-decoration: none;
+  cursor: pointer;
+  transition: all 0.15s ease;
+
+  &:last-child {
+    border-bottom: 0;
+  }
+
+  &:hover {
+    background-color: #fffaf9;
+
+    .notes-list-icon {
+      background-color: #fef2f2;
+      color: $primary-color;
+    }
+
+    .notes-list-title {
+      color: $primary-color;
+    }
+
+    .notes-list-arrow {
+      color: $primary-color;
+      transform: translateX(3px);
+    }
+  }
+
+  .notes-list-icon {
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    background-color: #f3f4f6;
+    color: #6b7280;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    flex-shrink: 0;
+    margin-right: 16px;
+    transition: all 0.15s ease;
+  }
+
+  .notes-list-content {
+    flex: 1;
+    min-width: 0;
+    padding-right: 18px;
+  }
+
+  .notes-list-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: #111827;
+    margin: 0 0 4px 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    transition: color 0.15s ease;
+  }
+
+  .notes-list-excerpt {
+    font-size: 12.5px;
+    color: #6b7280;
+    margin: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    line-height: 1.4;
+  }
+
+  .notes-list-meta {
+    display: inline-flex;
+    align-items: center;
+    gap: 16px;
+    flex-shrink: 0;
+  }
+
+  .notes-list-date {
+    font-size: 12.5px;
+    color: #6b7280;
+    white-space: nowrap;
+  }
+
+  .notes-list-arrow {
+    font-size: 13px;
+    color: #9ca3af;
+    transition: transform 0.15s ease, color 0.15s ease;
+  }
+}
+
+.notes-pagination-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 32px;
+  padding: 0 12px;
+  font-size: 12px;
+  font-weight: 500;
+  color: #374151;
+  background-color: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+
+  &:hover:not(:disabled) {
+    background-color: #fef2f2;
+    border-color: rgba($primary-color, 0.4);
+    color: $primary-color;
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+}
+
+/* =========================================================
+ * Autosave Status Badge & Draft Alerts
+ * ========================================================= */
+
+.notes-save-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12.5px;
+  font-weight: 500;
+  padding: 4px 10px;
+  border-radius: 6px;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+
+  &.saved {
+    color: #047857;
+    background-color: #ecfdf5;
+    border: 1px solid #d1fae5;
+  }
+
+  &.saving {
+    color: #0284c7;
+    background-color: #f0f9ff;
+    border: 1px solid #e0f2fe;
+
+    .spinner-border {
+      width: 12px;
+      height: 12px;
+      border-width: 1.5px;
+    }
+  }
+
+  &.unsaved {
+    color: #b45309;
+    background-color: #fffbeb;
+    border: 1px solid #fef3c7;
+  }
+
+  &.failed {
+    color: #dc2626;
+    background-color: #fef2f2;
+    border: 1px solid #fee2e2;
+  }
+
+  .notes-save-status-retry {
+    background: none;
+    border: 0;
+    padding: 0;
+    margin-left: 4px;
+    font-size: 11.5px;
+    font-weight: 600;
+    color: #dc2626;
+    text-decoration: underline;
+    cursor: pointer;
+
+    &:hover {
+      color: #991b1b;
+    }
+  }
+}
+
+.notes-draft-alert {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 16px;
+  margin-bottom: 16px;
+  background-color: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  border-radius: 8px;
+  font-size: 13px;
+  color: #166534;
+
+  .notes-draft-alert-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+}
+

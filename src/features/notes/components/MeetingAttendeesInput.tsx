@@ -4,15 +4,24 @@ import KaryawanSelect from '@/features/notes/components/KaryawanSelect'
 import { useKaryawanSearch } from '@/features/notes/hooks/useKaryawanSearch'
 import type { KaryawanItem } from '@/features/notes/types/karyawan.types'
 
+export interface MeetingAttendeeItem {
+    employee_code: string
+    employee_name?: string
+}
+
 interface MeetingAttendeesInputProps {
     value: string[]
+    attendees?: MeetingAttendeeItem[]
     onChange: (codes: string[]) => void
+    onAttendeesChange?: (attendees: MeetingAttendeeItem[]) => void
     disabled?: boolean
 }
 
 export const MeetingAttendeesInput = ({
     value,
+    attendees,
     onChange,
+    onAttendeesChange,
     disabled = false,
 }: MeetingAttendeesInputProps) => {
     const {
@@ -37,10 +46,29 @@ export const MeetingAttendeesInput = ({
         if (exists) return
 
         onChange([...value, karyawan.code_employee])
+
+        if (onAttendeesChange) {
+            const currentList = attendees ?? value.map((c) => ({ employee_code: c }))
+            onAttendeesChange([
+                ...currentList,
+                {
+                    employee_code: karyawan.code_employee,
+                    employee_name: karyawan.text,
+                },
+            ])
+        }
     }
 
     const handleRemoveCode = (codeToRemove: string) => {
         onChange(value.filter((code) => code !== codeToRemove))
+
+        if (onAttendeesChange && attendees) {
+            onAttendeesChange(
+                attendees.filter(
+                    (a) => a.employee_code.toLowerCase() !== codeToRemove.toLowerCase(),
+                ),
+            )
+        }
     }
 
     return (
@@ -56,7 +84,12 @@ export const MeetingAttendeesInput = ({
                         const matched = karyawanList.find(
                             (k) => k.code_employee.toLowerCase() === code.toLowerCase(),
                         )
-                        const displayName = matched ? matched.text : code
+                        const attendeeObj = attendees?.find(
+                            (a) => a.employee_code.toLowerCase() === code.toLowerCase(),
+                        )
+                        const displayName = matched
+                            ? matched.text
+                            : attendeeObj?.employee_name || code
 
                         return (
                             <span

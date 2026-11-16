@@ -3,10 +3,15 @@ import type { AxiosResponse } from 'axios'
 import httpClient from '@/shared/services/httpClient'
 
 import type {
+    CreateTemuanCommentRequest,
     CreateTemuanRequest,
     LaravelValidationErrorResponse,
     Temuan,
     TemuanApiResult,
+    TemuanComment,
+    TemuanCommentDeleteResponse,
+    TemuanCommentListResponse,
+    TemuanCommentMutationResponse,
     TemuanDeleteResponse,
     TemuanDetailResponse,
     TemuanErrorResponse,
@@ -278,6 +283,102 @@ const deleteFile = async (
         }))
 }
 
+const getComments = async (
+    temuanId: number,
+): Promise<TemuanApiResult<TemuanComment[]>> => {
+    return httpClient
+        .get<TemuanCommentListResponse | TemuanError>(
+            `/temuan/${temuanId}/comments`,
+        )
+        .then((response) => {
+            if (
+                'status' in response.data &&
+                response.data.status
+            ) {
+                return {
+                    success: true,
+                    status: response.status,
+                    message: response.data.message,
+                    data: response.data.data,
+                }
+            }
+
+            return getErrorResult(
+                response as AxiosResponse<TemuanError>,
+            )
+        })
+        .catch(() => ({
+            success: false,
+            status: 0,
+            message: 'Tidak dapat terhubung ke server.',
+        }))
+}
+
+const storeComment = async (
+    temuanId: number,
+    payload: CreateTemuanCommentRequest,
+): Promise<TemuanApiResult<TemuanComment>> => {
+    return httpClient
+        .post<TemuanCommentMutationResponse | TemuanError>(
+            `/temuan/${temuanId}/comments`,
+            payload,
+        )
+        .then((response) => {
+            if (
+                'status' in response.data &&
+                response.data.status
+            ) {
+                return {
+                    success: true,
+                    status: response.status,
+                    message: response.data.message,
+                    data: response.data.data,
+                }
+            }
+
+            return getErrorResult(
+                response as AxiosResponse<TemuanError>,
+            )
+        })
+        .catch(() => ({
+            success: false,
+            status: 0,
+            message: 'Tidak dapat terhubung ke server.',
+        }))
+}
+
+const destroyComment = async (
+    temuanId: number,
+    commentId: number,
+): Promise<TemuanApiResult<null>> => {
+    return httpClient
+        .delete<TemuanCommentDeleteResponse | TemuanError>(
+            `/temuan/${temuanId}/comments/${commentId}`,
+        )
+        .then((response) => {
+            if (
+                'status' in response.data &&
+                response.data.status
+            ) {
+                return {
+                    success: true,
+                    status: response.status,
+                    message: response.data.message,
+                    data: null,
+                }
+            }
+
+            return getErrorResult(
+                response as AxiosResponse<TemuanError>,
+            )
+        })
+        .catch(() => ({
+            success: false,
+            status: 0,
+            message: 'Tidak dapat terhubung ke server.',
+        }))
+}
+
 export const temuanApi = {
     getAll,
     getById,
@@ -286,4 +387,7 @@ export const temuanApi = {
     remove,
     uploadFiles,
     deleteFile,
+    getComments,
+    storeComment,
+    destroyComment,
 }

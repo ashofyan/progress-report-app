@@ -1,0 +1,208 @@
+import type {
+    TimelineDocument,
+    TimelineFeedItem,
+} from '@/features/timeline/types/timeline.types'
+import {
+    formatDateTime,
+    getAvatarStyle,
+    getInitials,
+    getTimelineDocumentUrl,
+} from '@/features/timeline/utils/timelineUtils'
+
+interface TimelineFeedCardProps {
+    feed: TimelineFeedItem
+}
+
+export const TimelineFeedCard = ({ feed }: TimelineFeedCardProps) => {
+    const creatorName =
+        feed.creator?.employee_name ??
+        feed.creator?.employee_code ??
+        'Karyawan'
+    const creatorAvatar = getAvatarStyle(creatorName)
+    const isDp = feed.type === 'daily_progress'
+
+    const renderDocumentChip = (doc: TimelineDocument) => {
+        const url = getTimelineDocumentUrl(doc)
+        const name = doc.original_name ?? doc.path ?? 'Dokumen'
+
+        return (
+            <a
+                key={doc.id}
+                href={url ?? '#'}
+                target="_blank"
+                rel="noreferrer"
+                className="doc-chip"
+                title={name}
+            >
+                <i className="bi bi-paperclip" />
+                <span>{name}</span>
+            </a>
+        )
+    }
+
+    return (
+        <article className="timeline-feed-card">
+            <header className="timeline-feed-header">
+                <div className="timeline-feed-creator-wrap">
+                    <div
+                        className="timeline-feed-avatar"
+                        style={{
+                            backgroundColor: creatorAvatar.bg,
+                            color: creatorAvatar.color,
+                            border: `1px solid ${creatorAvatar.border}`,
+                        }}
+                    >
+                        {getInitials(creatorName)}
+                    </div>
+
+                    <div className="timeline-feed-creator-info">
+                        <span className="creator-name">
+                            {creatorName}
+                        </span>
+                        <div className="creator-sub">
+                            <span className="feed-date">
+                        {formatDateTime(feed.tanggal, feed.created_at)}
+                    </span>
+                        </div>
+                    </div>
+                </div>
+
+                <div className="timeline-feed-type-meta">
+                    <span className={`type-badge ${isDp ? 'dp' : 'pr'}`}>
+                        <i
+                            className={`bi ${
+                                isDp
+                                    ? 'bi-calendar-check'
+                                    : 'bi-journal-check'
+                            }`}
+                        />
+                        {isDp ? 'Daily Progress' : 'Progress Report'}
+                    </span>
+
+                    <span className="doc-number">{feed.nomor}</span>
+
+
+                </div>
+            </header>
+
+            <div className="timeline-feed-tasks">
+                {(feed.tasks ?? []).map((task) => (
+                    <div key={task.id} className="timeline-feed-task-item">
+                        <div className="task-top-row">
+                            <span className="task-name">
+                                {task.parent_task_name && (
+                                    <span className="parent-task">
+                                        {task.parent_task_name} /{' '}
+                                    </span>
+                                )}
+                                {task.task_name}
+                            </span>
+
+                            <span
+                                className={`task-status-pill ${
+                                    task.status === 'selesai'
+                                        ? 'selesai'
+                                        : 'pending'
+                                }`}
+                            >
+                                <i
+                                    className={`bi ${
+                                        task.status === 'selesai'
+                                            ? 'bi-check2-circle'
+                                            : 'bi-hourglass-split'
+                                    }`}
+                                />
+                                {task.status === 'selesai'
+                                    ? 'Selesai'
+                                    : 'Pending'}
+                            </span>
+                        </div>
+
+                        {task.catatan && (
+                            <div className="task-note-box">
+                                <i className="bi bi-chat-left-text" />
+                                <span>{task.catatan}</span>
+                            </div>
+                        )}
+
+                        {task.notes && task.notes.length > 0 && (
+                            <div className="d-flex flex-column gap-1 mt-1">
+                                {task.notes.map((note) => (
+                                    <div
+                                        key={note.id}
+                                        className="task-note-box"
+                                    >
+                                        <i className="bi bi-chat-left-text" />
+                                        <span>{note.catatan}</span>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+
+                        {task.documents && task.documents.length > 0 && (
+                            <div className="timeline-feed-documents">
+                                {task.documents.map(renderDocumentChip)}
+                            </div>
+                        )}
+                    </div>
+                ))}
+            </div>
+
+            {feed.findings && feed.findings.length > 0 && (
+                <div className="timeline-feed-findings">
+                    <h5 className="findings-title">
+                        <i className="bi bi-exclamation-triangle" />
+                        <span>Temuan ({feed.findings.length})</span>
+                    </h5>
+
+                    {feed.findings.map((finding) => {
+                        const findingTitle =
+                            finding.source_type === 'master'
+                                ? finding.master_task?.task_name ?? 'Master Task'
+                                : finding.source_type === 'additional'
+                                ? finding.additional_task?.task_name ?? 'Additional Task'
+                                : null
+
+                        return (
+                            <div key={finding.id} className="finding-item">
+                                {findingTitle && <strong>{findingTitle}</strong>}
+                                <p className="mb-0">{finding.keterangan}</p>
+
+                            {finding.documents &&
+                                finding.documents.length > 0 && (
+                                    <div className="timeline-feed-documents mt-1">
+                                        {finding.documents.map(
+                                            renderDocumentChip,
+                                        )}
+                                    </div>
+                                )}
+                            </div>
+                        )
+                    })}
+                </div>
+            )}
+
+            {feed.notes && feed.notes.length > 0 && (
+                <div className="mt-2 pt-2 border-top">
+                    {feed.notes.map((note) => (
+                        <div key={note.id} className="task-note-box mb-1">
+                            <i className="bi bi-info-circle" />
+                            <span>
+                                {note.judul ? (
+                                    <strong>{note.judul}: </strong>
+                                ) : null}
+                                {note.catatan}
+                            </span>
+                        </div>
+                    ))}
+                </div>
+            )}
+
+            {feed.documents && feed.documents.length > 0 && (
+                <div className="timeline-feed-documents mt-2 pt-2 border-top">
+                    {feed.documents.map(renderDocumentChip)}
+                </div>
+            )}
+        </article>
+    )
+}

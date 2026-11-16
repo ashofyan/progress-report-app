@@ -24,6 +24,7 @@ const ITEMS_PER_PAGE = 10
 
 const sourceLabels: Record<SolusiSource, string> = {
     menu: 'Menu',
+    daily_progress: 'Daily Progress',
     progress_report: 'Progress Report',
 }
 
@@ -147,7 +148,35 @@ const SolusiPage = () => {
 
             <section className="temuan-board">
                 <div className="temuan-board-header">
-                    <div className="temuan-filter-grid solusi-filter-grid">
+                    <div className="temuan-search">
+                        <i className="bi bi-search" />
+                        <input
+                            type="text"
+                            value={searchQuery}
+                            placeholder="Cari solusi..."
+                            onChange={(event) => {
+                                setSearchQuery(
+                                    event.target.value,
+                                )
+                                setCurrentPage(1)
+                            }}
+                        />
+                    </div>
+
+                    <div className="temuan-actions">
+                        <button
+                            type="button"
+                            className="temuan-add-button"
+                            onClick={() => navigate('/solusi/tambah')}
+                        >
+                            <i className="bi bi-plus-lg" />
+                            <span>Tambah Solusi</span>
+                        </button>
+                    </div>
+                </div>
+
+                <div className="temuan-filter-toolbar">
+                    <div className="filter-client">
                         <ClientSelect
                             clients={clients}
                             selectedCode={clientCode}
@@ -159,67 +188,45 @@ const SolusiPage = () => {
                                 setCurrentPage(1)
                             }}
                         />
-
-                        <select
-                            className="form-select"
-                            value={source}
-                            onChange={(
-                                event: ChangeEvent<HTMLSelectElement>,
-                            ) => {
-                                setSource(
-                                    event.target.value as
-                                        | SolusiSource
-                                        | '',
-                                )
-                                setCurrentPage(1)
-                            }}
-                        >
-                            <option value="">Semua source</option>
-                            <option value="menu">Menu</option>
-                            <option value="progress_report">
-                                Progress Report
-                            </option>
-                        </select>
-
-                        <button
-                            type="button"
-                            className="btn btn-light"
-                            onClick={() => {
-                                setClientCode('')
-                                setSource('')
-                                setSearchQuery('')
-                                setCurrentPage(1)
-                            }}
-                        >
-                            Reset
-                        </button>
                     </div>
 
-                    <div className="temuan-actions">
-                        <div className="temuan-search">
-                            <i className="bi bi-search" />
-                            <input
-                                type="text"
-                                value={searchQuery}
-                                placeholder="Cari solusi..."
-                                onChange={(event) => {
-                                    setSearchQuery(
-                                        event.target.value,
-                                    )
-                                    setCurrentPage(1)
-                                }}
-                            />
-                        </div>
+                    <select
+                        className="form-select filter-select"
+                        value={source}
+                        onChange={(
+                            event: ChangeEvent<HTMLSelectElement>,
+                        ) => {
+                            setSource(
+                                event.target.value as
+                                    | SolusiSource
+                                    | '',
+                            )
+                            setCurrentPage(1)
+                        }}
+                    >
+                        <option value="">Semua source</option>
+                        <option value="menu">Menu</option>
+                        <option value="daily_progress">
+                            Daily Progress
+                        </option>
+                        <option value="progress_report">
+                            Progress Report
+                        </option>
+                    </select>
 
-                        <button
-                            type="button"
-                            className="temuan-add-button"
-                            onClick={() => navigate('/solusi/tambah')}
-                        >
-                            <i className="bi bi-plus-lg" />
-                            <span>Tambah</span>
-                        </button>
-                    </div>
+                    <button
+                        type="button"
+                        className="filter-reset-btn"
+                        onClick={() => {
+                            setClientCode('')
+                            setSource('')
+                            setSearchQuery('')
+                            setCurrentPage(1)
+                        }}
+                    >
+                        <i className="bi bi-arrow-counterclockwise" />
+                        Reset
+                    </button>
                 </div>
 
                 {isLoading && (
@@ -321,11 +328,9 @@ const SolusiPage = () => {
                                                     ?.description ?? '-'}
                                             </td>
                                             <td>
-                                                {
-                                                    sourceLabels[
-                                                        solusi.source
-                                                    ]
-                                                }
+                                                <span className={`solusi-source-badge source-${solusi.source}`}>
+                                                    {sourceLabels[solusi.source]}
+                                                </span>
                                             </td>
                                             <td>
                                                 <span className="temuan-note-preview">
@@ -333,7 +338,10 @@ const SolusiPage = () => {
                                                 </span>
                                             </td>
                                             <td>
-                                                {(solusi.files ?? []).length}
+                                                <span className="temuan-file-count">
+                                                    <i className="bi bi-paperclip" />
+                                                    {(solusi.files ?? []).length}
+                                                </span>
                                             </td>
                                             <td>
                                                 <div className="temuan-row-actions">

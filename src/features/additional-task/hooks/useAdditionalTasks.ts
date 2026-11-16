@@ -37,127 +37,141 @@ interface UseAdditionalTasksResult {
     ) => Promise<AdditionalTaskApiResult<null>>
 }
 
-export const useAdditionalTasks =
-    (): UseAdditionalTasksResult => {
-        const [tasks, setTasks] =
-            useState<AdditionalTask[]>([])
+export const useAdditionalTasks = (
+    defaultFilters?: AdditionalTaskFilters,
+): UseAdditionalTasksResult => {
+    const [tasks, setTasks] =
+        useState<AdditionalTask[]>([])
 
-        const [isLoading, setIsLoading] =
-            useState<boolean>(true)
+    const [isLoading, setIsLoading] =
+        useState<boolean>(true)
 
-        const [errorMessage, setErrorMessage] =
-            useState<string | null>(null)
+    const [errorMessage, setErrorMessage] =
+        useState<string | null>(null)
 
-        const fetchTasks = useCallback(
-            async (
-                filters: AdditionalTaskFilters = {},
-            ): Promise<void> => {
-                setIsLoading(true)
-                setErrorMessage(null)
+    const filterType = defaultFilters?.type
+    const filterClient = defaultFilters?.client_code
+    const filterJob = defaultFilters?.job_id
+    const filterPriority = defaultFilters?.priority
 
-                const result =
-                    await additionalTaskApi.getAll(filters)
+    const fetchTasks = useCallback(
+        async (
+            filters: AdditionalTaskFilters = {},
+        ): Promise<void> => {
+            setIsLoading(true)
+            setErrorMessage(null)
 
-                if (
-                    result.success &&
-                    result.data !== undefined
-                ) {
-                    setTasks(result.data)
-                    setIsLoading(false)
+            const combinedFilters: AdditionalTaskFilters = {
+                type: filterType,
+                client_code: filterClient,
+                job_id: filterJob,
+                priority: filterPriority,
+                ...filters,
+            }
 
-                    return
-                }
+            const result =
+                await additionalTaskApi.getAll(combinedFilters)
 
-                setTasks([])
-                setErrorMessage(result.message)
+            if (
+                result.success &&
+                result.data !== undefined
+            ) {
+                setTasks(result.data)
                 setIsLoading(false)
-            },
-            [],
-        )
 
-        useEffect(() => {
-            queueMicrotask(() => {
-                void fetchTasks()
-            })
-        }, [fetchTasks])
+                return
+            }
 
-        const createTask = useCallback(
-            async (
-                payload: CreateAdditionalTaskRequest,
-            ): Promise<AdditionalTaskApiResult<AdditionalTask>> => {
-                const result =
-                    await additionalTaskApi.create(payload)
+            setTasks([])
+            setErrorMessage(result.message)
+            setIsLoading(false)
+        },
+        [filterType, filterClient, filterJob, filterPriority],
+    )
 
-                if (
-                    result.success &&
-                    result.data !== undefined
-                ) {
-                    setTasks((previous) => [
-                        result.data as AdditionalTask,
-                        ...previous,
-                    ])
-                }
+    useEffect(() => {
+        queueMicrotask(() => {
+            void fetchTasks()
+        })
+    }, [fetchTasks])
 
-                return result
-            },
-            [],
-        )
+    const createTask = useCallback(
+        async (
+            payload: CreateAdditionalTaskRequest,
+        ): Promise<AdditionalTaskApiResult<AdditionalTask>> => {
+            const result =
+                await additionalTaskApi.create(payload)
 
-        const updateTask = useCallback(
-            async (
-                id: number,
-                payload: UpdateAdditionalTaskRequest,
-            ): Promise<AdditionalTaskApiResult<AdditionalTask>> => {
-                const result =
-                    await additionalTaskApi.update(id, payload)
+            if (
+                result.success &&
+                result.data !== undefined
+            ) {
+                setTasks((previous) => [
+                    result.data as AdditionalTask,
+                    ...previous,
+                ])
+            }
 
-                if (
-                    result.success &&
-                    result.data !== undefined
-                ) {
-                    const updatedTask = result.data
+            return result
+        },
+        [],
+    )
 
-                    setTasks((previous) =>
-                        previous.map((task) =>
-                            task.id === id
-                                ? updatedTask
-                                : task,
-                        ),
-                    )
-                }
+    const updateTask = useCallback(
+        async (
+            id: number,
+            payload: UpdateAdditionalTaskRequest,
+        ): Promise<AdditionalTaskApiResult<AdditionalTask>> => {
+            const result =
+                await additionalTaskApi.update(id, payload)
 
-                return result
-            },
-            [],
-        )
+            if (
+                result.success &&
+                result.data !== undefined
+            ) {
+                const updatedTask = result.data
 
-        const deleteTask = useCallback(
-            async (
-                id: number,
-            ): Promise<AdditionalTaskApiResult<null>> => {
-                const result =
-                    await additionalTaskApi.remove(id)
+                setTasks((previous) =>
+                    previous.map((task) =>
+                        task.id === id
+                            ? updatedTask
+                            : task,
+                    ),
+                )
+            }
 
-                if (result.success) {
-                    setTasks((previous) =>
-                        previous.filter(
-                            (task) => task.id !== id,
-                        ),
-                    )
-                }
+            return result
+        },
+        [],
+    )
 
-                return result
-            },
-            [],
-        )
+    const deleteTask = useCallback(
+        async (
+            id: number,
+        ): Promise<AdditionalTaskApiResult<null>> => {
+            const result =
+                await additionalTaskApi.remove(id)
 
-        return {
-            tasks,
-            isLoading,
-            errorMessage,
-            fetchTasks,
-            createTask,
-            updateTask,
-            deleteTask,
-        }
+            if (result.success) {
+                setTasks((previous) =>
+                    previous.filter(
+                        (task) => task.id !== id,
+                    ),
+                )
+            }
+
+            return result
+        },
+        [],
+    )
+
+    return {
+        tasks,
+        isLoading,
+        errorMessage,
+        fetchTasks,
+        createTask,
+        updateTask,
+        deleteTask,
     }
+}

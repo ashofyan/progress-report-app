@@ -15,16 +15,14 @@ import ClientSelect from '@/features/additional-task/components/ClientSelect'
 import { useMarketingClients } from '@/features/additional-task/hooks/useMarketingClients'
 import { dailyProgressApi } from '@/features/daily-progress/api/dailyProgressApi'
 import type {
-    DailyProgressFormJobTask,
     DailyProgressFormSpk,
 } from '@/features/daily-progress/types/daily-progress.types'
 import { temuanApi } from '@/features/temuan/api/temuanApi'
 
 import '@/features/temuan/styles/temuan.scss'
 
-interface TemuanNoteForm {
+interface TaskNoteEntry {
     id?: number
-    als_job_task_id: number | ''
     note: string
 }
 
@@ -44,12 +42,6 @@ const getSpkLabel = (
     return `${spk.no_spk} - ${description}`
 }
 
-const getParentTasks = (
-    spk: DailyProgressFormSpk | null,
-): DailyProgressFormJobTask[] => {
-    return spk?.job?.tasks ?? []
-}
-
 const TemuanFormPage = () => {
     const navigate = useNavigate()
     const params = useParams<{ id: string }>()
@@ -60,19 +52,16 @@ const TemuanFormPage = () => {
 
     const [tanggal, setTanggal] =
         useState<string>(getToday())
+    const [priority, setPriority] =
+        useState<number>(3)
     const [clientCode, setClientCode] =
         useState<string>('')
     const [spks, setSpks] =
         useState<DailyProgressFormSpk[]>([])
     const [selectedSpkId, setSelectedSpkId] =
         useState<number | ''>('')
-    const [notes, setNotes] =
-        useState<TemuanNoteForm[]>([
-            {
-                als_job_task_id: '',
-                note: '',
-            },
-        ])
+    const [taskNotes, setTaskNotes] =
+        useState<Record<string, TaskNoteEntry[]>>({})
     const [files, setFiles] =
         useState<File[]>([])
     const [isLoadingTemuan, setIsLoadingTemuan] =
@@ -103,10 +92,7 @@ const TemuanFormPage = () => {
         ],
     )
 
-    const parentTasks = useMemo(
-        () => getParentTasks(selectedSpk),
-        [selectedSpk],
-    )
+    const selectedJob = selectedSpk?.job ?? null
 
     const handleClientSearch = useCallback(
         (query: string): void => {
@@ -138,23 +124,23 @@ const TemuanFormPage = () => {
                 }
 
                 setTanggal(result.data.tanggal)
+                setPriority(result.data.priority ?? 3)
                 setClientCode(result.data.client_code)
                 setSelectedSpkId(result.data.spk?.id ?? '')
-                setNotes(
-                    result.data.notes.length === 0
-                        ? [
-                            {
-                                als_job_task_id: '',
-                                note: '',
-                            },
-                        ]
-                        : result.data.notes.map((note) => ({
-                            id: note.id,
-                            als_job_task_id:
-                                note.als_job_task_id,
-                            note: note.note,
-                        })),
-                )
+
+                const initialNotes: Record<string, TaskNoteEntry[]> = {}
+                result.data.notes.forEach((note) => {
+                    const key = String(note.als_job_task_id)
+
+                    if (!initialNotes[key]) {
+                        initialNotes[key] = []
+                    }
+                    initialNotes[key].push({
+                        id: note.id,
+                        note: note.note ?? '',
+                    })
+                })
+                setTaskNotes(initialNotes)
             }
 
             void fetchTemuan()
@@ -170,6 +156,7 @@ const TemuanFormPage = () => {
                 setSpks([])
                 if (!isEdit) {
                     setSelectedSpkId('')
+                    setTaskNotes({})
                 }
             })
             return
@@ -206,66 +193,42 @@ const TemuanFormPage = () => {
         isEdit,
     ])
 
-    const handleAddNote = (): void => {
-        setNotes((previous) => [
+    const handleAddNoteForTask = (key: string): void => {
+        setTaskNotes((previous) => ({
             ...previous,
-            {
-                als_job_task_id: '',
-                note: '',
-            },
-        ])
+            [key]: [...(previous[key] ?? []), { note: '' }],
+        }))
     }
 
-    const handleRemoveNote = (
-        noteIndex: number,
-    ): void => {
-        setNotes((previous) =>
-            previous.length === 1
-                ? [
-                    {
-                        als_job_task_id: '',
-                        note: '',
-                    },
-                ]
-                : previous.filter(
-                    (_, index) => index !== noteIndex,
-                ),
-        )
-    }
-
-    const handleNoteTaskChange = (
-        noteIndex: number,
+    const handleNoteChange = (
+        key: string,
+        index: number,
         value: string,
     ): void => {
-        setNotes((previous) =>
-            previous.map((note, index) =>
-                index === noteIndex
-                    ? {
-                        ...note,
-                        als_job_task_id:
-                            value === ''
-                                ? ''
-                                : Number(value),
-                    }
-                    : note,
+        setTaskNotes((previous) => ({
+            ...previous,
+            [key]: (previous[key] ?? []).map((entry, idx) =>
+                idx === index ? { ...entry, note: value } : entry,
             ),
-        )
+        }))
     }
 
-    const handleNoteTextChange = (
-        noteIndex: number,
-        value: string,
+    const handleRemoveNoteForTask = (
+        key: string,
+        index: number,
     ): void => {
-        setNotes((previous) =>
-            previous.map((note, index) =>
-                index === noteIndex
-                    ? {
-                        ...note,
-                        note: value,
-                    }
-                    : note,
-            ),
-        )
+        setTaskNotes((previous) => {
+            const list = (previous[key] ?? []).filter(
+                (_, idx) => idx !== index,
+            )
+            const updated = { ...previous }
+            if (list.length === 0) {
+                delete updated[key]
+            } else {
+                updated[key] = list
+            }
+            return updated
+        })
     }
 
     const handleFilesChange = (
@@ -295,37 +258,35 @@ const TemuanFormPage = () => {
             return
         }
 
-        const submittedNotes = notes
-            .map((note) => ({
-                id: note.id,
-                als_job_task_id: note.als_job_task_id,
-                note: note.note.trim(),
-            }))
-            .filter(
-                (note) =>
-                    note.als_job_task_id !== '' &&
-                    note.note !== '',
-            )
+        const submittedNotes: Array<{
+            id?: number
+            als_job_task_id: number
+            note: string
+        }> = []
+
+        Object.entries(taskNotes).forEach(([key, noteList]) => {
+            const taskId = Number(key)
+            if (!Number.isFinite(taskId) || taskId <= 0) {
+                return
+            }
+
+            noteList.forEach((item) => {
+                const trimmed = item.note.trim()
+                if (trimmed === '') {
+                    return
+                }
+
+                submittedNotes.push({
+                    id: item.id,
+                    als_job_task_id: taskId,
+                    note: trimmed,
+                })
+            })
+        })
 
         if (submittedNotes.length === 0) {
             setErrorMessage(
-                'Minimal satu catatan Temuan wajib diisi.',
-            )
-            return
-        }
-
-        const duplicatedTask = submittedNotes.some(
-            (note, index) =>
-                submittedNotes.findIndex(
-                    (item) =>
-                        item.als_job_task_id ===
-                        note.als_job_task_id,
-                ) !== index,
-        )
-
-        if (duplicatedTask) {
-            setErrorMessage(
-                'Task Temuan tidak boleh duplikat.',
+                'Minimal satu catatan Temuan pada task pekerjaan wajib diisi.',
             )
             return
         }
@@ -335,10 +296,10 @@ const TemuanFormPage = () => {
         if (isEdit && temuanId !== null) {
             const result = await temuanApi.update(temuanId, {
                 tanggal,
+                priority,
                 notes: submittedNotes.map((note) => ({
                     id: note.id,
-                    als_job_task_id:
-                        note.als_job_task_id as number,
+                    als_job_task_id: note.als_job_task_id,
                     note: note.note,
                 })),
             })
@@ -364,9 +325,10 @@ const TemuanFormPage = () => {
             tanggal,
             client_code: clientCode.trim(),
             als_spk_id: selectedSpk.spk_id,
+            priority,
+            type: 'TM',
             notes: submittedNotes.map((note) => ({
-                als_job_task_id:
-                    note.als_job_task_id as number,
+                als_job_task_id: note.als_job_task_id,
                 note: note.note,
             })),
         })
@@ -395,6 +357,62 @@ const TemuanFormPage = () => {
 
         setIsSubmitting(false)
         navigate('/temuan')
+    }
+
+    const renderedTaskKeys = useMemo(() => {
+        const keys = new Set<string>()
+        selectedJob?.tasks?.forEach((task) => {
+            keys.add(String(task.id))
+        })
+        return keys
+    }, [selectedJob?.tasks])
+
+    const unmappedNotes = useMemo(() => {
+        return Object.entries(taskNotes).filter(
+            ([key, list]) => !renderedTaskKeys.has(key) && list.length > 0,
+        )
+    }, [taskNotes, renderedTaskKeys])
+
+    const renderTaskRow = (key: string, taskName: string) => {
+        const notesList = taskNotes[key] ?? []
+
+        return (
+            <div className="temuan-task-row" key={key}>
+                <div className="temuan-task-header">
+                    <span className="temuan-task-name">{taskName}</span>
+                    <button
+                        type="button"
+                        className="temuan-task-add-btn"
+                        onClick={() => handleAddNoteForTask(key)}
+                    >
+                        <i className="bi bi-plus-circle" />
+                        <span>Tambah</span>
+                    </button>
+                </div>
+
+                {notesList.map((entry, index) => (
+                    <div className="temuan-task-note-box" key={index}>
+                        <textarea
+                            className="temuan-task-note-textarea"
+                            placeholder="Tulis Note..."
+                            rows={2}
+                            value={entry.note}
+                            onChange={(e) =>
+                                handleNoteChange(key, index, e.target.value)
+                            }
+                        />
+                        <button
+                            type="button"
+                            className="temuan-task-note-delete-btn"
+                            onClick={() => handleRemoveNoteForTask(key, index)}
+                            title="Hapus Catatan"
+                        >
+                            <i className="bi bi-trash" />
+                        </button>
+                    </div>
+                ))}
+            </div>
+        )
     }
 
     if (isLoadingTemuan) {
@@ -449,7 +467,28 @@ const TemuanFormPage = () => {
                             />
                         </div>
 
-                        <div className="col-md-4">
+                        <div className="col-md-2">
+                            <label className="form-label">
+                                Prioritas
+                            </label>
+                            <select
+                                className="form-select"
+                                value={priority}
+                                onChange={(
+                                    event: ChangeEvent<HTMLSelectElement>,
+                                ) =>
+                                    setPriority(Number(event.target.value))
+                                }
+                            >
+                                <option value={1}>1 - Sangat Rendah</option>
+                                <option value={2}>2 - Rendah</option>
+                                <option value={3}>3 - Sedang / Normal</option>
+                                <option value={4}>4 - Tinggi</option>
+                                <option value={5}>5 - Kritis / Urgent</option>
+                            </select>
+                        </div>
+
+                        <div className="col-md-3">
                             <label className="form-label">
                                 Client
                             </label>
@@ -466,17 +505,12 @@ const TemuanFormPage = () => {
                                         client.customer_code,
                                     )
                                     setSelectedSpkId('')
-                                    setNotes([
-                                        {
-                                            als_job_task_id: '',
-                                            note: '',
-                                        },
-                                    ])
+                                    setTaskNotes({})
                                 }}
                             />
                         </div>
 
-                        <div className="col-md-5">
+                        <div className="col-md-4">
                             <label className="form-label">
                                 SPK
                             </label>
@@ -498,12 +532,7 @@ const TemuanFormPage = () => {
                                                 event.target.value,
                                             ),
                                     )
-                                    setNotes([
-                                        {
-                                            als_job_task_id: '',
-                                            note: '',
-                                        },
-                                    ])
+                                    setTaskNotes({})
                                 }}
                             >
                                 <option value="">
@@ -534,86 +563,85 @@ const TemuanFormPage = () => {
                             </div>
                         )}
 
-                    <div className="temuan-section">
-                        <div className="temuan-section-heading">
-                            <h3>Catatan Temuan</h3>
-                            <button
-                                type="button"
-                                className="temuan-add-note"
-                                onClick={handleAddNote}
-                            >
-                                <i className="bi bi-plus-lg" />
-                                Tambah Catatan
-                            </button>
+                    {selectedSpk === null && (
+                        <div className="daily-progress-task-empty mb-4">
+                            Pilih SPK terlebih dahulu untuk menampilkan daftar pekerjaan.
                         </div>
+                    )}
 
-                        {parentTasks.length === 0 && (
-                            <div className="temuan-state compact">
-                                Pilih SPK dengan master pekerjaan terlebih dahulu.
+                    {selectedSpk !== null && (
+                        <div className="temuan-task-section mb-4">
+                            <div className="daily-progress-panel-heading">
+                                <div className="daily-progress-panel-icon info">
+                                    <i className="bi bi-list-check" />
+                                </div>
+                                <div>
+                                    <h2>Master Task</h2>
+                                    <p>Pekerjaan utama dari SPK. Tambahkan catatan temuan pada task pekerjaan terkait.</p>
+                                </div>
                             </div>
-                        )}
 
-                        {notes.map((note, index) => (
-                            <div
-                                className="temuan-note-form-row"
-                                key={`note-${index}`}
-                            >
-                                <select
-                                    className="form-select"
-                                    value={note.als_job_task_id}
-                                    onChange={(
-                                        event: ChangeEvent<HTMLSelectElement>,
-                                    ) =>
-                                        handleNoteTaskChange(
-                                            index,
-                                            event.target.value,
-                                        )
-                                    }
-                                >
-                                    <option value="">
-                                        Pilih parent task
-                                    </option>
-                                    {parentTasks.map((task) => (
-                                        <option
-                                            key={task.id}
-                                            value={task.id}
-                                        >
-                                            {task.task_name}
-                                        </option>
-                                    ))}
-                                </select>
+                            {selectedJob === null && (
+                                <div className="daily-progress-task-empty">
+                                    SPK terpilih belum memiliki daftar pekerjaan.
+                                </div>
+                            )}
 
-                                <textarea
-                                    className="form-control"
-                                    value={note.note}
-                                    rows={2}
-                                    placeholder="Isi temuan"
-                                    onChange={(
-                                        event: ChangeEvent<HTMLTextAreaElement>,
-                                    ) =>
-                                        handleNoteTextChange(
-                                            index,
-                                            event.target.value,
-                                        )
-                                    }
-                                />
+                            {selectedJob !== null &&
+                                selectedJob.tasks.length === 0 && (
+                                    <div className="daily-progress-task-empty">
+                                        Tidak ada header task.
+                                    </div>
+                                )}
 
-                                <button
-                                    type="button"
-                                    className="btn btn-outline-danger"
-                                    onClick={() =>
-                                        handleRemoveNote(index)
-                                    }
-                                >
-                                    <i className="bi bi-x-lg" />
-                                </button>
+                            {selectedJob !== null &&
+                                selectedJob.tasks.map((parent) => (
+                                    <div
+                                        className="temuan-task-group"
+                                        key={parent.id}
+                                    >
+                                        {renderTaskRow(
+                                            String(parent.id),
+                                            parent.task_name,
+                                        )}
+                                    </div>
+                                ))}
+                        </div>
+                    )}
+
+                    {unmappedNotes.length > 0 && (
+                        <div className="temuan-task-section mb-4">
+                            <div className="daily-progress-panel-heading">
+                                <div className="daily-progress-panel-icon warning">
+                                    <i className="bi bi-sticky" />
+                                </div>
+                                <div>
+                                    <h2>Catatan Temuan Lainnya</h2>
+                                    <p>Catatan yang telah tersimpan pada pekerjaan sebelumnya</p>
+                                </div>
                             </div>
-                        ))}
-                    </div>
+                            <div className="temuan-task-group">
+                                {unmappedNotes.map(([key]) =>
+                                    renderTaskRow(
+                                        key,
+                                        `Task #${key}`,
+                                    ),
+                                )}
+                            </div>
+                        </div>
+                    )}
 
                     {!isEdit && (
-                        <div className="temuan-section">
-                            <h3>File</h3>
+                        <div className="temuan-task-section mb-4">
+                            <div className="daily-progress-panel-heading">
+                                <div className="daily-progress-panel-icon info">
+                                    <i className="bi bi-paperclip" />
+                                </div>
+                                <div>
+                                    <h2>Lampiran File / Bukti Temuan</h2>
+                                    <p>Upload file foto atau dokumen pendukung (opsional)</p>
+                                </div>
+                            </div>
                             <input
                                 type="file"
                                 className="form-control"

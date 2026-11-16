@@ -10,14 +10,27 @@ import AdditionalTaskTable from '@/features/additional-task/components/Additiona
 
 import { useAdditionalTasks } from '@/features/additional-task/hooks/useAdditionalTasks'
 
-import type {
-    AdditionalTask,
+import {
+    PRIORITY_LABELS,
+    PRIORITY_OPTIONS,
+    type AdditionalTask,
+    type AdditionalTaskType,
 } from '@/features/additional-task/types/additional-task.types'
+
+interface AdditionalTaskBoardProps {
+    defaultType?: AdditionalTaskType
+}
 
 const ITEMS_PER_PAGE = 10
 
-const AdditionalTaskBoard = () => {
+const AdditionalTaskBoard = ({
+    defaultType = 'tambahan',
+}: AdditionalTaskBoardProps) => {
     const navigate = useNavigate()
+
+    const defaultFilters = useMemo(() => ({
+        type: defaultType,
+    }), [defaultType])
 
     const {
         tasks,
@@ -27,10 +40,13 @@ const AdditionalTaskBoard = () => {
         createTask,
         updateTask,
         deleteTask,
-    } = useAdditionalTasks()
+    } = useAdditionalTasks(defaultFilters)
 
     const [searchQuery, setSearchQuery] =
         useState<string>('')
+
+    const [priorityFilter, setPriorityFilter] =
+        useState<number | ''>('')
 
     const [currentPage, setCurrentPage] =
         useState<number>(1)
@@ -48,15 +64,33 @@ const AdditionalTaskBoard = () => {
         const query =
             searchQuery.trim().toLowerCase()
 
-        if (query === '') {
-            return tasks
+        let typeTasks = tasks.filter((task) => {
+            const taskType = task.type ?? 'tambahan'
+            return taskType === defaultType
+        })
+
+        if (priorityFilter !== '') {
+            typeTasks = typeTasks.filter(
+                (task) => (task.priority ?? 3) === priorityFilter,
+            )
         }
 
-        return tasks.filter((task) => {
+        if (query === '') {
+            return typeTasks
+        }
+
+        return typeTasks.filter((task) => {
+            const priorityVal = task.priority ?? 3
+            const priorityLabel = PRIORITY_LABELS[priorityVal]?.toLowerCase() ?? ''
+
             return (
                 task.nomor
                     .toLowerCase()
                     .includes(query) ||
+                (Boolean(task.spk?.no_spk) &&
+                    task.spk!.no_spk
+                        .toLowerCase()
+                        .includes(query)) ||
                 task.client_code
                     .toLowerCase()
                     .includes(query) ||
@@ -65,10 +99,12 @@ const AdditionalTaskBoard = () => {
                     .includes(query) ||
                 task.job.description
                     .toLowerCase()
-                    .includes(query)
+                    .includes(query) ||
+                `p${priorityVal}`.includes(query) ||
+                priorityLabel.includes(query)
             )
         })
-    }, [tasks, searchQuery])
+    }, [tasks, searchQuery, priorityFilter, defaultType])
 
     const totalPages = Math.max(
         1,
@@ -96,7 +132,11 @@ const AdditionalTaskBoard = () => {
     ])
 
     const handleAdd = (): void => {
-        navigate('/master-data/task/tambah')
+        if (defaultType === 'custom') {
+            navigate('/master-data/custom-pekerjaan/tambah')
+        } else {
+            navigate('/pekerjaan-tambahan/tambah')
+        }
     }
 
     const handleEdit = (
@@ -137,19 +177,49 @@ const AdditionalTaskBoard = () => {
         <>
             <section className="additional-task-board">
                 <div className="additional-task-board-header">
-                    <div className="additional-task-search">
-                        <i className="bi bi-search" />
+                    <div className="d-flex align-items-center gap-2 flex-wrap">
+                        <div className="additional-task-search">
+                            <i className="bi bi-search" />
 
-                        <input
-                            type="text"
-                            value={searchQuery}
-                            placeholder="Cari task..."
-                            onChange={(event) =>
-                                handleSearchChange(
-                                    event.target.value,
-                                )
-                            }
-                        />
+                            <input
+                                type="text"
+                                value={searchQuery}
+                                placeholder="Cari task..."
+                                onChange={(event) =>
+                                    handleSearchChange(
+                                        event.target.value,
+                                    )
+                                }
+                            />
+                        </div>
+
+                        <select
+                            className="form-select form-select-sm"
+                            style={{
+                                width: 'auto',
+                                minWidth: '150px',
+                                height: '36px',
+                                fontSize: '13px',
+                                borderColor: '#e2e4e9',
+                                borderRadius: '8px',
+                            }}
+                            value={priorityFilter}
+                            onChange={(event) => {
+                                const val =
+                                    event.target.value === ''
+                                        ? ''
+                                        : Number(event.target.value)
+                                setPriorityFilter(val)
+                                setCurrentPage(1)
+                            }}
+                        >
+                            <option value="">Semua Prioritas</option>
+                            {PRIORITY_OPTIONS.map((opt) => (
+                                <option key={opt.value} value={opt.value}>
+                                    {opt.label}
+                                </option>
+                            ))}
+                        </select>
                     </div>
 
                     <button
@@ -201,6 +271,7 @@ const AdditionalTaskBoard = () => {
                         errorMessage === null && (
                             <AdditionalTaskTable
                                 tasks={paginatedTasks}
+                                type={defaultType}
                                 onEdit={handleEdit}
                                 onDelete={
                                     setTaskToDelete
@@ -248,6 +319,7 @@ const AdditionalTaskBoard = () => {
             <AdditionalTaskFormModal
                 isOpen={isFormOpen}
                 task={selectedTask}
+                defaultType={defaultType}
                 onClose={handleCloseForm}
                 onCreate={createTask}
                 onUpdate={updateTask}

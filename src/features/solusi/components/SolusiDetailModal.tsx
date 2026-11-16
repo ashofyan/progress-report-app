@@ -42,6 +42,10 @@ const getFileUrl = (
     }
 }
 
+const isImageFile = (filename: string): boolean => {
+    return /\.(jpg|jpeg|png|webp|gif|svg)$/i.test(filename)
+}
+
 const SolusiDetailModal = ({
                                solusi,
                                onClose,
@@ -193,62 +197,89 @@ const SolusiDetailModal = ({
                         </div>
                     )}
 
-                    <div className="row g-3 mb-3">
-                        <div className="col-md-3">
-                            <label className="form-label">Temuan</label>
-                            <input
-                                className="form-control"
-                                value={currentSolusi.temuan.nomor}
-                                readOnly
-                            />
-                        </div>
-                        <div className="col-md-3">
-                            <label className="form-label">Tanggal</label>
-                            <input
-                                className="form-control"
-                                value={currentSolusi.temuan.tanggal}
-                                readOnly
-                            />
-                        </div>
-                        <div className="col-md-3">
-                            <label className="form-label">Client</label>
-                            <input
-                                className="form-control"
-                                value={currentSolusi.temuan.client_code}
-                                readOnly
-                            />
-                        </div>
-                        <div className="col-md-3">
-                            <label className="form-label">Source</label>
-                            <input
-                                className="form-control"
-                                value={currentSolusi.source}
-                                readOnly
-                            />
-                        </div>
-                    </div>
+                    <div className="temuan-detail-header-card mb-4">
+                        <div className="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-3">
+                            <div>
+                                <h3 className="temuan-detail-number mb-1">
+                                    Solusi #{currentSolusi.id}
+                                </h3>
+                                <span className="text-muted small">
+                                    Temuan: <strong>{currentSolusi.temuan.nomor}</strong> &bull; {currentSolusi.temuan.tanggal}
+                                </span>
+                            </div>
 
-                    <div className="temuan-section">
-                        <h3>Catatan Temuan</h3>
-                        <div className="temuan-note-card">
-                            <strong>
-                                {currentSolusi.note.task?.task_name ??
-                                    `Note #${currentSolusi.note.id}`}
-                            </strong>
-                            <p>{currentSolusi.note.note}</p>
+                            <span
+                                className={`solusi-source-badge source-${currentSolusi.source}`}
+                            >
+                                Source:{' '}
+                                {currentSolusi.source === 'daily_progress'
+                                    ? 'Daily Progress'
+                                    : currentSolusi.source === 'progress_report'
+                                    ? 'Progress Report'
+                                    : 'Menu'}
+                            </span>
                         </div>
-                    </div>
 
-                    <div className="temuan-section">
-                        <h3>Solusi</h3>
-                        <div className="temuan-note-card">
-                            <p>{currentSolusi.solution}</p>
+                        <div className="temuan-metadata-grid">
+                            <div className="metadata-item">
+                                <span className="metadata-label">Client</span>
+                                <span className="metadata-value">
+                                    {currentSolusi.temuan.client_code}
+                                </span>
+                            </div>
+
+                            <div className="metadata-item">
+                                <span className="metadata-label">Nomor SPK</span>
+                                <span className="metadata-value">
+                                    {currentSolusi.temuan.spk?.no_spk ?? '-'}
+                                </span>
+                            </div>
+
+                            <div className="metadata-item">
+                                <span className="metadata-label">Pekerjaan / Jasa</span>
+                                <span className="metadata-value">
+                                    {currentSolusi.temuan.job?.description ?? '-'}
+                                </span>
+                            </div>
+
+                            <div className="metadata-item">
+                                <span className="metadata-label">Lampiran File</span>
+                                <span className="metadata-value">
+                                    {(currentSolusi.files ?? []).length} Dokumen
+                                </span>
+                            </div>
                         </div>
                     </div>
 
                     <div className="temuan-section">
                         <div className="temuan-section-heading">
-                            <h3>File</h3>
+                            <h3>Catatan Temuan</h3>
+                        </div>
+                        <div className="temuan-detail-note-card">
+                            <strong className="note-task-title text-primary mb-1 d-block">
+                                {currentSolusi.note.task?.task_name ??
+                                    `Note #${currentSolusi.note.id}`}
+                            </strong>
+                            <div className="note-body-text">{currentSolusi.note.note}</div>
+                        </div>
+                    </div>
+
+                    <div className="temuan-section">
+                        <div className="temuan-section-heading">
+                            <h3>Solusi Diberikan</h3>
+                        </div>
+                        <div className="solusi-solution-box">
+                            <div className="solusi-box-header">
+                                <i className="bi bi-check-circle-fill me-1" />
+                                <span>Solusi Final</span>
+                            </div>
+                            <div className="solusi-box-content">{currentSolusi.solution}</div>
+                        </div>
+                    </div>
+
+                    <div className="temuan-section">
+                        <div className="temuan-section-heading">
+                            <h3>File / Foto Bukti</h3>
 
                             <label className="temuan-upload-button">
                                 <i className="bi bi-paperclip" />
@@ -271,55 +302,83 @@ const SolusiDetailModal = ({
 
                         {(currentSolusi.files ?? []).length === 0 && (
                             <div className="temuan-file-empty">
-                                Belum ada file.
+                                Belum ada file atau foto bukti terlampir.
                             </div>
                         )}
 
-                        {(currentSolusi.files ?? []).map((file) => {
-                            const url = getFileUrl(file)
+                        {(currentSolusi.files ?? []).length > 0 && (
+                            <div className="temuan-doc-preview-list">
+                                {(currentSolusi.files ?? []).map((file) => {
+                                    const url = getFileUrl(file)
+                                    const isImg = isImageFile(file.original_name)
 
-                            return (
-                                <div
-                                    className="temuan-file-row"
-                                    key={file.id}
-                                >
-                                    <div>
-                                        {url === null ? (
-                                            <strong>
-                                                {file.original_name}
-                                            </strong>
-                                        ) : (
-                                            <a
-                                                href={url}
-                                                target="_blank"
-                                                rel="noreferrer"
+                                    return (
+                                        <div
+                                            className="temuan-doc-preview-item"
+                                            key={file.id}
+                                        >
+                                            <div className="doc-info">
+                                                {url !== null && isImg ? (
+                                                    <a
+                                                        href={url}
+                                                        target="_blank"
+                                                        rel="noreferrer"
+                                                        title={`Lihat gambar: ${file.original_name}`}
+                                                    >
+                                                        <img
+                                                            src={url}
+                                                            alt={file.original_name}
+                                                            className="doc-thumb"
+                                                        />
+                                                    </a>
+                                                ) : (
+                                                    <div className="doc-icon-box">
+                                                        <i className="bi bi-file-earmark-text" />
+                                                    </div>
+                                                )}
+
+                                                <div className="d-flex flex-column min-w-0">
+                                                    {url === null ? (
+                                                        <span className="doc-title">
+                                                            {file.original_name}
+                                                        </span>
+                                                    ) : (
+                                                        <a
+                                                            href={url}
+                                                            target="_blank"
+                                                            rel="noreferrer"
+                                                            className="doc-title"
+                                                            title={`Unduh ${file.original_name}`}
+                                                        >
+                                                            {file.original_name}
+                                                        </a>
+                                                    )}
+                                                    <span className="doc-size">
+                                                        {Math.ceil(file.size / 1024)} KB
+                                                    </span>
+                                                </div>
+                                            </div>
+
+                                            <button
+                                                type="button"
+                                                className="temuan-action-button delete"
+                                                title="Hapus file"
+                                                disabled={deletingFileId === file.id}
+                                                onClick={() =>
+                                                    void handleDeleteFile(file.id)
+                                                }
                                             >
-                                                {file.original_name}
-                                            </a>
-                                        )}
-                                        <span>
-                                            {Math.ceil(file.size / 1024)} KB
-                                        </span>
-                                    </div>
-
-                                    <button
-                                        type="button"
-                                        className="temuan-action-button delete"
-                                        title="Hapus file"
-                                        disabled={deletingFileId === file.id}
-                                        onClick={() =>
-                                            void handleDeleteFile(file.id)
-                                        }
-                                    >
-                                        {deletingFileId === file.id ? (
-                                            <span className="spinner-border spinner-border-sm" />
-                                        ) : (
-                                            <i className="bi bi-trash3" />
-                                        )}
-                                    </button>
-                                </div>
-                            )
-                        })}
+                                                {deletingFileId === file.id ? (
+                                                    <span className="spinner-border spinner-border-sm" />
+                                                ) : (
+                                                    <i className="bi bi-trash3" />
+                                                )}
+                                            </button>
+                                        </div>
+                                    )
+                                })}
+                            </div>
+                        )}
                     </div>
                 </div>
 

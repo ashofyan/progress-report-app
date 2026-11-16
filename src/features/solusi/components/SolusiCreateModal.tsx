@@ -39,34 +39,36 @@ const SolusiCreateModal = ({
     const [errorMessage, setErrorMessage] = useState<string | null>(null)
 
     useEffect(() => {
-        if (!isOpen || temuan === null) {
-            setSelectedNoteId('')
+        queueMicrotask(() => {
+            if (!isOpen || temuan === null) {
+                setSelectedNoteId('')
+                setSolution('')
+                setFiles([])
+                setErrorMessage(null)
+                setIsSubmitting(false)
+                return
+            }
+
+            if (initialNoteId !== null && initialNoteId !== undefined) {
+                setSelectedNoteId(initialNoteId)
+            } else {
+                // Find first unsolved note if available
+                const firstUnsolved = temuan.notes.find(
+                    (note) => !solvedNoteIds.includes(note.id),
+                )
+                if (firstUnsolved !== undefined) {
+                    setSelectedNoteId(firstUnsolved.id)
+                } else if (temuan.notes.length > 0) {
+                    setSelectedNoteId(temuan.notes[0].id)
+                } else {
+                    setSelectedNoteId('')
+                }
+            }
             setSolution('')
             setFiles([])
             setErrorMessage(null)
             setIsSubmitting(false)
-            return
-        }
-
-        if (initialNoteId !== null && initialNoteId !== undefined) {
-            setSelectedNoteId(initialNoteId)
-        } else {
-            // Find first unsolved note if available
-            const firstUnsolved = temuan.notes.find(
-                (note) => !solvedNoteIds.includes(note.id),
-            )
-            if (firstUnsolved !== undefined) {
-                setSelectedNoteId(firstUnsolved.id)
-            } else if (temuan.notes.length > 0) {
-                setSelectedNoteId(temuan.notes[0].id)
-            } else {
-                setSelectedNoteId('')
-            }
-        }
-        setSolution('')
-        setFiles([])
-        setErrorMessage(null)
-        setIsSubmitting(false)
+        })
     }, [isOpen, temuan, initialNoteId, solvedNoteIds])
 
     if (!isOpen || temuan === null) {
@@ -147,42 +149,22 @@ const SolusiCreateModal = ({
                             </div>
                         )}
 
-                        <div className="row g-3 mb-3">
-                            <div className="col-md-3">
-                                <label className="form-label">Nomor Temuan</label>
-                                <input
-                                    className="form-control"
-                                    value={temuan.nomor}
-                                    readOnly
-                                    disabled
-                                />
+                        <div className="temuan-info-strip">
+                            <div className="info-strip-item">
+                                <span className="info-strip-label">Nomor Temuan</span>
+                                <span className="info-strip-value">{temuan.nomor}</span>
                             </div>
-                            <div className="col-md-3">
-                                <label className="form-label">Tanggal</label>
-                                <input
-                                    className="form-control"
-                                    value={temuan.tanggal}
-                                    readOnly
-                                    disabled
-                                />
+                            <div className="info-strip-item">
+                                <span className="info-strip-label">Tanggal</span>
+                                <span className="info-strip-value">{temuan.tanggal}</span>
                             </div>
-                            <div className="col-md-3">
-                                <label className="form-label">Client</label>
-                                <input
-                                    className="form-control"
-                                    value={temuan.client_code}
-                                    readOnly
-                                    disabled
-                                />
+                            <div className="info-strip-item">
+                                <span className="info-strip-label">Client</span>
+                                <span className="info-strip-value">{temuan.client_code}</span>
                             </div>
-                            <div className="col-md-3">
-                                <label className="form-label">SPK</label>
-                                <input
-                                    className="form-control"
-                                    value={temuan.spk?.no_spk ?? '-'}
-                                    readOnly
-                                    disabled
-                                />
+                            <div className="info-strip-item">
+                                <span className="info-strip-label">SPK</span>
+                                <span className="info-strip-value">{temuan.spk?.no_spk ?? '-'}</span>
                             </div>
                         </div>
 

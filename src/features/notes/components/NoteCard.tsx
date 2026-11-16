@@ -7,6 +7,7 @@ import type { Note } from '@/features/notes/types/notes.types'
 interface NoteCardProps {
     note: Note
     onShareClick: (note: Note) => void
+    basePath?: string
 }
 
 const formatDate = (dateString?: string): string => {
@@ -23,16 +24,25 @@ const formatDate = (dateString?: string): string => {
     }
 }
 
-export const NoteCard = ({ note, onShareClick }: NoteCardProps) => {
+export const NoteCard = ({ note, onShareClick, basePath }: NoteCardProps) => {
     const { employee } = useAuth()
     const isAuthor =
         employee?.employee_code !== undefined
             ? note.author_employee_code === employee.employee_code
             : false
 
-    const isMeeting = note.type === 'meeting'
+    const isMeeting =
+        note.type === 'meeting' ||
+        (note.meeting_scope !== undefined && note.meeting_scope !== null)
     const attendeeCount = note.shares?.filter((s) => s.is_attendance).length ?? 0
     const invitedCount = note.shares?.length ?? 0
+    const reportNumber = note.report_number || note.report_no
+
+    const targetUrl = basePath
+        ? `${basePath}/${note.id}`
+        : isMeeting
+        ? `/notulen/${note.id}`
+        : `/notes/${note.id}`
 
     return (
         <div className="notes-card">
@@ -52,6 +62,13 @@ export const NoteCard = ({ note, onShareClick }: NoteCardProps) => {
                 </div>
 
                 <div className="d-flex align-items-center gap-1 flex-wrap">
+                    {isMeeting && reportNumber && (
+                        <span className="notes-tag tag-standard" title="Nomor Notulen">
+                            <i className="bi bi-hash text-muted" />
+                            {reportNumber}
+                        </span>
+                    )}
+
                     {isMeeting && note.meeting_scope === 'client' && (
                         <span className="notes-tag tag-primary">
                             Klien #{note.client_id ?? '-'}
@@ -77,7 +94,7 @@ export const NoteCard = ({ note, onShareClick }: NoteCardProps) => {
             {/* Title */}
             <h3 className="notes-card-title">
                 <Link
-                    to={`/notes/${note.id}`}
+                    to={targetUrl}
                     style={{ textDecoration: 'none', color: 'inherit' }}
                 >
                     {note.title || 'Tanpa Judul'}
@@ -118,10 +135,10 @@ export const NoteCard = ({ note, onShareClick }: NoteCardProps) => {
             {/* Actions */}
             <div className="notes-card-actions">
                 <Link
-                    to={`/notes/${note.id}`}
+                    to={targetUrl}
                     className="notes-card-action-btn flex-grow-1 text-center"
                 >
-                    <span>Buka Catatan</span>
+                    <span>{isMeeting ? 'Buka Notulen' : 'Buka Catatan'}</span>
                     <i className="bi bi-arrow-right" />
                 </Link>
 

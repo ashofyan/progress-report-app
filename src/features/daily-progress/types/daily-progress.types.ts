@@ -35,6 +35,8 @@ export interface DailyProgressFormTaskHistory {
     progress_report_id: number
     nomor: string
     tanggal: string
+    bulan?: number | null
+    tahun?: number | null
     status: Extract<
         DailyProgressStatus,
         'pending' | 'selesai'
@@ -58,11 +60,27 @@ export interface DailyProgressFormJobTask {
     children: DailyProgressFormJobTaskChild[]
 }
 
+export interface DailyProgressFormAdditionalTaskChild {
+    id: number
+    task_name: string
+    parent_id: number
+    status?: string | null
+    last_progress_report?: DailyProgressFormTaskHistory | null
+    history?: DailyProgressFormTaskHistory[]
+}
+
+export interface DailyProgressFormAdditionalTaskGroup {
+    parent_id: number
+    parent_task: string
+    children: DailyProgressFormAdditionalTaskChild[]
+}
+
 export interface DailyProgressFormJob {
     id: number
     job_code: string
     description: string
     tasks: DailyProgressFormJobTask[]
+    additional_tasks?: DailyProgressFormAdditionalTaskGroup[]
 }
 
 export interface DailyProgressFormFinding {
@@ -77,18 +95,42 @@ export interface DailyProgressFormFinding {
     als_spk_id?: number
 }
 
+export interface DailyProgressTemuanFollowup {
+    status: 'pending' | 'selesai'
+    alasan_pending?: string | null
+    solusi?: string | null
+}
+
+export interface DailyProgressTemuanFollowupRequest {
+    id: number
+    status?: 'pending' | 'selesai'
+    alasan_pending?: string | null
+    solusi?: string | null
+}
+
 export interface DailyProgressTemuanNote {
     id: number
-    task?: DailyProgressTaskParent | null
+    source_type?: DailyProgressDetailType
+    task_category?: string
+    task?: {
+        id: number
+        task_name: string
+        category?: string
+    } | null
     note: string
 }
 
 export interface DailyProgressTemuan {
     id: number
     nomor: string
+    type?: 'TM' | 'PR'
+    priority?: number
+    no_pr?: string | null
     tanggal: string
     status: string
+    dp_followup?: DailyProgressTemuanFollowup | null
     notes?: DailyProgressTemuanNote[]
+    files?: unknown[]
     spk_id?: number
     als_spk_id?: number
 }
@@ -107,6 +149,7 @@ export interface DailyProgressFormSpk {
     kode_product_jasa: string | null
     note: string | null
     job: DailyProgressFormJob | null
+    additional_tasks?: DailyProgressFormAdditionalTaskGroup[]
     findings?: DailyProgressFormFinding[]
     temuans?: DailyProgressTemuan[]
 }
@@ -257,7 +300,8 @@ export interface CreateDailyProgressRequest {
     tahun: number
     finding_ids?: number[] | null
     temuan_ids?: number[] | null
-    details: CreateDailyProgressDetailRequest[]
+    temuans?: Array<number | DailyProgressTemuanFollowupRequest> | null
+    details?: CreateDailyProgressDetailRequest[]
 }
 
 export interface UpdateDailyProgressDetailRequest {
@@ -270,7 +314,8 @@ export interface UpdateDailyProgressRequest {
     no_spk?: string | null
     finding_ids?: number[] | null
     temuan_ids?: number[] | null
-    details: UpdateDailyProgressDetailRequest[]
+    temuans?: Array<number | DailyProgressTemuanFollowupRequest> | null
+    details?: UpdateDailyProgressDetailRequest[]
 }
 
 export interface EditDailyProgressDetailRequest {
@@ -290,7 +335,8 @@ export interface EditDailyProgressRequest {
     tahun: number
     finding_ids?: number[] | null
     temuan_ids?: number[] | null
-    details: EditDailyProgressDetailRequest[]
+    temuans?: Array<number | DailyProgressTemuanFollowupRequest> | null
+    details?: EditDailyProgressDetailRequest[]
 }
 
 export interface DailyProgressListResponse {
@@ -351,4 +397,82 @@ export interface DailyProgressApiResult<T> {
     message: string
     data?: T
     errors?: Record<string, string[]>
+}
+
+export interface DailyProgressTeamFilters {
+    client_code: string
+    als_spk_id: number
+    tanggal?: string
+    bulan?: number
+    tahun?: number
+    employee_code?: string
+}
+
+export interface DailyProgressTeamMember {
+    kode_employee: string
+    name_employee: string
+    tingkat: number
+}
+
+export interface DailyProgressTeamSpk {
+    id: number
+    no_spk: string
+    source_pt?: string
+    kode_product_jasa?: string | null
+    job?: {
+        id?: number
+        job_code: string
+        description: string
+    } | null
+    teams: DailyProgressTeamMember[]
+}
+
+export interface DailyProgressTeamSummary {
+    total_daily_progress: number
+    total_task: number
+    total_task_selesai: number
+    total_task_pending: number
+    total_employee: number
+}
+
+export interface DailyProgressTeamItemDetail {
+    id: number
+    status: DailyProgressStatus
+    catatan: string | null
+    job?: {
+        id: number
+        job_code: string
+        description?: string
+    } | null
+    job_task?: {
+        id: number
+        task_name: string
+    } | null
+}
+
+export interface DailyProgressTeamItem {
+    id: number
+    nomor: string
+    tanggal: string
+    client_code: string
+    als_spk_id: number
+    no_spk: string | null
+    bulan?: number | null
+    tahun?: number | null
+    created_by: string
+    created_by_name: string
+    created_by_level: number
+    details: DailyProgressTeamItemDetail[]
+}
+
+export interface DailyProgressTeamData {
+    spk: DailyProgressTeamSpk
+    summary: DailyProgressTeamSummary
+    items: DailyProgressTeamItem[]
+}
+
+export interface DailyProgressTeamResponse {
+    status: true
+    message: string
+    data: DailyProgressTeamData
 }

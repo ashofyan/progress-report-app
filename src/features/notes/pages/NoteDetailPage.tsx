@@ -1,4 +1,5 @@
 import {
+    useCallback,
     useEffect,
     useRef,
     useState,
@@ -7,11 +8,12 @@ import {
 import { Link, useParams } from 'react-router-dom'
 import type EditorJS from '@editorjs/editorjs'
 
-import { useMarketingClients } from '@/features/additional-task/hooks/useMarketingClients'
 import { useAuth } from '@/features/auth/hooks/useAuth'
 import { notesApi } from '@/features/notes/api/notesApi'
 import EditorJsWorkspace from '@/features/notes/components/EditorJsWorkspace'
+import NoteSaveStatus from '@/features/notes/components/NoteSaveStatus'
 import NoteShareModal from '@/features/notes/components/NoteShareModal'
+import { useAutosave } from '@/features/notes/hooks/useAutosave'
 import { useKaryawanSearch } from '@/features/notes/hooks/useKaryawanSearch'
 import type { EditorJsContent, Note } from '@/features/notes/types/notes.types'
 
@@ -38,7 +40,6 @@ export const NoteDetailPage = () => {
     const noteId = Number(id)
 
     const { employee } = useAuth()
-    const { clients } = useMarketingClients()
     const { karyawanList } = useKaryawanSearch()
 
     const [note, setNote] = useState<Note | null>(null)
@@ -46,37 +47,24 @@ export const NoteDetailPage = () => {
     const [editorContent, setEditorContent] = useState<EditorJsContent | null>(null)
     const editorInstanceRef = useRef<EditorJS | null>(null)
 
+    const titleRef = useRef<string>('')
+    const editorContentRef = useRef<EditorJsContent | null>(null)
+    const isReadyForAutosaveRef = useRef<boolean>(false)
+
+    useEffect(() => {
+        titleRef.current = title
+    }, [title])
+
+    useEffect(() => {
+        editorContentRef.current = editorContent
+    }, [editorContent])
+
     const [isLoading, setIsLoading] = useState<boolean>(true)
-    const [isSaving, setIsSaving] = useState<boolean>(false)
     const [errorMessage, setErrorMessage] = useState<string | null>(null)
     const [successMessage, setSuccessMessage] = useState<string | null>(null)
 
     // Share modal state
     const [isShareModalOpen, setIsShareModalOpen] = useState<boolean>(false)
-
-    useEffect(() => {
-        if (!noteId || isNaN(noteId)) {
-            return
-        }
-
-        let isMounted = true
-
-        void notesApi.getById(noteId).then((result) => {
-            if (!isMounted) return
-            if (result.success && result.data) {
-                setNote(result.data)
-                setTitle(result.data.title)
-                setEditorContent(result.data.content)
-            } else {
-                setErrorMessage(result.message || 'Catatan tidak ditemukan.')
-            }
-            setIsLoading(false)
-        })
-
-        return () => {
-            isMounted = false
-        }
-    }, [noteId])
 
     // Permissions check
     const isAuthor =
@@ -95,7 +83,112 @@ export const NoteDetailPage = () => {
 
     const canEdit = isAuthor || hasEditPermission
 
-    const handleSave = async (e?: FormEvent) => {
+    // Core save function utilized by both autosave (debounced+throttled) and manual save
+    const executeSaveNote = useCallback(async (): Promise<boolean> => {
+        if (!note) return false
+
+        const currentTitle = titleRef.current.trim()
+        if (!currentTitle) {
+            // Keep status unsaved without throwing error during typing
+            return false
+        }
+
+        let finalContent = editorContentRef.current
+        if (editorInstanceRef.current && typeof editorInstanceRef.current.save === 'function') {
+            try {
+                const saved = await editorInstanceRef.current.save()
+                finalContent = {
+                    time: saved.time,
+                    blocks: saved.blocks,
+                    version: saved.version,
+                }
+                editorContentRef.current = finalContent
+            } catch (err) {
+                console.warn('Gagal membaca konten dari editor:', err)
+            }
+        }
+
+        if (!finalContent || !finalContent.blocks || finalContent.blocks.length === 0) {
+            return false
+        }
+
+        const result = await notesApi.updateStandard(note.id, {
+            title: currentTitle,
+            content: finalContent,
+        })
+
+        if (result.success && result.data) {
+            setNote(result.data)
+            return true
+        }
+
+        throw new Error(result.message || 'Gagal menyimpan catatan.')
+    }, [note])
+
+    // Debounced & Throttled Autosave hook
+    const {
+        saveState,
+        lastSavedAt,
+        errorMessage: autosaveErrorMessage,
+        notifyChange,
+        triggerSaveNow,
+    } = useAutosave(executeSaveNote, {
+        debounceMs: 1500,
+        throttleMs: 5000,
+        enabled: canEdit && !isLoading,
+    })
+
+    useEffect(() => {
+        if (!noteId || isNaN(noteId)) {
+            return
+        }
+
+        let isMounted = true
+
+        void notesApi.getStandardById(noteId).then((result) => {
+            if (!isMounted) return
+            if (result.success && result.data) {
+                setNote(result.data)
+                setTitle(result.data.title)
+                titleRef.current = result.data.title
+                setEditorContent(result.data.content)
+                editorContentRef.current = result.data.content
+                // Give EditorJS a moment to initialize before enabling autosave tracking
+                setTimeout(() => {
+                    if (isMounted) {
+                        isReadyForAutosaveRef.current = true
+                    }
+                }, 400)
+            } else {
+                setErrorMessage(result.message || 'Catatan tidak ditemukan.')
+            }
+            setIsLoading(false)
+        })
+
+        return () => {
+            isMounted = false
+            isReadyForAutosaveRef.current = false
+        }
+    }, [noteId])
+
+    const handleTitleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const val = e.target.value
+        setTitle(val)
+        titleRef.current = val
+        if (isReadyForAutosaveRef.current && canEdit) {
+            notifyChange()
+        }
+    }
+
+    const handleContentChange = (newContent: EditorJsContent) => {
+        setEditorContent(newContent)
+        editorContentRef.current = newContent
+        if (isReadyForAutosaveRef.current && canEdit) {
+            notifyChange()
+        }
+    }
+
+    const handleManualSave = async (e?: FormEvent) => {
         if (e) {
             e.preventDefault()
         }
@@ -109,40 +202,12 @@ export const NoteDetailPage = () => {
             return
         }
 
-        let finalContent = editorContent
-        if (editorInstanceRef.current && typeof editorInstanceRef.current.save === 'function') {
-            try {
-                const saved = await editorInstanceRef.current.save()
-                finalContent = {
-                    time: saved.time,
-                    blocks: saved.blocks,
-                    version: saved.version,
-                }
-            } catch (err) {
-                console.warn('Gagal membaca konten dari editor:', err)
-            }
-        }
-
-        if (!finalContent || !finalContent.blocks || finalContent.blocks.length === 0) {
-            setErrorMessage('Konten catatan tidak boleh kosong.')
-            return
-        }
-
-        setIsSaving(true)
-        const result = await notesApi.update(note.id, {
-            title: title.trim(),
-            content: finalContent,
-        })
-        setIsSaving(false)
-
-        if (result.success && result.data) {
-            setNote(result.data)
-            setTitle(result.data.title)
-            setEditorContent(result.data.content)
-            setSuccessMessage(result.message || 'Perubahan berhasil disimpan.')
-            setTimeout(() => setSuccessMessage(null), 3500)
-        } else {
-            setErrorMessage(result.message)
+        const success = await triggerSaveNow()
+        if (success) {
+            setSuccessMessage('Perubahan berhasil disimpan.')
+            setTimeout(() => setSuccessMessage(null), 3000)
+        } else if (autosaveErrorMessage) {
+            setErrorMessage(autosaveErrorMessage)
         }
     }
 
@@ -175,18 +240,6 @@ export const NoteDetailPage = () => {
             </div>
         )
     }
-
-    const isMeeting = note.type === 'meeting'
-    const matchedClient =
-        isMeeting && note.meeting_scope === 'client' && note.client_id
-            ? clients.find((c) => c.id === note.client_id)
-            : null
-
-    const clientDisplayLabel = matchedClient
-        ? `${matchedClient.company_name || matchedClient.customer_name} (${matchedClient.customer_code})`
-        : note.client_id
-        ? `Klien #${note.client_id}`
-        : '-'
 
     const matchedAuthor = karyawanList.find(
         (k) => k.code_employee.toLowerCase() === note.author_employee_code.toLowerCase(),
@@ -223,6 +276,16 @@ export const NoteDetailPage = () => {
                     </Link>
 
                     <div className="d-flex align-items-center gap-2">
+                        {/* Autosave Status Indicator */}
+                        {canEdit && (
+                            <NoteSaveStatus
+                                state={saveState}
+                                lastSavedAt={lastSavedAt}
+                                errorMessage={autosaveErrorMessage}
+                                onRetry={() => void triggerSaveNow()}
+                            />
+                        )}
+
                         {/* Share Button (Author only) */}
                         {isAuthor && (
                             <button
@@ -240,10 +303,10 @@ export const NoteDetailPage = () => {
                             <button
                                 type="button"
                                 className="notes-primary-button"
-                                onClick={() => void handleSave()}
-                                disabled={isSaving}
+                                onClick={() => void handleManualSave()}
+                                disabled={saveState === 'saving'}
                             >
-                                {isSaving ? (
+                                {saveState === 'saving' ? (
                                     <>
                                         <span className="spinner-border spinner-border-sm" />
                                         <span>Menyimpan...</span>
@@ -251,7 +314,7 @@ export const NoteDetailPage = () => {
                                 ) : (
                                     <>
                                         <i className="bi bi-check2" />
-                                        <span>Simpan Perubahan</span>
+                                        <span>Simpan Sekarang</span>
                                     </>
                                 )}
                             </button>
@@ -301,7 +364,7 @@ export const NoteDetailPage = () => {
                                 type="text"
                                 className="form-control fw-semibold"
                                 value={title}
-                                onChange={(e) => setTitle(e.target.value)}
+                                onChange={handleTitleChange}
                                 placeholder="Judul Catatan..."
                             />
                         ) : (
@@ -311,27 +374,14 @@ export const NoteDetailPage = () => {
 
                     {/* Meta info pills */}
                     <div className="d-flex flex-wrap align-items-center gap-2 pt-2 border-top">
-                        <span
-                            className={`notes-tag ${
-                                isMeeting ? 'tag-meeting' : 'tag-standard'
-                            }`}
-                        >
-                            {isMeeting ? '👥 Notulen Rapat' : '📝 Catatan Standar'}
+                        <span className="notes-tag tag-standard">
+                            📝 Catatan Standar
                         </span>
 
                         <span className="notes-tag tag-standard">
                             <i className="bi bi-person me-1" />
                             {authorDisplayLabel}
                         </span>
-
-                        {isMeeting && (
-                            <span className="notes-tag tag-primary">
-                                <i className="bi bi-building me-1" />
-                                {note.meeting_scope === 'client'
-                                    ? clientDisplayLabel
-                                    : 'Internal ALS (Umum)'}
-                            </span>
-                        )}
 
                         <span
                             className={`notes-tag ${
@@ -353,12 +403,12 @@ export const NoteDetailPage = () => {
                         </span>
                     </div>
 
-                    {/* Shares / Attendees Pill List */}
+                    {/* Shares / Members Pill List */}
                     {note.shares && note.shares.length > 0 && (
                         <div className="pt-3 mt-3 border-top">
                             <div className="small fw-semibold text-dark mb-2">
                                 <i className="bi bi-people me-1 text-muted" />
-                                {isMeeting ? 'Peserta Rapat Hadir' : 'Akses Anggota'} ({note.shares.length})
+                                Akses Anggota ({note.shares.length})
                             </div>
                             <div className="d-flex flex-wrap gap-1 align-items-center">
                                 {note.shares.map((share) => {
@@ -387,14 +437,6 @@ export const NoteDetailPage = () => {
                                                     ({share.employee_code})
                                                 </span>
                                             )}
-                                            {share.is_attendance && (
-                                                <span
-                                                    className="badge bg-danger-subtle text-danger"
-                                                    style={{ fontSize: '10px', padding: '1px 5px' }}
-                                                >
-                                                    Hadir
-                                                </span>
-                                            )}
                                             <span
                                                 className="text-muted"
                                                 style={{ fontSize: '10px' }}
@@ -413,7 +455,7 @@ export const NoteDetailPage = () => {
                 <div className="pt-3 border-top mt-4">
                     <div className="d-flex align-items-center justify-content-between mb-2">
                         <label className="form-label fw-semibold text-dark mb-0">
-                            Isi {isMeeting ? 'Notulen Rapat' : 'Catatan'}
+                            Isi Catatan
                         </label>
                         {canEdit && (
                             <span className="text-muted small">
@@ -426,7 +468,7 @@ export const NoteDetailPage = () => {
                         readOnly={!canEdit}
                         placeholder="Ketik '/' untuk perintah atau mulai menulis..."
                         instanceRef={editorInstanceRef}
-                        onChange={setEditorContent}
+                        onChange={handleContentChange}
                     />
                 </div>
             </div>

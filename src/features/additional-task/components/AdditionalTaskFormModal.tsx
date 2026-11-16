@@ -12,17 +12,20 @@ import { useMarketingClients } from '@/features/additional-task/hooks/useMarketi
 import ClientSelect from '@/features/additional-task/components/ClientSelect'
 import JobSelect from '@/features/additional-task/components/JobSelect'
 
-import type {
-    AdditionalTask,
-    AdditionalTaskApiResult,
-    AdditionalTaskStatus,
-    CreateAdditionalTaskRequest,
-    UpdateAdditionalTaskRequest,
+import {
+    PRIORITY_OPTIONS,
+    type AdditionalTask,
+    type AdditionalTaskApiResult,
+    type AdditionalTaskStatus,
+    type AdditionalTaskType,
+    type CreateAdditionalTaskRequest,
+    type UpdateAdditionalTaskRequest,
 } from '@/features/additional-task/types/additional-task.types'
 
 interface AdditionalTaskFormModalProps {
     isOpen: boolean
     task: AdditionalTask | null
+    defaultType?: AdditionalTaskType
 
     onClose: () => void
 
@@ -50,6 +53,7 @@ interface AdditionalTaskDetailFormData {
 interface AdditionalTaskFormData {
     client_code: string
     job_id: number | ''
+    priority: number
     details: AdditionalTaskDetailFormData[]
 }
 
@@ -66,12 +70,14 @@ const statusOptions: Array<{
 const createInitialForm = (): AdditionalTaskFormData => ({
     client_code: '',
     job_id: '',
+    priority: 3,
     details: [],
 })
 
 const AdditionalTaskFormModal = ({
                                      isOpen,
                                      task,
+                                     defaultType = 'tambahan',
                                      onClose,
                                      onCreate,
                                      onUpdate,
@@ -144,6 +150,7 @@ const AdditionalTaskFormModal = ({
             setFormData({
                 client_code: task.client_code,
                 job_id: task.job.id,
+                priority: task.priority ?? 3,
                 details: task.details.map((detail) => ({
                     parent_id: detail.parent_id,
                     tasks: detail.tasks.map((item) => ({
@@ -427,6 +434,9 @@ const AdditionalTaskFormModal = ({
         const commonPayload = {
             client_code: formData.client_code.trim(),
             job_id: formData.job_id,
+            als_spk_id: task?.als_spk_id ?? 0,
+            type: task?.type ?? defaultType,
+            priority: formData.priority,
         }
 
         const result =
@@ -479,8 +489,8 @@ const AdditionalTaskFormModal = ({
                 <div className="additional-task-modal-header">
                     <h2>
                         {task === null
-                            ? 'Tambah Task'
-                            : 'Edit Task'}
+                            ? (defaultType === 'custom' ? 'Tambah Custom Pekerjaan' : 'Tambah Pekerjaan Tambahan')
+                            : (defaultType === 'custom' ? 'Edit Custom Pekerjaan' : 'Edit Pekerjaan Tambahan')}
                     </h2>
 
                     <button
@@ -503,8 +513,16 @@ const AdditionalTaskFormModal = ({
                             </div>
                         )}
 
+                        {task?.spk && (
+                            <div className="alert alert-info py-2 px-3 mb-3 d-flex align-items-center gap-2">
+                                <i className="bi bi-file-earmark-text" />
+                                <div>
+                                    <strong>SPK:</strong> {task.spk.no_spk} {task.spk.note ? `(${task.spk.note})` : ''}
+                                </div>
+                            </div>
+                        )}
                         <div className="row g-3 mb-4">
-                            <div className="col-md-5">
+                            <div className="col-md-4">
                                 <label className="form-label">
                                     Kode Client
                                 </label>
@@ -531,7 +549,7 @@ const AdditionalTaskFormModal = ({
                                 />
                             </div>
 
-                            <div className="col-md-7">
+                            <div className="col-md-5">
                                 <label
                                     htmlFor="job_id"
                                     className="form-label"
@@ -546,6 +564,38 @@ const AdditionalTaskFormModal = ({
                                     errorMessage={jobErrorMessage}
                                     onSelect={handleJobSelect}
                                 />
+                            </div>
+
+                            <div className="col-md-3">
+                                <label
+                                    htmlFor="modal_priority"
+                                    className="form-label"
+                                >
+                                    Prioritas
+                                </label>
+
+                                <select
+                                    id="modal_priority"
+                                    className="form-select"
+                                    value={formData.priority}
+                                    onChange={(event) =>
+                                        setFormData((previous) => ({
+                                            ...previous,
+                                            priority: Number(
+                                                event.target.value,
+                                            ),
+                                        }))
+                                    }
+                                >
+                                    {PRIORITY_OPTIONS.map((option) => (
+                                        <option
+                                            key={option.value}
+                                            value={option.value}
+                                        >
+                                            {option.label}
+                                        </option>
+                                    ))}
+                                </select>
                             </div>
                         </div>
 
@@ -673,8 +723,7 @@ const AdditionalTaskFormModal = ({
                                                             }
                                                         />
 
-                                                        {task !==
-                                                            null && (
+                                                        {task !== null && defaultType !== 'custom' && (
                                                             <select
                                                                 className="form-select additional-task-status-select"
                                                                 value={

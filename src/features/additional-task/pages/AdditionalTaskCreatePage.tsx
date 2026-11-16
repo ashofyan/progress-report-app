@@ -2,11 +2,17 @@ import {
     useCallback,
     useMemo,
     useState,
+    type ChangeEvent,
     type FormEvent,
 } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 
 import { additionalTaskApi } from '@/features/additional-task/api/additionalTaskApi'
+import {
+    PRIORITY_OPTIONS,
+    type AdditionalTaskSpkOption,
+    type AdditionalTaskType,
+} from '@/features/additional-task/types/additional-task.types'
 import ClientSelect from '@/features/additional-task/components/ClientSelect'
 import JobSelect from '@/features/additional-task/components/JobSelect'
 import { useMarketingClients } from '@/features/additional-task/hooks/useMarketingClients'
@@ -26,23 +32,57 @@ interface AdditionalTaskDetailFormData {
 
 interface AdditionalTaskCreateFormData {
     client_code: string
+    als_spk_id: number | ''
     job_id: number | ''
+    priority: number
     details: AdditionalTaskDetailFormData[]
+}
+
+interface AdditionalTaskCreatePageProps {
+    defaultType?: AdditionalTaskType
 }
 
 const createInitialForm = (): AdditionalTaskCreateFormData => ({
     client_code: '',
+    als_spk_id: '',
     job_id: '',
+    priority: 3,
     details: [],
 })
 
-const AdditionalTaskCreatePage = () => {
+const getSpkLabel = (spk: AdditionalTaskSpkOption): string => {
+    const description =
+        spk.note ??
+        spk.job?.description ??
+        spk.kode_product_jasa ??
+        'Tanpa deskripsi'
+
+    return `${spk.no_spk} - ${description}`
+}
+
+const AdditionalTaskCreatePage = ({ defaultType }: AdditionalTaskCreatePageProps) => {
     const navigate = useNavigate()
+    const location = useLocation()
+
+    const resolvedType: AdditionalTaskType =
+        defaultType ??
+        (location.pathname.includes('custom-pekerjaan')
+            ? 'custom'
+            : 'tambahan')
+
+    const isCustom = resolvedType === 'custom'
+    const backUrl = isCustom
+        ? '/master-data/custom-pekerjaan'
+        : '/pekerjaan-tambahan'
 
     const [formData, setFormData] =
         useState<AdditionalTaskCreateFormData>(
             createInitialForm(),
         )
+
+    const [spks, setSpks] = useState<AdditionalTaskSpkOption[]>([])
+    const [isLoadingSpks, setIsLoadingSpks] = useState<boolean>(false)
+    const [spkErrorMessage, setSpkErrorMessage] = useState<string | null>(null)
 
     const [isSubmitting, setIsSubmitting] =
         useState<boolean>(false)
@@ -63,17 +103,27 @@ const AdditionalTaskCreatePage = () => {
         searchClients,
     } = useMarketingClients()
 
-    const selectedJob = useMemo(() => {
-        if (formData.job_id === '') {
+    const selectedSpk = useMemo(() => {
+        if (formData.als_spk_id === '') {
             return null
         }
+        return spks.find((spk) => spk.id === formData.als_spk_id) ?? null
+    }, [spks, formData.als_spk_id])
 
-        return (
-            jobs.find(
-                (job) => job.id === formData.job_id,
-            ) ?? null
-        )
-    }, [jobs, formData.job_id])
+    const selectedJob = useMemo(() => {
+        if (formData.job_id !== '') {
+            const foundJob = jobs.find((job) => job.id === formData.job_id)
+            if (foundJob) {
+                return foundJob
+            }
+        }
+
+        if (selectedSpk && selectedSpk.job) {
+            return selectedSpk.job
+        }
+
+        return null
+    }, [jobs, formData.job_id, selectedSpk])
 
     const handleClientSearch = useCallback(
         (query: string): void => {
@@ -81,6 +131,80 @@ const AdditionalTaskCreatePage = () => {
         },
         [searchClients],
     )
+
+    const handleClientSelect = useCallback(
+        async (customerCode: string): Promise<void> => {
+            setFormData((previous) => ({
+                ...previous,
+                client_code: customerCode,
+                als_spk_id: '',
+                job_id: '',
+                details: [],
+            }))
+
+            if (!customerCode.trim()) {
+                setSpks([])
+                return
+            }
+
+            setIsLoadingSpks(true)
+            setSpkErrorMessage(null)
+
+            const result = await additionalTaskApi.getSpks(customerCode.trim())
+            setIsLoadingSpks(false)
+
+            if (result.success && result.data !== undefined) {
+                setSpks(result.data)
+            } else {
+                setSpks([])
+                setSpkErrorMessage(result.message || 'Gagal memuat SPK.')
+            }
+        },
+        [],
+    )
+
+    const handleSpkChange = (
+        event: ChangeEvent<HTMLSelectElement>,
+    ): void => {
+        const rawValue = event.target.value
+        if (rawValue === '') {
+            setFormData((previous) => ({
+                ...previous,
+                als_spk_id: '',
+                job_id: '',
+                details: [],
+            }))
+            return
+        }
+
+        const spkId = Number(rawValue)
+        const selectedSpk = spks.find((spk) => spk.id === spkId)
+
+        if (selectedSpk && selectedSpk.job) {
+            const matchedJob =
+                jobs.find(
+                    (j) =>
+                        j.id === selectedSpk.job?.id ||
+                        j.job_code === selectedSpk.job?.job_code,
+                ) ?? selectedSpk.job
+
+            setFormData((previous) => ({
+                ...previous,
+                als_spk_id: spkId,
+                job_id: matchedJob.id,
+                details: matchedJob.tasks.map((task) => ({
+                    parent_id: task.id,
+                    parent_task: task.task_name,
+                    tasks: [{ task_name: '' }],
+                })),
+            }))
+        } else {
+            setFormData((previous) => ({
+                ...previous,
+                als_spk_id: spkId,
+            }))
+        }
+    }
 
     const handleJobSelect = (
         job: typeof jobs[number],
@@ -195,14 +319,17 @@ const AdditionalTaskCreatePage = () => {
         setErrorMessage(null)
 
         if (formData.client_code.trim() === '') {
-            setErrorMessage('Kode client wajib diisi.')
+            setErrorMessage('Client wajib dipilih.')
+            return
+        }
 
+        if (formData.als_spk_id === '') {
+            setErrorMessage('SPK wajib dipilih.')
             return
         }
 
         if (formData.job_id === '') {
             setErrorMessage('Pekerjaan wajib dipilih.')
-
             return
         }
 
@@ -228,7 +355,6 @@ const AdditionalTaskCreatePage = () => {
             setErrorMessage(
                 'Minimal isi satu task tambahan pada salah satu parent.',
             )
-
             return
         }
 
@@ -238,7 +364,10 @@ const AdditionalTaskCreatePage = () => {
             await additionalTaskApi.create({
                 client_code:
                     formData.client_code.trim(),
-                job_id: formData.job_id,
+                als_spk_id: Number(formData.als_spk_id),
+                job_id: Number(formData.job_id),
+                type: resolvedType,
+                priority: formData.priority,
                 details,
             })
 
@@ -246,36 +375,29 @@ const AdditionalTaskCreatePage = () => {
 
         if (!result.success) {
             setErrorMessage(result.message)
-
             return
         }
 
-        navigate('/master-data/task')
+        navigate(backUrl)
     }
 
     return (
         <div className="additional-task-page">
             <div className="additional-task-heading">
                 <h1 className="additional-task-title">
-                    Tambah Task
+                    {isCustom
+                        ? 'Tambah Custom Pekerjaan'
+                        : 'Tambah Pekerjaan Tambahan'}
                 </h1>
 
-                <div className="additional-task-breadcrumb">
-                    <span className="active">
-                        Master Data
-                    </span>
-
-                    <span>/</span>
-
-                    <span>Task</span>
-
-                    <span>/</span>
-
-                    <span>Tambah</span>
-                </div>
+                <p className="additional-task-subtitle">
+                    {isCustom
+                        ? 'Buat custom pekerjaan baru yang berulang setiap periode.'
+                        : 'Buat pekerjaan tambahan baru untuk SPK tertentu.'}
+                </p>
             </div>
 
-            <section className="additional-task-form-page">
+            <section className="additional-task-card">
                 <form onSubmit={handleSubmit}>
                     {errorMessage !== null && (
                         <div
@@ -287,9 +409,9 @@ const AdditionalTaskCreatePage = () => {
                     )}
 
                     <div className="row g-3 mb-4">
-                        <div className="col-md-5">
+                        <div className="col-md-3">
                             <label className="form-label">
-                                Kode Client
+                                Client
                             </label>
 
                             <ClientSelect
@@ -303,18 +425,56 @@ const AdditionalTaskCreatePage = () => {
                                 }
                                 onSearch={handleClientSearch}
                                 onSelect={(client) => {
-                                    setFormData(
-                                        (previous) => ({
-                                            ...previous,
-                                            client_code:
-                                                client.customer_code,
-                                        }),
+                                    void handleClientSelect(
+                                        client.customer_code,
                                     )
                                 }}
                             />
                         </div>
 
-                        <div className="col-md-7">
+                        <div className="col-md-3">
+                            <label className="form-label">
+                                SPK
+                            </label>
+
+                            <select
+                                className="form-select"
+                                value={formData.als_spk_id}
+                                disabled={
+                                    formData.client_code.trim() === '' ||
+                                    isLoadingSpks ||
+                                    spks.length === 0
+                                }
+                                onChange={handleSpkChange}
+                            >
+                                <option value="">
+                                    {formData.client_code.trim() === ''
+                                        ? 'Pilih client terlebih dahulu'
+                                        : isLoadingSpks
+                                            ? 'Memuat SPK...'
+                                            : spks.length === 0
+                                                ? 'Tidak ada SPK untuk client ini'
+                                                : 'Pilih SPK'}
+                                </option>
+
+                                {spks.map((spk) => (
+                                    <option
+                                        key={spk.id}
+                                        value={spk.id}
+                                    >
+                                        {getSpkLabel(spk)}
+                                    </option>
+                                ))}
+                            </select>
+
+                            {spkErrorMessage !== null && (
+                                <div className="text-danger small mt-1">
+                                    {spkErrorMessage}
+                                </div>
+                            )}
+                        </div>
+
+                        <div className="col-md-3">
                             <label
                                 htmlFor="job_id"
                                 className="form-label"
@@ -322,13 +482,66 @@ const AdditionalTaskCreatePage = () => {
                                 Pekerjaan
                             </label>
 
-                            <JobSelect
-                                jobs={jobs}
-                                selectedId={formData.job_id}
-                                isLoading={isLoadingJobs}
-                                errorMessage={jobErrorMessage}
-                                onSelect={handleJobSelect}
-                            />
+                            {selectedJob ? (
+                                <input
+                                    type="text"
+                                    id="job_id"
+                                    className="form-control bg-light"
+                                    readOnly
+                                    value={`${selectedJob.job_code} - ${selectedJob.description}`}
+                                    title={`${selectedJob.job_code} - ${selectedJob.description}`}
+                                />
+                            ) : formData.als_spk_id !== '' && !selectedSpk?.job ? (
+                                <JobSelect
+                                    jobs={jobs}
+                                    selectedId={formData.job_id}
+                                    isLoading={isLoadingJobs}
+                                    errorMessage={jobErrorMessage}
+                                    onSelect={handleJobSelect}
+                                />
+                            ) : (
+                                <input
+                                    type="text"
+                                    id="job_id"
+                                    className="form-control bg-light"
+                                    readOnly
+                                    disabled
+                                    placeholder="Otomatis mengikuti SPK"
+                                    value=""
+                                />
+                            )}
+                        </div>
+
+                        <div className="col-md-3">
+                            <label
+                                htmlFor="priority"
+                                className="form-label"
+                            >
+                                Prioritas
+                            </label>
+
+                            <select
+                                id="priority"
+                                className="form-select"
+                                value={formData.priority}
+                                onChange={(event) =>
+                                    setFormData((previous) => ({
+                                        ...previous,
+                                        priority: Number(
+                                            event.target.value,
+                                        ),
+                                    }))
+                                }
+                            >
+                                {PRIORITY_OPTIONS.map((option) => (
+                                    <option
+                                        key={option.value}
+                                        value={option.value}
+                                    >
+                                        {option.label}
+                                    </option>
+                                ))}
+                            </select>
                         </div>
                     </div>
 
@@ -339,7 +552,7 @@ const AdditionalTaskCreatePage = () => {
 
                         {selectedJob === null && (
                             <div className="additional-task-detail-empty">
-                                Pilih pekerjaan terlebih dahulu.
+                                Pilih SPK terlebih dahulu untuk memuat parent task pekerjaan.
                             </div>
                         )}
 
@@ -435,7 +648,7 @@ const AdditionalTaskCreatePage = () => {
                             className="btn btn-light"
                             disabled={isSubmitting}
                             onClick={() =>
-                                navigate('/master-data/task')
+                                navigate(backUrl)
                             }
                         >
                             Batal
