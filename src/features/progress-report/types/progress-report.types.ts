@@ -47,6 +47,17 @@ export interface ProgressReportTask {
     parent: ProgressReportTaskParent | null
 }
 
+export interface ProgressReportDailyProgressTemuanSummary {
+    id: number
+    nomor: string
+    type?: string
+    priority?: number
+    status?: string
+    dp_status?: string
+    alasan_pending?: string | null
+    solusi?: string | null
+}
+
 export interface ProgressReportDailyProgress {
     id: number
     nomor: string
@@ -56,6 +67,42 @@ export interface ProgressReportDailyProgress {
     no_spk: string | null
     bulan?: number | null
     tahun?: number | null
+    total_task?: number
+    total_temuan?: number
+    temuans?: ProgressReportDailyProgressTemuanSummary[]
+}
+
+export interface ProgressReportFormTemuanFollowup {
+    daily_progress_id?: number
+    daily_progress_nomor?: string
+    status: 'pending' | 'selesai'
+    alasan_pending?: string | null
+    solusi?: string | null
+}
+
+export interface ProgressReportFormTemuanNote {
+    id: number
+    source_type?: string
+    task_category?: string
+    task?: {
+        id: number
+        task_name: string
+        category?: string
+    } | null
+    note: string
+}
+
+export interface ProgressReportFormTemuan {
+    id: number
+    nomor: string
+    type?: string
+    priority?: number
+    status: string
+    no_pr?: string | null
+    tanggal?: string
+    dp_followup?: ProgressReportFormTemuanFollowup | null
+    notes?: ProgressReportFormTemuanNote[]
+    files?: unknown[]
 }
 
 export interface ProgressReportNote {
@@ -122,6 +169,7 @@ export interface ProgressReportFormData {
     spk: ProgressReportSpk
     daily_progress: ProgressReportDailyProgress[]
     tasks: ProgressReportFormTask[]
+    temuans?: ProgressReportFormTemuan[]
     finding_sources: ProgressReportFindingSources
 }
 
@@ -192,6 +240,7 @@ export interface ProgressReport {
     rejection_note?: string | null
     details: ProgressReportDetail[]
     findings: ProgressReportFinding[]
+    dp_temuans?: ProgressReportFormTemuan[]
     created_at: string
     updated_at: string
 }

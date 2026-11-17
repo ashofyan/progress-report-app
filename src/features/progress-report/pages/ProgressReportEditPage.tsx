@@ -22,17 +22,27 @@ import type {
     ProgressReportDocument,
     ProgressReportFormData,
     ProgressReportFormTask,
+    ProgressReportFormTemuan,
     ProgressReportHistory,
     ProgressReportSourceType,
     ProgressReportStatus,
 } from '@/features/progress-report/types/progress-report.types'
 
+import { TEMUAN_PRIORITY_OPTIONS } from '@/features/temuan/types/temuan.types'
+
 import '@/features/additional-task/styles/additional-task.scss'
 import '@/features/progress-report/styles/progress-report.scss'
+import '@/features/temuan/styles/temuan.scss'
 
 interface NoteForm {
     catatan: string
     document: File | null
+}
+
+interface FindingNoteForm extends NoteForm {
+    id?: number
+    priority: number
+    existingDocuments?: ProgressReportDocument[]
 }
 
 interface GeneralNoteForm extends NoteForm {
@@ -46,14 +56,11 @@ interface SelectedDetail {
 }
 
 interface FindingForm {
-    id?: number
     source_type: ProgressReportSourceType
     als_job_task_id?: number
     als_task_additional_detail_id?: number
     task_name: string
-    priority?: number
-    notes: NoteForm[]
-    existingDocuments?: ProgressReportDocument[]
+    notes: FindingNoteForm[]
 }
 
 type EditStep = 'details' | 'findings' | 'info'
@@ -85,8 +92,9 @@ const statusLabels: Record<string, string> = {
 const documentAccept =
     '.jpg,.jpeg,.png,.webp,.pdf,.xls,.xlsx,.doc,.docx'
 
-const emptyNote = (): NoteForm => ({
+const emptyFindingNote = (): FindingNoteForm => ({
     catatan: '',
+    priority: 3,
     document: null,
 })
 
@@ -238,12 +246,6 @@ const getFilesFromEvent = (
     event: ChangeEvent<HTMLInputElement>,
 ): File | null => {
     return event.target.files?.[0] ?? null
-}
-
-const hasFilledNote = (notes: NoteForm[]): boolean => {
-    return notes.some(
-        (note) => note.catatan.trim() !== '',
-    )
 }
 
 const ProgressReportEditPage = () => {
@@ -501,56 +503,49 @@ const ProgressReportEditPage = () => {
 
                     // Master task sources
                     result.data.finding_sources.master.forEach((task) => {
-                        const existing = currentReport.findings.find(
+                        const existingList = (currentReport.findings ?? []).filter(
                             (f) =>
                                 f.source_type === 'master' &&
                                 f.master_task?.id === task.id,
                         )
 
                         mappedFindings.push({
-                            id: existing?.id,
                             source_type: 'master',
                             als_job_task_id: task.id,
                             task_name: task.task_name,
-                            priority: existing?.priority ?? 3,
-                            notes: existing?.keterangan
-                                ? [
-                                      {
-                                          catatan: existing.keterangan,
-                                          document: null,
-                                      },
-                                  ]
-                                : [emptyNote()],
-                            existingDocuments: existing?.documents,
+                            notes: existingList.map((f) => ({
+                                id: f.id,
+                                catatan: f.keterangan,
+                                priority: f.priority ?? 3,
+                                document: null,
+                                existingDocuments: f.documents ?? [],
+                            })),
                         })
                     })
 
                     // Additional task sources
                     result.data.finding_sources.additional_tasks.forEach(
                         (task) => {
-                            const existing = currentReport.findings.find(
+                            const existingList = (currentReport.findings ?? []).filter(
                                 (f) =>
                                     f.source_type === 'additional' &&
                                     f.additional_task?.id === task.id,
                             )
 
                             mappedFindings.push({
-                                id: existing?.id,
                                 source_type: 'additional',
                                 als_task_additional_detail_id: task.id,
                                 task_name: task.task_name,
-                                priority: existing?.priority ?? 3,
-                                notes: existing?.keterangan
-                                    ? [
-                                          {
-                                              catatan: existing.keterangan,
-                                              document: null,
-                                          },
-                                      ]
-                                    : [emptyNote()],
-                            existingDocuments: existing?.documents,
-                        })
-                    })
+                                notes: existingList.map((f) => ({
+                                    id: f.id,
+                                    catatan: f.keterangan,
+                                    priority: f.priority ?? 3,
+                                    document: null,
+                                    existingDocuments: f.documents ?? [],
+                                })),
+                            })
+                        },
+                    )
 
                     setFindings(mappedFindings)
                 } else if (!initialPopulatedRef.current) {
@@ -560,7 +555,7 @@ const ProgressReportEditPage = () => {
                                 source_type: 'master',
                                 als_job_task_id: task.id,
                                 task_name: task.task_name,
-                                notes: [emptyNote()],
+                                notes: [],
                             }),
                         ),
                         ...result.data.finding_sources.additional_tasks.map(
@@ -568,7 +563,7 @@ const ProgressReportEditPage = () => {
                                 source_type: 'additional',
                                 als_task_additional_detail_id: task.id,
                                 task_name: task.task_name,
-                                notes: [emptyNote()],
+                                notes: [],
                             }),
                         ),
                     ])
@@ -632,109 +627,55 @@ const ProgressReportEditPage = () => {
         [searchClients],
     )
 
-    const handleToggleDetail = (task: ProgressReportFormTask): void => {
-        const key = task.daily_progress_detail_id
-        const currentState = detailState[key]
-        if (!currentState) return
-
-        if (isTaskLockedByProgressReport(task, currentReportDetailIds)) {
-            return
-        }
-
-        setDetailState((previous) => ({
-            ...previous,
-            [key]: {
-                ...currentState,
-                isSelected: !currentState.isSelected,
-            },
-        }))
-    }
-
-    const handleSelectAll = (select: boolean): void => {
-        if (formData === null) {
-            return
-        }
-
-        setDetailState((previous) => {
-            const next = { ...previous }
-            formData.tasks.forEach((task) => {
-                if (
-                    !isTaskLockedByProgressReport(
-                        task,
-                        currentReportDetailIds,
-                    )
-                ) {
-                    const current =
-                        next[task.daily_progress_detail_id] ?? {
-                            isSelected: false,
-                            status: 'selesai',
-                        }
-                    next[task.daily_progress_detail_id] = {
-                        ...current,
-                        isSelected: select,
-                    }
-                }
-            })
-            return next
-        })
-    }
-
-    const addFindingNote = (findingIndex: number): void => {
+    const addFindingNote = (findingKey: string): void => {
         setFindings((previous) =>
-            previous.map((finding, idx) =>
-                idx === findingIndex
-                    ? {
+            previous.map((finding) =>
+                getFindingKey(finding) !== findingKey
+                    ? finding
+                    : {
                           ...finding,
-                          notes: [...finding.notes, emptyNote()],
-                      }
-                    : finding,
+                          notes: [...finding.notes, emptyFindingNote()],
+                      },
             ),
         )
     }
 
     const removeFindingNote = (
-        findingIndex: number,
+        findingKey: string,
         noteIndex: number,
     ): void => {
         setFindings((previous) =>
-            previous.map((finding, idx) => {
-                if (idx !== findingIndex) return finding
-
-                if (finding.notes.length === 1) {
-                    return {
-                        ...finding,
-                        notes: [emptyNote()],
-                    }
-                }
-
-                return {
-                    ...finding,
-                    notes: finding.notes.filter(
-                        (_, noteIdx) => noteIdx !== noteIndex,
-                    ),
-                }
-            }),
+            previous.map((finding) =>
+                getFindingKey(finding) !== findingKey
+                    ? finding
+                    : {
+                          ...finding,
+                          notes: finding.notes.filter(
+                              (_, noteIdx) => noteIdx !== noteIndex,
+                          ),
+                      },
+            ),
         )
     }
 
     const updateFindingNote = (
-        findingIndex: number,
+        findingKey: string,
         noteIndex: number,
-        patch: Partial<NoteForm>,
+        patch: Partial<FindingNoteForm>,
     ): void => {
         setFindings((previous) =>
-            previous.map((finding, idx) => {
-                if (idx !== findingIndex) return finding
-
-                const nextNotes = finding.notes.map(
-                    (note, noteIdx) =>
-                        noteIdx === noteIndex
-                            ? { ...note, ...patch }
-                            : note,
-                )
-
-                return { ...finding, notes: nextNotes }
-            }),
+            previous.map((finding) =>
+                getFindingKey(finding) !== findingKey
+                    ? finding
+                    : {
+                          ...finding,
+                          notes: finding.notes.map((note, noteIdx) =>
+                              noteIdx === noteIndex
+                                  ? { ...note, ...patch }
+                                  : note,
+                          ),
+                      },
+            ),
         )
     }
 
@@ -768,8 +709,7 @@ const ProgressReportEditPage = () => {
     const getSelectedDetails = () => {
         if (!formData) return []
         return formData.tasks.filter((task) => {
-            const state = detailState[task.daily_progress_detail_id]
-            return state?.isSelected === true
+            return !isTaskLockedByProgressReport(task, currentReportDetailIds)
         })
     }
 
@@ -789,7 +729,7 @@ const ProgressReportEditPage = () => {
         const selected = getSelectedDetails()
         if (selected.length === 0) {
             setErrorMessage(
-                'Pilih minimal satu pekerjaan Daily Progress untuk dimasukkan ke Progress Report.',
+                'Tidak ada pekerjaan Daily Progress yang dapat dimasukkan ke Progress Report.',
             )
             return false
         }
@@ -797,6 +737,16 @@ const ProgressReportEditPage = () => {
     }
 
     const validateFindingsStep = (): boolean => {
+        for (const finding of findings) {
+            for (const note of finding.notes) {
+                if (note.document !== null && note.catatan.trim() === '') {
+                    setErrorMessage(
+                        'Temuan yang memiliki dokumen wajib memiliki catatan.',
+                    )
+                    return false
+                }
+            }
+        }
         return true
     }
 
@@ -858,36 +808,35 @@ const ProgressReportEditPage = () => {
 
         const selectedDetails = getSelectedDetails()
 
-        const submittedFindings = findings.filter((finding) =>
-            hasFilledNote(finding.notes),
-        )
+        const submittedEntries: Array<{
+            payload: EditProgressReportFindingRequest
+            document: File | null
+        }> = []
 
-        const payloadFindings: EditProgressReportFindingRequest[] =
-            submittedFindings.map((finding) => {
-                const keterangan = finding.notes
-                    .map((note) => note.catatan.trim())
-                    .filter((note) => note !== '')
-                    .join('\n')
-
-                if (finding.source_type === 'master') {
-                    return {
-                        id: finding.id,
-                        source_type: 'master',
-                        als_job_task_id: finding.als_job_task_id,
-                        keterangan,
-                        priority: finding.priority ?? 3,
-                    }
-                }
-
-                return {
-                    id: finding.id,
-                    source_type: 'additional',
-                    als_task_additional_detail_id:
-                        finding.als_task_additional_detail_id,
-                    keterangan,
-                    priority: finding.priority ?? 3,
+        findings.forEach((finding) => {
+            finding.notes.forEach((note) => {
+                const text = note.catatan.trim()
+                if (text !== '') {
+                    submittedEntries.push({
+                        payload: {
+                            id: note.id,
+                            source_type: finding.source_type,
+                            ...(finding.source_type === 'master'
+                                ? { als_job_task_id: finding.als_job_task_id }
+                                : {
+                                      als_task_additional_detail_id:
+                                          finding.als_task_additional_detail_id,
+                                  }),
+                            keterangan: text,
+                            priority: note.priority ?? 3,
+                        },
+                        document: note.document,
+                    })
                 }
             })
+        })
+
+        const payloadFindings = submittedEntries.map((entry) => entry.payload)
 
         const payloadNotes = generalNotes
             .filter((note) => note.catatan.trim() !== '')
@@ -949,32 +898,34 @@ const ProgressReportEditPage = () => {
             }
 
             // Upload new finding documents
-            for (const finding of submittedFindings) {
-                const findingFiles = finding.notes
-                    .map((n) => n.document)
-                    .filter((file): file is File => file !== null)
-
-                if (findingFiles.length === 0) continue
+            for (let i = 0; i < submittedEntries.length; i++) {
+                const entry = submittedEntries[i]
+                if (entry.document === null) continue
 
                 const updatedFinding =
+                    (entry.payload.id !== undefined
+                        ? updatedReport.findings.find(
+                              (item) => item.id === entry.payload.id,
+                          )
+                        : null) ??
+                    updatedReport.findings[i] ??
                     updatedReport.findings.find((item) => {
-                        if (
-                            item.source_type !==
-                            finding.source_type
-                        ) {
+                        if (item.source_type !== entry.payload.source_type) {
                             return false
                         }
 
                         if (item.source_type === 'master') {
                             return (
                                 item.master_task?.id ===
-                                finding.als_job_task_id
+                                    entry.payload.als_job_task_id &&
+                                item.keterangan === entry.payload.keterangan
                             )
                         }
 
                         return (
                             item.additional_task?.id ===
-                            finding.als_task_additional_detail_id
+                                entry.payload.als_task_additional_detail_id &&
+                            item.keterangan === entry.payload.keterangan
                         )
                     })
 
@@ -982,7 +933,7 @@ const ProgressReportEditPage = () => {
                     await progressReportApi.uploadFindingDocuments(
                         updatedReport.id,
                         updatedFinding.id,
-                        findingFiles,
+                        [entry.document],
                     )
                 }
             }
@@ -1211,80 +1162,301 @@ const ProgressReportEditPage = () => {
         )
     }
 
-    const renderNoteRows = (
-        notes: NoteForm[],
-        options: {
-            placeholder: string
-            onAdd: () => void
-            onRemove: (index: number) => void
-            onNoteChange: (index: number, value: string) => void
-            onDocumentChange: (
-                index: number,
-                file: File | null,
-            ) => void
-        },
-    ) => (
-        <div className="progress-report-note-list">
-            {notes.map((note, noteIndex) => (
-                <div
-                    className="progress-report-note-row"
-                    key={noteIndex}
-                >
-                    <textarea
-                        className="form-control"
-                        rows={2}
-                        value={note.catatan}
-                        placeholder={options.placeholder}
-                        onChange={(event) =>
-                            options.onNoteChange(
-                                noteIndex,
-                                event.target.value,
-                            )
-                        }
-                    />
+    const renderFindingTaskRow = (finding: FindingForm) => {
+        const key = getFindingKey(finding)
 
-                    <label className="progress-report-document-input">
-                        <i className="bi bi-paperclip" />
-                        <span>
-                            {note.document === null
-                                ? 'Dokumen'
-                                : note.document.name}
-                        </span>
-                        <input
-                            type="file"
-                            accept={documentAccept}
-                            onChange={(event) =>
-                                options.onDocumentChange(
-                                    noteIndex,
-                                    getFilesFromEvent(event),
-                                )
-                            }
-                        />
-                    </label>
-
+        return (
+            <div className="temuan-task-row" key={key}>
+                <div className="temuan-task-header">
+                    <span className="temuan-task-name">{finding.task_name}</span>
                     <button
                         type="button"
-                        className="btn btn-outline-danger"
-                        onClick={() =>
-                            options.onRemove(noteIndex)
-                        }
-                        title="Hapus catatan"
+                        className="temuan-task-add-btn"
+                        onClick={() => addFindingNote(key)}
                     >
-                        <i className="bi bi-trash" />
+                        <i className="bi bi-plus-circle" />
+                        <span>Tambah Temuan</span>
                     </button>
                 </div>
-            ))}
 
-            <button
-                type="button"
-                className="btn btn-outline-primary btn-sm"
-                onClick={options.onAdd}
-            >
-                <i className="bi bi-plus-lg me-1" />
-                Tambah Catatan
-            </button>
-        </div>
-    )
+                {finding.notes.map((note, noteIndex) => (
+                    <div className="temuan-task-note-box" key={noteIndex}>
+                        <div className="temuan-task-note-top">
+                            <div className="temuan-task-note-priority-picker">
+                                <label className="priority-picker-label">
+                                    Prioritas:
+                                </label>
+                                <select
+                                    className="form-select form-select-sm"
+                                    value={note.priority}
+                                    onChange={(e) =>
+                                        updateFindingNote(key, noteIndex, {
+                                            priority: Number(e.target.value),
+                                        })
+                                    }
+                                    style={{
+                                        width: 'auto',
+                                        minWidth: '160px',
+                                    }}
+                                >
+                                    {TEMUAN_PRIORITY_OPTIONS.map((opt) => (
+                                        <option
+                                            key={opt.value}
+                                            value={opt.value}
+                                        >
+                                            {opt.label}
+                                        </option>
+                                    ))}
+                                </select>
+                                <span
+                                    className={`temuan-priority-badge p${note.priority}`}
+                                >
+                                    P{note.priority}
+                                </span>
+                            </div>
+
+                            <div className="d-flex align-items-center gap-2">
+                                <label
+                                    className="progress-report-document-input mb-0"
+                                    style={{
+                                        height: '28px',
+                                        padding: '0 10px',
+                                        fontSize: '11.5px',
+                                    }}
+                                >
+                                    <i className="bi bi-paperclip" />
+                                    <span>
+                                        {note.document === null
+                                            ? 'Lampiran'
+                                            : note.document.name}
+                                    </span>
+                                    <input
+                                        type="file"
+                                        accept={documentAccept}
+                                        onChange={(e) =>
+                                            updateFindingNote(key, noteIndex, {
+                                                document:
+                                                    getFilesFromEvent(e),
+                                            })
+                                        }
+                                    />
+                                </label>
+
+                                {note.document !== null && (
+                                    <button
+                                        type="button"
+                                        className="btn btn-sm btn-outline-secondary p-0 px-1"
+                                        style={{ height: '28px' }}
+                                        title="Hapus Lampiran"
+                                        onClick={() =>
+                                            updateFindingNote(key, noteIndex, {
+                                                document: null,
+                                            })
+                                        }
+                                    >
+                                        <i className="bi bi-x" />
+                                    </button>
+                                )}
+
+                                <button
+                                    type="button"
+                                    className="temuan-task-note-delete-btn"
+                                    onClick={() =>
+                                        removeFindingNote(key, noteIndex)
+                                    }
+                                    title="Hapus Catatan"
+                                >
+                                    <i className="bi bi-trash" />
+                                    <span>Hapus</span>
+                                </button>
+                            </div>
+                        </div>
+
+                        {note.existingDocuments &&
+                            note.existingDocuments.length > 0 && (
+                                <div className="mt-1">
+                                    <span
+                                        className="text-muted"
+                                        style={{ fontSize: '11px' }}
+                                    >
+                                        Dokumen Lampiran Sebelumnya:
+                                    </span>
+                                    {renderHistoryDocuments(
+                                        note.existingDocuments,
+                                    )}
+                                </div>
+                            )}
+
+                        <div className="temuan-task-note-main flex-column w-100">
+                            <textarea
+                                className="temuan-task-note-textarea w-100"
+                                placeholder="Tulis catatan temuan pada pekerjaan ini..."
+                                rows={2}
+                                value={note.catatan}
+                                onChange={(e) =>
+                                    updateFindingNote(key, noteIndex, {
+                                        catatan: e.target.value,
+                                    })
+                                }
+                            />
+                            {note.document !== null && (
+                                <div
+                                    className="mt-1 d-inline-flex align-items-center gap-1 text-primary small bg-light px-2 py-1 rounded border"
+                                    style={{ fontSize: '11px' }}
+                                >
+                                    <i className="bi bi-file-earmark-check" />
+                                    <span
+                                        className="text-truncate"
+                                        style={{ maxWidth: '280px' }}
+                                    >
+                                        {note.document.name}
+                                    </span>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                ))}
+            </div>
+        )
+    }
+
+    const renderTemuansFromDailyProgress = (
+        temuans?: ProgressReportFormTemuan[],
+        isStep2: boolean = false,
+    ) => {
+        if (!temuans || temuans.length === 0) {
+            return null
+        }
+
+        return (
+            <div className={isStep2 ? 'mb-4' : 'mt-4 pt-3 border-top'}>
+                <div className="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-3">
+                    <div>
+                        <h2 className="progress-report-section-title mb-1">
+                            {isStep2
+                                ? 'Temuan Rujukan dari Daily Progress'
+                                : 'Penyelesaian Temuan (Daily Progress)'}
+                        </h2>
+                        <span className="text-muted" style={{ fontSize: '12px' }}>
+                            {isStep2
+                                ? `Daftar temuan yang ditindaklanjuti pada Daily Progress terkait (${temuans.length} temuan).`
+                                : `Daftar temuan yang ditindaklanjuti atau diselesaikan pada Daily Progress ini (${temuans.length} temuan).`}
+                        </span>
+                    </div>
+                </div>
+
+                <div className="d-flex flex-column gap-3">
+                    {temuans.map((temuan) => {
+                        const taskParentName =
+                            temuan.notes?.[0]?.task?.category ||
+                            temuan.notes?.[0]?.task?.task_name ||
+                            'Temuan'
+
+                        return (
+                            <div
+                                className="progress-report-task-card"
+                                key={temuan.id}
+                            >
+                                <div className="progress-report-task-main">
+                                    <div className="progress-report-task-title flex-grow-1">
+                                        <div className="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-1">
+                                            <strong>
+                                                {taskParentName !== 'Temuan' ? `${taskParentName} / ` : ''}
+                                                {temuan.nomor}
+                                                {temuan.type ? ` (${temuan.type})` : ''}
+                                            </strong>
+                                            {temuan.dp_followup ? (
+                                                <span
+                                                    className={`badge ${
+                                                        temuan.dp_followup.status === 'selesai'
+                                                            ? 'bg-success-subtle text-success border border-success-subtle'
+                                                            : 'bg-warning-subtle text-warning-emphasis border border-warning-subtle'
+                                                    }`}
+                                                >
+                                                    Status DP:{' '}
+                                                    {statusLabels[temuan.dp_followup.status] ??
+                                                        temuan.dp_followup.status.toUpperCase()}
+                                                </span>
+                                            ) : (
+                                                <span className="badge bg-secondary-subtle text-secondary border">
+                                                    Status: {temuan.status}
+                                                </span>
+                                            )}
+                                        </div>
+                                        <div
+                                            className="d-flex align-items-center gap-2 flex-wrap text-muted"
+                                            style={{ fontSize: '11.5px' }}
+                                        >
+                                            {temuan.dp_followup && (
+                                                <span>
+                                                    Daily Progress #{' '}
+                                                    {temuan.dp_followup.daily_progress_nomor ??
+                                                        temuan.dp_followup.daily_progress_id}
+                                                </span>
+                                            )}
+                                            {temuan.priority !== undefined && (
+                                                <>
+                                                    <span>&bull;</span>
+                                                    <span>Prioritas {temuan.priority}</span>
+                                                </>
+                                            )}
+                                            {temuan.no_pr && (
+                                                <>
+                                                    <span>&bull;</span>
+                                                    <span>PR Rujukan: {temuan.no_pr}</span>
+                                                </>
+                                            )}
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Uraian Masalah Temuan */}
+                                {temuan.notes && temuan.notes.length > 0 && (
+                                    <div className="progress-report-completion-note">
+                                        <div className="progress-report-completion-note-title">
+                                            <i className="bi bi-card-text" />
+                                            <span>Uraian Temuan:</span>
+                                        </div>
+                                        <div className="progress-report-completion-note-content">
+                                            {temuan.notes.map((n) => (
+                                                <div key={n.id} className="mb-1">
+                                                    {n.task?.task_name && n.task.task_name !== taskParentName && (
+                                                        <span className="fw-semibold text-secondary me-1">
+                                                            [{n.task.task_name}]:
+                                                        </span>
+                                                    )}
+                                                    <span>{n.note}</span>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* Solusi atau Alasan Pending dari Daily Progress */}
+                                {temuan.dp_followup && (
+                                    <div className="progress-report-completion-note">
+                                        <div className="progress-report-completion-note-title">
+                                            <i className="bi bi-chat-left-text" />
+                                            <span>
+                                                {temuan.dp_followup.status === 'selesai'
+                                                    ? 'Solusi Penyelesaian (Daily Progress):'
+                                                    : 'Alasan / Kendala Pending (Daily Progress):'}
+                                            </span>
+                                        </div>
+                                        <div className="progress-report-completion-note-content">
+                                            {temuan.dp_followup.status === 'selesai'
+                                                ? (temuan.dp_followup.solusi || 'Pekerjaan temuan telah diselesaikan.')
+                                                : (temuan.dp_followup.alasan_pending || 'Tindak lanjut temuan masih tertunda.')}
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        )
+                    })}
+                </div>
+            </div>
+        )
+    }
 
     const renderDetailsStep = () => {
         const availableTasks =
@@ -1296,57 +1468,23 @@ const ProgressReportEditPage = () => {
                     ),
             ) ?? []
 
-        const selectedCount =
-            formData?.tasks.filter((task) => {
-                if (
-                    isTaskLockedByProgressReport(
-                        task,
-                        currentReportDetailIds,
-                    )
-                ) {
-                    return false
-                }
-                const state = detailState[task.daily_progress_detail_id]
-                return state?.isSelected === true
-            }).length ?? 0
-
         return (
             <div className="progress-report-section">
                 <div className="d-flex align-items-center justify-content-between mb-3 flex-wrap gap-2">
                     <div>
                         <h2 className="progress-report-section-title mb-1">
-                            Pilih Pekerjaan Daily Progress
+                            Pekerjaan Daily Progress
                         </h2>
                         <span
                             className="text-muted"
                             style={{ fontSize: '12px' }}
                         >
-                            Checklist pekerjaan Daily Progress yang akan
-                            dimasukkan ke nomor Progress Report ini
+                            Daftar seluruh pekerjaan Daily Progress yang dimasukkan ke nomor Progress Report ini
                             {formData !== null &&
-                                ` (${selectedCount}/${availableTasks.length} dipilih)`}
+                                ` (${availableTasks.length} pekerjaan)`}
                             .
                         </span>
                     </div>
-
-                    {availableTasks.length > 0 && (
-                        <div className="d-flex gap-2">
-                            <button
-                                type="button"
-                                className="btn btn-outline-primary btn-sm"
-                                onClick={() => handleSelectAll(true)}
-                            >
-                                Pilih Semua
-                            </button>
-                            <button
-                                type="button"
-                                className="btn btn-outline-secondary btn-sm"
-                                onClick={() => handleSelectAll(false)}
-                            >
-                                Batal Pilih
-                            </button>
-                        </div>
-                    )}
                 </div>
 
                 {formData !== null &&
@@ -1406,47 +1544,39 @@ const ProgressReportEditPage = () => {
                         task,
                         currentReportDetailIds,
                     )
-                    const state =
-                        detailState[task.daily_progress_detail_id] ?? {
-                            isSelected: false,
-                            status: 'selesai',
-                        }
 
                     return (
                         <div
                             className={`progress-report-task-card ${
-                                !state.isSelected && !isLocked
-                                    ? 'opacity-75'
-                                    : ''
+                                isLocked ? 'opacity-75' : ''
                             }`}
                             key={task.daily_progress_detail_id}
                         >
                             <div className="progress-report-task-main">
-                                <input
-                                    type="checkbox"
-                                    className="form-check-input mt-2"
-                                    checked={
-                                        !isLocked &&
-                                        state.isSelected
-                                    }
-                                    disabled={isLocked}
-                                    title={
-                                        isLocked
-                                            ? 'Sudah dimasukkan ke Progress Report lain'
-                                            : undefined
-                                    }
-                                    onChange={() =>
-                                        handleToggleDetail(task)
-                                    }
-                                />
-
                                 <div className="progress-report-task-title flex-grow-1">
-                                    <strong>
-                                        {task.task?.parent
-                                            ?.task_name ?? 'Task'}
-                                        {' / '}
-                                        {task.task?.task_name ?? 'Task'}
-                                    </strong>
+                                    <div className="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-1">
+                                        <strong>
+                                            {task.task?.parent
+                                                ?.task_name ?? 'Task'}
+                                            {' / '}
+                                            {task.task?.task_name ?? 'Task'}
+                                        </strong>
+                                        <span
+                                            className={`badge ${
+                                                task.daily_progress_status ===
+                                                'selesai'
+                                                    ? 'bg-success-subtle text-success border border-success-subtle'
+                                                    : 'bg-warning-subtle text-warning-emphasis border border-warning-subtle'
+                                            }`}
+                                        >
+                                            Status DP:{' '}
+                                            {statusLabels[
+                                                task
+                                                    .daily_progress_status
+                                            ] ??
+                                                task.daily_progress_status}
+                                        </span>
+                                    </div>
                                     <div
                                         className="d-flex align-items-center gap-2 flex-wrap text-muted"
                                         style={{ fontSize: '11.5px' }}
@@ -1454,24 +1584,6 @@ const ProgressReportEditPage = () => {
                                         <span>
                                             Daily Progress #{' '}
                                             {task.daily_progress_id}
-                                        </span>
-                                        <span>&bull;</span>
-                                        <span className="d-inline-flex align-items-center gap-1">
-                                            Status DP:{' '}
-                                            <span
-                                                className={`badge ${
-                                                    task.daily_progress_status ===
-                                                    'selesai'
-                                                        ? 'bg-success-subtle text-success border border-success-subtle'
-                                                        : 'bg-warning-subtle text-warning-emphasis border border-warning-subtle'
-                                                }`}
-                                            >
-                                                {statusLabels[
-                                                    task
-                                                        .daily_progress_status
-                                                ] ??
-                                                    task.daily_progress_status}
-                                            </span>
                                         </span>
                                     </div>
 
@@ -1496,96 +1608,108 @@ const ProgressReportEditPage = () => {
                         </div>
                     )
                 })}
+
+                {/* Temuan dari Daily Progress */}
+                {renderTemuansFromDailyProgress(
+                    currentReport?.dp_temuans ?? formData?.temuans,
+                    false,
+                )}
             </div>
         )
     }
 
-    const renderFindingsStep = () => (
-        <div className="progress-report-section">
-            <div className="progress-report-finding-heading">
-                <h2 className="progress-report-section-title">
-                    Temuan
-                </h2>
-            </div>
+    const renderFindingsStep = () => {
+        const masterFindings = findings.filter(
+            (f) => f.source_type === 'master',
+        )
+        const additionalFindings = findings.filter(
+            (f) => f.source_type === 'additional',
+        )
 
-            {findings.length === 0 && (
-                <div className="progress-report-state">
-                    Tidak ada sumber temuan.
+        return (
+            <div className="progress-report-section">
+                <div className="progress-report-finding-heading mb-3">
+                    <h2 className="progress-report-section-title">
+                        Temuan
+                    </h2>
                 </div>
-            )}
 
-            {findings.map((finding, index) => (
-                <div
-                    className="progress-report-finding-card"
-                    key={getFindingKey(finding)}
-                >
-                    <div className="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-2">
-                        <div className="progress-report-finding-parent mb-0">
-                            <span>
-                                {finding.source_type === 'master'
-                                    ? 'Master Pekerjaan'
-                                    : 'Additional Task'}
-                            </span>
-                            <strong>{finding.task_name}</strong>
-                        </div>
-                        <div className="d-flex align-items-center gap-2">
-                            <label className="form-label mb-0 small text-secondary fw-semibold" style={{ fontSize: '11.5px' }}>
-                                Prioritas:
-                            </label>
-                            <select
-                                className="form-select form-select-sm"
-                                style={{ width: '150px', fontSize: '12px' }}
-                                value={finding.priority ?? 3}
-                                onChange={(e) =>
-                                    setFindings((prev) =>
-                                        prev.map((f, i) =>
-                                            i === index ? { ...f, priority: Number(e.target.value) } : f
-                                        )
-                                    )
-                                }
-                            >
-                                <option value={1}>1 - Rendah</option>
-                                <option value={2}>2 - Minor</option>
-                                <option value={3}>3 - Sedang (Default)</option>
-                                <option value={4}>4 - Tinggi</option>
-                                <option value={5}>5 - Kritis</option>
-                            </select>
-                        </div>
-                    </div>
+                {/* Temuan rujukan dari Daily Progress */}
+                {renderTemuansFromDailyProgress(
+                    currentReport?.dp_temuans ?? formData?.temuans,
+                    true,
+                )}
 
-                    {finding.existingDocuments &&
-                        finding.existingDocuments.length > 0 && (
-                            <div className="mb-2">
-                                <span
-                                    className="text-muted"
-                                    style={{ fontSize: '11.5px' }}
-                                >
-                                    Dokumen Temuan Terlampir Sebelumnya:
-                                </span>
-                                {renderHistoryDocuments(
-                                    finding.existingDocuments,
-                                )}
+                <div className="mb-3">
+                    <h3 className="h6 fw-bold text-dark mb-1">
+                        Input Temuan Baru Progress Report
+                    </h3>
+                    <span className="text-muted" style={{ fontSize: '12px' }}>
+                        Tambahkan atau sesuaikan temuan hasil pelaksanaan pekerjaan jika ada.
+                    </span>
+                </div>
+
+                {findings.length === 0 &&
+                    (!currentReport?.dp_temuans || currentReport.dp_temuans.length === 0) &&
+                    (!formData?.temuans || formData.temuans.length === 0) && (
+                        <div className="progress-report-state mb-4">
+                            Tidak ada sumber temuan.
+                        </div>
+                    )}
+
+                {findings.length > 0 && (
+                    <>
+                        <div className="temuan-task-section mb-4">
+                            <div className="daily-progress-panel-heading">
+                                <div className="daily-progress-panel-icon info">
+                                    <i className="bi bi-list-check" />
+                                </div>
+                                <div>
+                                    <h2>Master Task (Header Task Saja)</h2>
+                                    <p>
+                                        Pekerjaan utama SPK. Temuan hanya dikaitkan dengan Header / Parent Task utama SPK. Anda dapat mencatat lebih dari 1 temuan per task dengan prioritas masing-masing.
+                                    </p>
+                                </div>
+                            </div>
+
+                            {masterFindings.length === 0 ? (
+                                <div className="daily-progress-task-empty">
+                                    Tidak ada daftar pekerjaan utama untuk SPK ini.
+                                </div>
+                            ) : (
+                                <div className="temuan-task-group">
+                                    {masterFindings.map((finding) =>
+                                        renderFindingTaskRow(finding),
+                                    )}
+                                </div>
+                            )}
+                        </div>
+
+                        {additionalFindings.length > 0 && (
+                            <div className="temuan-task-section mb-4">
+                                <div className="daily-progress-panel-heading">
+                                    <div className="daily-progress-panel-icon warning">
+                                        <i className="bi bi-plus-square" />
+                                    </div>
+                                    <div>
+                                        <h2>Pekerjaan Tambahan (Additional Task)</h2>
+                                        <p>
+                                            Temuan pada pekerjaan tambahan SPK. Anda dapat mencatat temuan dengan prioritas masing-masing.
+                                        </p>
+                                    </div>
+                                </div>
+                                <div className="temuan-task-group">
+                                    {additionalFindings.map((finding) =>
+                                        renderFindingTaskRow(finding),
+                                    )}
+                                </div>
                             </div>
                         )}
-
-                    {renderNoteRows(finding.notes, {
-                        placeholder: 'Catatan temuan',
-                        onAdd: () => addFindingNote(index),
-                        onRemove: (noteIndex) =>
-                            removeFindingNote(index, noteIndex),
-                        onNoteChange: (noteIndex, value) =>
-                            updateFindingNote(index, noteIndex, {
-                                catatan: value,
-                            }),
-                        onDocumentChange: (noteIndex, file) =>
-                            updateFindingNote(index, noteIndex, {
-                                document: file,
-                            }),
-                    })}
-                </div>
-            ))}
-        </div>
-    )
+                    </>
+                )}
+            </div>
+        )
+    }
 
     const renderInfoStep = () => (
         <div className="progress-report-section">

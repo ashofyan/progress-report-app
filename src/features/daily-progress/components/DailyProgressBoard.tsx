@@ -5,7 +5,6 @@ import {
 import { useNavigate } from 'react-router-dom'
 
 import DailyProgressDeleteModal from '@/features/daily-progress/components/DailyProgressDeleteModal'
-import DailyProgressDetailModal from '@/features/daily-progress/components/DailyProgressDetailModal'
 import DailyProgressTable from '@/features/daily-progress/components/DailyProgressTable'
 import { useDailyProgresses } from '@/features/daily-progress/hooks/useDailyProgresses'
 import { getPeriodeLabel } from '@/features/daily-progress/utils/dailyProgressPeriod'
@@ -34,9 +33,6 @@ const DailyProgressBoard = () => {
         useState<number>(1)
 
     const [progressToDelete, setProgressToDelete] =
-        useState<DailyProgress | null>(null)
-
-    const [progressToView, setProgressToView] =
         useState<DailyProgress | null>(null)
 
     // Summary Statistics
@@ -282,8 +278,10 @@ const DailyProgressBoard = () => {
                                     progresses={
                                         paginatedProgresses
                                     }
-                                    onView={
-                                        setProgressToView
+                                    onView={(progress) =>
+                                        navigate(
+                                            `/daily-progress/${progress.id}`,
+                                        )
                                     }
                                     onEdit={(
                                         progress,
@@ -380,19 +378,6 @@ const DailyProgressBoard = () => {
                 onSuccess={() => {
                     setProgressToDelete(null)
                     void fetchProgresses()
-                }}
-            />
-
-            <DailyProgressDetailModal
-                progress={progressToView}
-                onClose={() =>
-                    setProgressToView(null)
-                }
-                onEditForm={(progress) => {
-                    setProgressToView(null)
-                    navigate(
-                        `/daily-progress/${progress.id}/edit`,
-                    )
                 }}
             />
         </>

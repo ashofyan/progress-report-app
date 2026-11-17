@@ -72,7 +72,8 @@ export interface TimelineTask {
     task_id?: number
     task_name: string
     parent_task_name?: string | null
-    status: TimelineTaskStatus
+    status?: TimelineTaskStatus
+    is_checked?: boolean
     catatan?: string | null
     notes?: TimelineTaskNote[]
     documents?: TimelineDocument[]
@@ -99,6 +100,29 @@ export interface TimelineGeneralNote {
     catatan: string
 }
 
+export interface TimelineClientSpkItem {
+    id: number
+    no_spk: string
+    job_description?: string | null
+    total_daily_progress: number
+    total_progress_report: number
+}
+
+export interface TimelineClientItem {
+    kode_klien: string
+    total_spk: number
+    total_daily_progress: number
+    total_progress_report: number
+    spks?: TimelineClientSpkItem[]
+}
+
+export interface TimelineFeedSpk {
+    id: number
+    no_spk: string
+    kode_klien: string
+    job_description?: string | null
+}
+
 export interface TimelineFeedItem {
     feed_id: string
     type: TimelineFeedType
@@ -108,6 +132,7 @@ export interface TimelineFeedItem {
     bulan?: number | null
     tahun?: number | null
     created_at: string
+    spk?: TimelineFeedSpk | null
     creator?: {
         employee_code?: string
         employee_name?: string
@@ -120,20 +145,28 @@ export interface TimelineFeedItem {
 }
 
 export interface TimelineData {
+    current_client?: string | null
     current_spk: TimelineCurrentSpk | null
+    available_clients?: TimelineClientItem[]
     available_spks: TimelineSpkItem[]
     summary: TimelineSummary
     feeds: TimelineFeedItem[]
 }
 
 export interface TimelineFilters {
-    als_spk_id?: number
     client_code?: string
+    als_spk_id?: number
     employee_code?: string
     tanggal?: string
     bulan?: number
     tahun?: number
     type?: 'all' | 'daily_progress' | 'progress_report'
+}
+
+export interface TimelineClientsResponse {
+    status: boolean
+    message: string
+    data: TimelineClientItem[]
 }
 
 export interface TimelineSpksResponse {
@@ -154,3 +187,4 @@ export interface TimelineApiResult<T> {
     message: string
     data?: T
 }
+

@@ -1,7 +1,9 @@
 import {
+    useMemo,
     useState,
 } from 'react'
 
+import { useAuth } from '@/features/auth/hooks/useAuth'
 import type {
     Temuan,
     TemuanApiResult,
@@ -20,16 +22,28 @@ const TemuanDeleteModal = ({
                                onClose,
                                onDelete,
                            }: TemuanDeleteModalProps) => {
+    const { employee: authEmployee } = useAuth()
     const [isDeleting, setIsDeleting] =
         useState<boolean>(false)
     const [errorMessage, setErrorMessage] =
         useState<string | null>(null)
+
+    const isCompleted = temuan?.status === 'selesai'
+    const isCreator = useMemo(() => {
+        if (!temuan) return true
+        if (!authEmployee?.employee_code || !temuan.created_by) return true
+        return authEmployee.employee_code === temuan.created_by
+    }, [temuan, authEmployee])
 
     if (temuan === null) {
         return null
     }
 
     const handleDelete = async (): Promise<void> => {
+        if (isCompleted || !isCreator) {
+            return
+        }
+
         setIsDeleting(true)
         setErrorMessage(null)
 
@@ -67,6 +81,24 @@ const TemuanDeleteModal = ({
                         </div>
                     )}
 
+                    {isCompleted && (
+                        <div className="alert alert-warning d-flex align-items-center gap-2 mb-3">
+                            <i className="bi bi-exclamation-triangle-fill" />
+                            <span>
+                                Temuan ini telah berstatus <strong>Selesai</strong> dan tidak dapat dihapus.
+                            </span>
+                        </div>
+                    )}
+
+                    {!isCompleted && !isCreator && (
+                        <div className="alert alert-warning d-flex align-items-center gap-2 mb-3">
+                            <i className="bi bi-shield-lock-fill" />
+                            <span>
+                                Hanya pembuat temuan ini (<strong>{temuan.created_by_name ?? temuan.created_by}</strong>) yang berhak menghapus temuan ini.
+                            </span>
+                        </div>
+                    )}
+
                     <p>Apakah Anda yakin ingin menghapus temuan:</p>
                     <strong>{temuan.nomor}</strong>
                 </div>
@@ -84,7 +116,7 @@ const TemuanDeleteModal = ({
                     <button
                         type="button"
                         className="btn btn-danger"
-                        disabled={isDeleting}
+                        disabled={isDeleting || isCompleted || !isCreator}
                         onClick={() => void handleDelete()}
                     >
                         {isDeleting && (

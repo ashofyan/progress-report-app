@@ -9,6 +9,7 @@ import { useNavigate } from 'react-router-dom'
 
 import ClientSelect from '@/features/additional-task/components/ClientSelect'
 import { useMarketingClients } from '@/features/additional-task/hooks/useMarketingClients'
+import { useAuth } from '@/features/auth/hooks/useAuth'
 import SolusiCreateModal from '@/features/solusi/components/SolusiCreateModal'
 import SolusiDetailModal from '@/features/solusi/components/SolusiDetailModal'
 import { useSolusis } from '@/features/solusi/hooks/useSolusis'
@@ -16,11 +17,13 @@ import type { Solusi } from '@/features/solusi/types/solusi.types'
 import TemuanDeleteModal from '@/features/temuan/components/TemuanDeleteModal'
 import TemuanDetailModal from '@/features/temuan/components/TemuanDetailModal'
 import { useTemuans } from '@/features/temuan/hooks/useTemuans'
-import type {
-    Temuan,
-    TemuanFilters,
-    TemuanStatus,
-    TemuanType,
+import {
+    getTemuanPriority,
+    TEMUAN_PRIORITY_LABELS,
+    type Temuan,
+    type TemuanFilters,
+    type TemuanStatus,
+    type TemuanType,
 } from '@/features/temuan/types/temuan.types'
 
 import '@/features/temuan/styles/temuan.scss'
@@ -33,13 +36,7 @@ const statusLabels: Record<TemuanStatus, string> = {
     selesai: 'Selesai',
 }
 
-const priorityLabels: Record<number, string> = {
-    1: 'P1 - Sangat Rendah',
-    2: 'P2 - Rendah',
-    3: 'P3 - Sedang',
-    4: 'P4 - Tinggi',
-    5: 'P5 - Kritis',
-}
+const priorityLabels = TEMUAN_PRIORITY_LABELS
 
 const getNotesText = (temuan: Temuan): string => {
     const notes = temuan.notes
@@ -55,6 +52,7 @@ const getNotesText = (temuan: Temuan): string => {
 
 const TemuanPage = () => {
     const navigate = useNavigate()
+    const { employee: authEmployee } = useAuth()
 
     const {
         temuans,
@@ -78,14 +76,6 @@ const TemuanPage = () => {
     const [searchQuery, setSearchQuery] = useState<string>('')
     const [currentPage, setCurrentPage] = useState<number>(1)
 
-    // Expanded rows
-    const [expandedTemuanIds, setExpandedTemuanIds] = useState<Set<number>>(
-        new Set(),
-    )
-
-    // Action dropdown menu
-    const [openMenuId, setOpenMenuId] = useState<number | null>(null)
-
     // Modals
     const [temuanToView, setTemuanToView] = useState<Temuan | null>(null)
     const [temuanToDelete, setTemuanToDelete] = useState<Temuan | null>(null)
@@ -98,29 +88,6 @@ const TemuanPage = () => {
     )
     const [isSolusiCreateOpen, setIsSolusiCreateOpen] = useState<boolean>(false)
     const [feedbackMessage, setFeedbackMessage] = useState<string | null>(null)
-
-    // Close menu when clicking outside or pressing Escape
-    useEffect(() => {
-        const handleClickOutside = () => {
-            setOpenMenuId(null)
-        }
-
-        const handleKeyDown = (event: KeyboardEvent) => {
-            if (event.key === 'Escape') {
-                setOpenMenuId(null)
-            }
-        }
-
-        if (openMenuId !== null) {
-            document.addEventListener('click', handleClickOutside)
-            document.addEventListener('keydown', handleKeyDown)
-        }
-
-        return () => {
-            document.removeEventListener('click', handleClickOutside)
-            document.removeEventListener('keydown', handleKeyDown)
-        }
-    }, [openMenuId])
 
     const {
         clients,
@@ -181,18 +148,6 @@ const TemuanPage = () => {
         return map
     }, [solusis])
 
-    const toggleExpand = (id: number): void => {
-        setExpandedTemuanIds((previous) => {
-            const next = new Set(previous)
-            if (next.has(id)) {
-                next.delete(id)
-            } else {
-                next.add(id)
-            }
-            return next
-        })
-    }
-
     const handleOpenSolusiCreate = (
         temuan: Temuan,
         noteId: number | null = null,
@@ -250,7 +205,6 @@ const TemuanPage = () => {
 
     const handleFilterChange = (): void => {
         setCurrentPage(1)
-        setOpenMenuId(null)
     }
 
     const isLoading = isLoadingTemuans || isLoadingSolusis
@@ -399,9 +353,9 @@ const TemuanPage = () => {
                         <option value="">Semua prioritas</option>
                         <option value="1">P1 - Sangat Rendah</option>
                         <option value="2">P2 - Rendah</option>
-                        <option value="3">P3 - Sedang</option>
+                        <option value="3">P3 - Sedang / Normal</option>
                         <option value="4">P4 - Tinggi</option>
-                        <option value="5">P5 - Kritis</option>
+                        <option value="5">P5 - Urgent</option>
                     </select>
 
                     <button
@@ -415,7 +369,6 @@ const TemuanPage = () => {
                             setPriorityFilter('')
                             setSearchQuery('')
                             setCurrentPage(1)
-                            setOpenMenuId(null)
                         }}
                     >
                         <i className="bi bi-arrow-counterclockwise" />
@@ -466,20 +419,17 @@ const TemuanPage = () => {
                             <table className="table temuan-table">
                                 <thead>
                                     <tr>
-                                        <th style={{ width: '44px' }} />
                                         <th style={{ width: '48px' }}>No</th>
                                         <th>Temuan</th>
                                         <th style={{ width: '115px' }}>Tanggal</th>
                                         <th>Client &amp; Pekerjaan</th>
                                         <th>Catatan &amp; File</th>
                                         <th style={{ width: '150px' }}>Status &amp; Solusi</th>
-                                        <th className="text-center" style={{ width: '60px' }}>Aksi</th>
+                                        <th className="text-center" style={{ width: '100px' }}>Aksi</th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     {paginatedTemuans.map((temuan, index) => {
-                                        const isExpanded =
-                                            expandedTemuanIds.has(temuan.id)
                                         const solvedNotesCount =
                                             temuan.notes.filter((note) =>
                                                 solusisByNoteId.has(note.id),
@@ -489,41 +439,24 @@ const TemuanPage = () => {
                                         const isAllSolved =
                                             totalNotesCount > 0 &&
                                             solvedNotesCount >= totalNotesCount
-                                        const isDropup =
-                                            paginatedTemuans.length >= 3 &&
-                                            index >= paginatedTemuans.length - 2
+                                        const displayPriority =
+                                            getTemuanPriority(temuan)
+                                        const isCreator =
+                                            !authEmployee?.employee_code ||
+                                            !temuan.created_by ||
+                                            authEmployee.employee_code ===
+                                                temuan.created_by
+                                        const canEditOrDelete =
+                                            temuan.status !== 'selesai' &&
+                                            isCreator
 
                                         return (
                                             <tr
                                                 key={temuan.id}
-                                                className={`temuan-clickable-row ${
-                                                    isExpanded ? 'is-expanded' : ''
-                                                } ${openMenuId === temuan.id ? 'menu-open' : ''}`}
+                                                className="temuan-clickable-row"
+                                                style={{ cursor: 'pointer' }}
+                                                onClick={() => setTemuanToView(temuan)}
                                             >
-                                                <td className="text-center">
-                                                    <button
-                                                        type="button"
-                                                        className={`temuan-expand-btn ${
-                                                            isExpanded
-                                                                ? 'expanded'
-                                                                : ''
-                                                        }`}
-                                                        title={
-                                                            isExpanded
-                                                                ? 'Tutup detail catatan & solusi'
-                                                                : 'Lihat catatan & solusi'
-                                                        }
-                                                        onClick={(e) => {
-                                                            e.stopPropagation()
-                                                            toggleExpand(
-                                                                temuan.id,
-                                                            )
-                                                        }}
-                                                    >
-                                                        <i className="bi bi-chevron-right" />
-                                                    </button>
-                                                </td>
-
                                                 <td className="text-muted">
                                                     {(currentPage - 1) *
                                                         ITEMS_PER_PAGE +
@@ -557,10 +490,10 @@ const TemuanPage = () => {
                                                                 </span>
                                                             )}
                                                             <span
-                                                                className={`temuan-priority-badge p${temuan.priority ?? 3}`}
-                                                                title={priorityLabels[temuan.priority ?? 3] ?? `P${temuan.priority}`}
+                                                                className={`temuan-priority-badge p${displayPriority}`}
+                                                                title={priorityLabels[displayPriority] ?? `P${displayPriority}`}
                                                             >
-                                                                P{temuan.priority ?? 3}
+                                                                P{displayPriority}
                                                             </span>
                                                         </div>
                                                     </div>
@@ -653,461 +586,49 @@ const TemuanPage = () => {
                                                     </div>
                                                 </td>
 
-                                                <td className="text-center">
-                                                    <div
-                                                        className={`temuan-action-dropdown ${
-                                                            openMenuId === temuan.id ? 'open' : ''
-                                                        }`}
-                                                        onClick={(event) => event.stopPropagation()}
-                                                    >
-                                                        <button
-                                                            type="button"
-                                                            className={`temuan-action-trigger ${
-                                                                openMenuId === temuan.id ? 'active' : ''
-                                                            }`}
-                                                            title="Pilihan Aksi"
-                                                            aria-label="Pilihan Aksi"
-                                                            onClick={(event) => {
-                                                                event.stopPropagation()
-                                                                setOpenMenuId((prev) =>
-                                                                    prev === temuan.id ? null : temuan.id,
-                                                                )
-                                                            }}
-                                                        >
-                                                            <i className="bi bi-three-dots-vertical" />
-                                                        </button>
-
-                                                        {openMenuId === temuan.id && (
-                                                            <div
-                                                                className={`temuan-action-menu ${
-                                                                    isDropup ? 'dropup' : ''
-                                                                }`}
+                                                <td className="text-center" onClick={(e) => e.stopPropagation()}>
+                                                    <div className="d-flex align-items-center justify-content-center gap-1">
+                                                        {temuan.status !== 'selesai' && !isAllSolved && (
+                                                            <button
+                                                                type="button"
+                                                                className="temuan-action-button solusi"
+                                                                title="Beri Solusi"
+                                                                aria-label="Beri Solusi"
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation()
+                                                                    handleOpenSolusiCreate(temuan)
+                                                                }}
                                                             >
-                                                                <button
-                                                                    type="button"
-                                                                    className="temuan-action-item"
-                                                                    onClick={(event) => {
-                                                                        event.stopPropagation()
-                                                                        setOpenMenuId(null)
-                                                                        setTemuanToView(temuan)
-                                                                    }}
-                                                                >
-                                                                    <i className="bi bi-eye text-primary" />
-                                                                    <span>Lihat Detail Temuan</span>
-                                                                </button>
-
-                                                                <button
-                                                                    type="button"
-                                                                    className="temuan-action-item"
-                                                                    onClick={(event) => {
-                                                                        event.stopPropagation()
-                                                                        setOpenMenuId(null)
-                                                                        toggleExpand(temuan.id)
-                                                                    }}
-                                                                >
-                                                                    <i
-                                                                        className={`bi ${
-                                                                            isExpanded
-                                                                                ? 'bi-chevron-contract text-secondary'
-                                                                                : 'bi-card-checklist text-info'
-                                                                        }`}
-                                                                    />
-                                                                    <span>
-                                                                        {isExpanded
-                                                                            ? 'Tutup Catatan & Solusi'
-                                                                            : 'Lihat Catatan & Solusi'}
-                                                                    </span>
-                                                                </button>
-
-                                                                <button
-                                                                    type="button"
-                                                                    className="temuan-action-item"
-                                                                    disabled={
-                                                                        temuan.status ===
-                                                                            'selesai' ||
-                                                                        isAllSolved
-                                                                    }
-                                                                    title={
-                                                                        temuan.status ===
-                                                                        'selesai'
-                                                                            ? 'Temuan sudah selesai'
-                                                                            : isAllSolved
-                                                                            ? 'Semua catatan sudah memiliki solusi'
-                                                                            : 'Beri Solusi'
-                                                                    }
-                                                                    onClick={(event) => {
-                                                                        event.stopPropagation()
-                                                                        setOpenMenuId(null)
-                                                                        handleOpenSolusiCreate(
-                                                                            temuan,
-                                                                        )
-                                                                    }}
-                                                                >
-                                                                    <i className="bi bi-check2-circle text-success" />
-                                                                    <span>Beri Solusi</span>
-                                                                </button>
-
-                                                                <div className="temuan-action-divider" />
-
-                                                                <button
-                                                                    type="button"
-                                                                    className="temuan-action-item"
-                                                                    disabled={
-                                                                        temuan.status !==
-                                                                        'open'
-                                                                    }
-                                                                    title={
-                                                                        temuan.status !==
-                                                                        'open'
-                                                                            ? 'Hanya temuan berstatus Open yang dapat diedit'
-                                                                            : 'Edit Temuan'
-                                                                    }
-                                                                    onClick={(event) => {
-                                                                        event.stopPropagation()
-                                                                        setOpenMenuId(null)
-                                                                        navigate(
-                                                                            `/temuan/${temuan.id}/edit`,
-                                                                        )
-                                                                    }}
-                                                                >
-                                                                    <i className="bi bi-pencil-square text-warning" />
-                                                                    <span>Edit Temuan</span>
-                                                                </button>
-
-                                                                <button
-                                                                    type="button"
-                                                                    className="temuan-action-item danger"
-                                                                    disabled={
-                                                                        temuan.status !==
-                                                                        'open'
-                                                                    }
-                                                                    title={
-                                                                        temuan.status !==
-                                                                        'open'
-                                                                            ? 'Hanya temuan berstatus Open yang dapat dihapus'
-                                                                            : 'Hapus Temuan'
-                                                                    }
-                                                                    onClick={(event) => {
-                                                                        event.stopPropagation()
-                                                                        setOpenMenuId(null)
-                                                                        setTemuanToDelete(
-                                                                            temuan,
-                                                                        )
-                                                                    }}
-                                                                >
-                                                                    <i className="bi bi-trash3 text-danger" />
-                                                                    <span>Hapus Temuan</span>
-                                                                </button>
-                                                            </div>
+                                                                <i className="bi bi-check2-circle" />
+                                                            </button>
                                                         )}
-                                                    </div>
-                                                </td>
-                                            </tr>
-                                        )
-                                    })}
-
-                                    {/* Render expanded panel rows */}
-                                    {paginatedTemuans.map((temuan) => {
-                                        if (!expandedTemuanIds.has(temuan.id)) {
-                                            return null
-                                        }
-
-                                        const solvedNotesCount =
-                                            temuan.notes.filter((note) =>
-                                                solusisByNoteId.has(note.id),
-                                            ).length
-                                        const isAllSolved =
-                                            temuan.notes.length > 0 &&
-                                            solvedNotesCount >=
-                                                temuan.notes.length
-
-                                        return (
-                                            <tr
-                                                key={`expanded-${temuan.id}`}
-                                                className="temuan-expanded-row"
-                                            >
-                                                <td colSpan={8}>
-                                                    <div className="temuan-expanded-container">
-                                                        <div className="temuan-expanded-title">
-                                                            <h4>
-                                                                <i className="bi bi-card-checklist text-primary" />
-                                                                Catatan Temuan &amp;
-                                                                Solusi (
-                                                                {temuan.nomor})
-                                                            </h4>
-
-                                                            {temuan.status ===
-                                                                'open' &&
-                                                                !isAllSolved && (
-                                                                    <button
-                                                                        type="button"
-                                                                        className="btn btn-sm btn-outline-success d-inline-flex align-items-center gap-1"
-                                                                        onClick={() =>
-                                                                            handleOpenSolusiCreate(
-                                                                                temuan,
-                                                                            )
-                                                                        }
-                                                                    >
-                                                                        <i className="bi bi-plus-lg" />
-                                                                        Beri
-                                                                        Solusi
-                                                                    </button>
-                                                                )}
-                                                        </div>
-
-                                                        {temuan.notes.length ===
-                                                            0 && (
-                                                            <div className="text-muted p-2">
-                                                                Tidak ada
-                                                                catatan untuk
-                                                                temuan ini.
-                                                            </div>
-                                                        )}
-
-                                                        <div className="temuan-notes-list">
-                                                            {temuan.notes.map(
-                                                                (note) => {
-                                                                    const linkedSolusi =
-                                                                        solusisByNoteId.get(
-                                                                            note.id,
-                                                                        )
-                                                                    const isSolved =
-                                                                        linkedSolusi !==
-                                                                        undefined
-
-                                                                    return (
-                                                                        <div
-                                                                            key={
-                                                                                note.id
-                                                                            }
-                                                                            className="temuan-note-item"
-                                                                        >
-                                                                            <div className="temuan-note-header">
-                                                                                <span className="note-task-name">
-                                                                                    <i className="bi bi-dot" />
-                                                                                    {note
-                                                                                        .task
-                                                                                        ?.task_name ??
-                                                                                        `Task #${note.als_job_task_id}`}
-                                                                                </span>
-                                                                                <span
-                                                                                    className={`note-status-badge ${
-                                                                                        isSolved
-                                                                                            ? 'solved'
-                                                                                            : 'unsolved'
-                                                                                    }`}
-                                                                                >
-                                                                                    {isSolved ? (
-                                                                                        <>
-                                                                                            <i className="bi bi-check-all me-1" />
-                                                                                            Solusi
-                                                                                            Tersedia
-                                                                                        </>
-                                                                                    ) : (
-                                                                                        <>
-                                                                                            <i className="bi bi-clock-history me-1" />
-                                                                                            Belum
-                                                                                            Ada
-                                                                                            Solusi
-                                                                                        </>
-                                                                                    )}
-                                                                                </span>
-                                                                            </div>
-
-                                                                            <div className="temuan-note-content">
-                                                                                <strong>
-                                                                                    Temuan:{' '}
-                                                                                </strong>
-                                                                                {
-                                                                                    note.note
-                                                                                }
-                                                                            </div>
-
-                                                                            {isSolved ? (
-                                                                                <div className="temuan-solusi-card">
-                                                                                    <div className="solusi-card-header">
-                                                                                        <span className="d-flex align-items-center gap-1">
-                                                                                            <i className="bi bi-patch-check-fill" />
-                                                                                            Solusi
-                                                                                            (Sumber:{' '}
-                                                                                            {linkedSolusi.source ===
-                                                                                            'menu'
-                                                                                                ? 'Menu'
-                                                                                                : 'Progress Report'}
-                                                                                            )
-                                                                                        </span>
-                                                                                        <div className="d-flex align-items-center gap-2">
-                                                                                            <button
-                                                                                                type="button"
-                                                                                                className="btn btn-sm btn-link p-0 text-success text-decoration-none d-flex align-items-center gap-1"
-                                                                                                onClick={() =>
-                                                                                                    setSolusiToView(
-                                                                                                        linkedSolusi,
-                                                                                                    )
-                                                                                                }
-                                                                                                title="Lihat Detail Solusi"
-                                                                                            >
-                                                                                                <i className="bi bi-eye" />{' '}
-                                                                                                Detail
-                                                                                            </button>
-                                                                                            <button
-                                                                                                type="button"
-                                                                                                className="btn btn-sm btn-link p-0 text-warning text-decoration-none d-flex align-items-center gap-1"
-                                                                                                onClick={() =>
-                                                                                                    navigate(
-                                                                                                        `/solusi/${linkedSolusi.id}/edit`,
-                                                                                                    )
-                                                                                                }
-                                                                                                title="Edit Solusi"
-                                                                                            >
-                                                                                                <i className="bi bi-pencil" />{' '}
-                                                                                                Edit
-                                                                                            </button>
-                                                                                        </div>
-                                                                                    </div>
-
-                                                                                    <div className="solusi-card-text">
-                                                                                        {
-                                                                                            linkedSolusi.solution
-                                                                                        }
-                                                                                    </div>
-
-                                                                                    {(
-                                                                                        linkedSolusi.files ??
-                                                                                        []
-                                                                                    )
-                                                                                        .length >
-                                                                                        0 && (
-                                                                                        <div className="solusi-card-files">
-                                                                                            {(
-                                                                                                linkedSolusi.files ??
-                                                                                                []
-                                                                                            ).map(
-                                                                                                (
-                                                                                                    file,
-                                                                                                ) => (
-                                                                                                    <a
-                                                                                                        key={
-                                                                                                            file.id
-                                                                                                        }
-                                                                                                        href={
-                                                                                                            file.url ??
-                                                                                                            `/storage/${file.path}`
-                                                                                                        }
-                                                                                                        target="_blank"
-                                                                                                        rel="noreferrer"
-                                                                                                        className="badge bg-light text-dark border text-decoration-none d-inline-flex align-items-center gap-1 py-1 px-2"
-                                                                                                    >
-                                                                                                        <i className="bi bi-paperclip" />
-                                                                                                        {
-                                                                                                            file.original_name
-                                                                                                        }{' '}
-                                                                                                        (
-                                                                                                        {Math.ceil(
-                                                                                                            file.size /
-                                                                                                                1024,
-                                                                                                        )}{' '}
-                                                                                                        KB)
-                                                                                                    </a>
-                                                                                                ),
-                                                                                            )}
-                                                                                        </div>
-                                                                                    )}
-                                                                                </div>
-                                                                            ) : (
-                                                                                <div className="temuan-solusi-empty-card">
-                                                                                    <span>
-                                                                                        Belum
-                                                                                        ada
-                                                                                        solusi
-                                                                                        untuk
-                                                                                        catatan
-                                                                                        ini.
-                                                                                    </span>
-                                                                                    {temuan.status ===
-                                                                                        'open' && (
-                                                                                        <button
-                                                                                            type="button"
-                                                                                            className="btn btn-sm btn-success d-inline-flex align-items-center gap-1"
-                                                                                            onClick={() =>
-                                                                                                handleOpenSolusiCreate(
-                                                                                                    temuan,
-                                                                                                    note.id,
-                                                                                                )
-                                                                                            }
-                                                                                        >
-                                                                                            <i className="bi bi-plus" />
-                                                                                            Beri
-                                                                                            Solusi
-                                                                                        </button>
-                                                                                    )}
-                                                                                </div>
-                                                                            )}
-                                                                        </div>
-                                                                    )
-                                                                },
-                                                            )}
-                                                        </div>
-
-                                                        {/* Lampiran Temuan */}
-                                                        {temuan.files.length >
-                                                            0 && (
-                                                            <div className="mt-3 pt-3 border-top">
-                                                                <div
-                                                                    className="d-flex align-items-center gap-2 mb-2 text-muted"
-                                                                    style={{
-                                                                        fontSize:
-                                                                            '12px',
+                                                        {canEditOrDelete && (
+                                                            <>
+                                                                <button
+                                                                    type="button"
+                                                                    className="temuan-action-button edit"
+                                                                    title="Edit Temuan"
+                                                                    aria-label="Edit Temuan"
+                                                                    onClick={(e) => {
+                                                                        e.stopPropagation()
+                                                                        navigate(`/temuan/${temuan.id}/edit`)
                                                                     }}
                                                                 >
-                                                                    <i className="bi bi-paperclip" />
-                                                                    <strong>
-                                                                        Lampiran
-                                                                        Temuan (
-                                                                        {
-                                                                            temuan
-                                                                                .files
-                                                                                .length
-                                                                        }
-                                                                        ):
-                                                                    </strong>
-                                                                </div>
-                                                                <div className="d-flex flex-wrap gap-2">
-                                                                    {temuan.files.map(
-                                                                        (
-                                                                            file,
-                                                                        ) => (
-                                                                            <a
-                                                                                key={
-                                                                                    file.id
-                                                                                }
-                                                                                href={
-                                                                                    file.url ??
-                                                                                    `/storage/${file.path}`
-                                                                                }
-                                                                                target="_blank"
-                                                                                rel="noreferrer"
-                                                                                className="badge bg-white text-secondary border text-decoration-none d-inline-flex align-items-center gap-1 py-1 px-2"
-                                                                                style={{
-                                                                                    fontSize:
-                                                                                        '11.5px',
-                                                                                }}
-                                                                            >
-                                                                                <i className="bi bi-file-earmark" />
-                                                                                {
-                                                                                    file.original_name
-                                                                                }{' '}
-                                                                                (
-                                                                                {Math.ceil(
-                                                                                    file.size /
-                                                                                        1024,
-                                                                                )}{' '}
-                                                                                KB)
-                                                                            </a>
-                                                                        ),
-                                                                    )}
-                                                                </div>
-                                                            </div>
+                                                                    <i className="bi bi-pencil-square" />
+                                                                </button>
+                                                                <button
+                                                                    type="button"
+                                                                    className="temuan-action-button delete"
+                                                                    title="Hapus Temuan"
+                                                                    aria-label="Hapus Temuan"
+                                                                    onClick={(e) => {
+                                                                        e.stopPropagation()
+                                                                        setTemuanToDelete(temuan)
+                                                                    }}
+                                                                >
+                                                                    <i className="bi bi-trash3" />
+                                                                </button>
+                                                            </>
                                                         )}
                                                     </div>
                                                 </td>
@@ -1128,7 +649,6 @@ const TemuanPage = () => {
                                 className="pagination-arrow"
                                 disabled={currentPage <= 1}
                                 onClick={() => {
-                                    setOpenMenuId(null)
                                     setCurrentPage((previous) =>
                                         Math.max(1, previous - 1),
                                     )
@@ -1144,7 +664,6 @@ const TemuanPage = () => {
                                 className="pagination-arrow"
                                 disabled={currentPage >= totalPages}
                                 onClick={() => {
-                                    setOpenMenuId(null)
                                     setCurrentPage((previous) =>
                                         Math.min(totalPages, previous + 1),
                                     )

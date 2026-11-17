@@ -623,10 +623,10 @@ Jika status tidak dikirim pada objek detail, sistem akan otomatis menggunakan st
 | `details.*.documents.*.size` | integer | Tidak | Ukuran file dokumen dalam byte. |
 | `findings` | array | Tidak | Daftar temuan Progress Report. Setiap temuan otomatis dibuatkan nomor Temuan Global `TM-xxx` dengan `type: "PR"` dan `no_pr`. |
 | `findings.*.source_type` | string | Ya jika `findings` dikirim | `master` atau `additional`. |
-| `findings.*.als_job_task_id` | integer | Kondisional | Wajib jika `source_type` adalah `master`; task dari job SPK (bisa Parent Task maupun Child/Sub-Task). Tidak boleh diisi jika `additional`. |
+| `findings.*.als_job_task_id` | integer | Kondisional | Wajib jika `source_type` adalah `master`; harus merupakan Header / Parent Task dari job SPK (`parent_id = null`). Sub-task tidak diizinkan. |
 | `findings.*.als_task_additional_detail_id` | integer | Kondisional | Wajib jika `source_type` adalah `additional`; tidak boleh diisi jika `master`. |
 | `findings.*.keterangan` | string | Ya jika `findings` dikirim | Keterangan temuan. |
-| `findings.*.priority` | integer | Tidak | Skala prioritas temuan: `1` (Rendah) sampai `5` (Kritis). Default: `3` (Sedang). |
+| `findings.*.priority` | integer | Tidak | Skala prioritas temuan: `1` (Rendah) sampai `5` (Kritis). Default: `3` (Sedang). Tersimpan pada catatan temuan (`als_temuan_notes`). |
 
 ### Request (Contoh Checklist ID Sederhana)
 
@@ -944,10 +944,10 @@ Kedua URL route (`/{progressReport}` dan `/{progressReport}/edit`) mengarah ke a
 | `findings` | array | Tidak | Array temuan pekerjaan. |
 | `findings.*.id` | integer | Tidak | ID temuan lama jika ingin memperbarui temuan yang ada. |
 | `findings.*.source_type` | string | Ya | Tipe sumber temuan: `master` atau `additional`. |
-| `findings.*.als_job_task_id` | integer | Kondisional | ID task dari job SPK jika `source_type === 'master'` (bisa Parent Task maupun Child/Sub-Task). |
+| `findings.*.als_job_task_id` | integer | Kondisional | ID task dari job SPK jika `source_type === 'master'`; harus merupakan Header / Parent Task (`parent_id = null`). Sub-task tidak diizinkan. |
 | `findings.*.als_task_additional_detail_id` | integer | Kondisional | ID detail Task Tambahan jika `source_type === 'additional'`. |
 | `findings.*.keterangan` | string | Ya | Keterangan temuan. |
-| `findings.*.priority` | integer | Tidak | Skala prioritas temuan: `1` (Rendah) sampai `5` (Kritis). Default: `3` (Sedang). |
+| `findings.*.priority` | integer | Tidak | Skala prioritas temuan: `1` (Rendah) sampai `5` (Kritis). Default: `3` (Sedang). Tersimpan pada catatan temuan (`als_temuan_notes`). |
 
 ### Request
 

@@ -149,6 +149,14 @@ const DailyProgressEditPage = () => {
                         return
                     }
 
+                    if (result.data.is_used_in_progress_report) {
+                        setProgress(result.data)
+                        setErrorMessage(
+                            'Daily Progress ini sudah dimasukkan ke dalam Progress Report dan terkunci permanen (Read-Only).',
+                        )
+                        return
+                    }
+
                     setProgress(result.data)
                     setDetails(
                         result.data.details.map((detail) => {
@@ -539,6 +547,9 @@ const DailyProgressEditPage = () => {
             }),
         )
 
+        const temuanIds = Object.keys(temuanFollowups).map(Number)
+        const findingIds = (progress.findings ?? []).map((f) => f.id)
+
         const updateResult =
             await dailyProgressApi.update(
                 progress.id,
@@ -547,6 +558,14 @@ const DailyProgressEditPage = () => {
                     temuans:
                         temuansPayload.length > 0
                             ? temuansPayload
+                            : undefined,
+                    temuan_ids:
+                        temuanIds.length > 0
+                            ? temuanIds
+                            : undefined,
+                    finding_ids:
+                        findingIds.length > 0
+                            ? findingIds
                             : undefined,
                     details: details.map((detail) => {
                         const noteText = detail.notes
@@ -600,13 +619,35 @@ const DailyProgressEditPage = () => {
         setIsSubmitting(false)
 
         if (continueToProgressReport) {
-            const spkId = progress.als_spk_id ?? progress.spk_id
+            let spkId = progress.als_spk_id ?? progress.spk_id
+
+            // Jika spkId belum ada pada header progress, coba cari dari form-data client berdasarkan no_spk
+            if (!spkId && progress.client_code && progress.no_spk) {
+                try {
+                    const fdResult = await dailyProgressApi.getFormData({
+                        client_code: progress.client_code,
+                    })
+                    if (fdResult.success && fdResult.data?.spks) {
+                        const targetNo = progress.no_spk.trim().toLowerCase()
+                        const found = fdResult.data.spks.find(
+                            (s) => s.no_spk?.trim().toLowerCase() === targetNo,
+                        )
+                        if (found) {
+                            spkId = found.spk_id
+                        }
+                    }
+                } catch {
+                    // Abaikan error resolusi SPK
+                }
+            }
+
             const queryParams = new URLSearchParams()
             if (progress.client_code) {
                 queryParams.set('client_code', progress.client_code)
             }
             if (spkId !== null && spkId !== undefined) {
                 queryParams.set('spk_id', String(spkId))
+                queryParams.set('als_spk_id', String(spkId))
             }
             if (progress.no_spk) {
                 queryParams.set('no_spk', progress.no_spk)
@@ -625,6 +666,7 @@ const DailyProgressEditPage = () => {
                 state: {
                     client_code: progress.client_code,
                     spk_id: spkId,
+                    als_spk_id: spkId,
                     no_spk: progress.no_spk ?? undefined,
                     tanggal: progress.tanggal,
                     bulan: progress.bulan,
@@ -669,23 +711,6 @@ const DailyProgressEditPage = () => {
                         <span>Edit</span>
                     </div>
                 </div>
-
-                {progress !== null && (
-                    <div className="d-flex align-items-center gap-2">
-                        <button
-                            type="button"
-                            className="btn btn-outline-primary btn-sm"
-                            onClick={() =>
-                                navigate(
-                                    `/daily-progress/${progress.id}/edit-form`
-                                )
-                            }
-                        >
-                            <i className="bi bi-pencil-square me-1" />
-                            Edit Data Lengkap (SPK / Pekerjaan)
-                        </button>
-                    </div>
-                )}
             </div>
 
             <section className="daily-progress-form-page">

@@ -262,6 +262,13 @@ const ProgressReportDetailPage = () => {
             : detail.client_code
     }, [clients, detail])
 
+    const displayClientSignName = useMemo(() => {
+        if (!clientName || clientName === '-') {
+            return '....................................................'
+        }
+        return clientName
+    }, [clientName])
+
     const creatorName = useMemo(() => {
         if (!detail) return '-'
         if (detail.created_by_name) {
@@ -344,6 +351,63 @@ const ProgressReportDetailPage = () => {
                 documents: item.documents ?? [],
                 status: item.status,
             })
+        })
+
+        return Array.from(groupsMap.values())
+    }, [detail])
+
+    const dpTemuanGroups = useMemo((): TaskGroup[] => {
+        if (!detail?.dp_temuans || detail.dp_temuans.length === 0) {
+            return []
+        }
+
+        const groupsMap = new Map<string, TaskGroup>()
+
+        detail.dp_temuans.forEach((temuan) => {
+            const firstNoteTask = temuan.notes?.[0]?.task
+            const parentName =
+                firstNoteTask?.category?.trim() ||
+                firstNoteTask?.task_name?.trim() ||
+                'Penyelesaian Temuan'
+
+            const groupKey = `dp-temuan-${parentName}`
+
+            const notes: string[] = []
+            if (temuan.notes && temuan.notes.length > 0) {
+                temuan.notes.forEach((n) => {
+                    if (n.note?.trim()) {
+                        notes.push(n.note.trim())
+                    }
+                })
+            }
+
+            if (temuan.dp_followup) {
+                if (temuan.dp_followup.status === 'selesai' && temuan.dp_followup.solusi) {
+                    notes.push(`Solusi: ${temuan.dp_followup.solusi}`)
+                } else if (temuan.dp_followup.status === 'pending' && temuan.dp_followup.alasan_pending) {
+                    notes.push(`Alasan Pending: ${temuan.dp_followup.alasan_pending}`)
+                }
+            }
+
+            const priorityText = temuan.priority ? ` (Prioritas ${temuan.priority})` : ''
+            const childTaskName = `${temuan.nomor}${priorityText}`
+
+            const childItem: GroupedTask = {
+                childTaskName,
+                status: temuan.dp_followup?.status === 'selesai' ? 'selesai' : 'pending',
+                notes,
+                documents: [],
+            }
+
+            if (!groupsMap.has(groupKey)) {
+                groupsMap.set(groupKey, {
+                    groupKey,
+                    parentName,
+                    children: [childItem],
+                })
+            } else {
+                groupsMap.get(groupKey)?.children.push(childItem)
+            }
         })
 
         return Array.from(groupsMap.values())
@@ -715,6 +779,79 @@ const ProgressReportDetailPage = () => {
                     )}
                 </div>
 
+                {/* Penyelesaian Temuan Section (Format Sama dengan Master Pekerjaan) */}
+                {dpTemuanGroups.length > 0 && (
+                    <>
+                        <hr className="report-card-divider" />
+                        <div className="report-card-section">
+                            <h3 className="section-heading">
+                                Penyelesaian Temuan
+                            </h3>
+                            <div className="task-tree">
+                                {dpTemuanGroups.map((group, groupIndex) => (
+                                    <div
+                                        className="parent-task-item"
+                                        key={group.groupKey}
+                                    >
+                                        <div className="parent-task-title">
+                                            {groupIndex + 1}.{' '}
+                                            {group.parentName}
+                                        </div>
+
+                                        <div className="child-task-list">
+                                            {group.children.map(
+                                                (child, childIndex) => (
+                                                    <div
+                                                        className="child-task-item"
+                                                        key={childIndex}
+                                                    >
+                                                        <div className="d-flex align-items-center justify-content-between flex-wrap gap-2">
+                                                            <div className="child-task-title">
+                                                                <span className="bullet">
+                                                                    &bull;
+                                                                </span>
+                                                                <span>
+                                                                    {child.childTaskName}
+                                                                </span>
+                                                            </div>
+                                                            {child.status && (
+                                                                <span
+                                                                    className={`progress-report-status ${child.status}`}
+                                                                    style={{ fontSize: '11px', padding: '1px 8px' }}
+                                                                >
+                                                                    {child.status === 'selesai' ? 'Selesai' : 'Pending'}
+                                                                </span>
+                                                            )}
+                                                        </div>
+
+                                                        {child.notes.length > 0 && (
+                                                            <div className="task-note-list">
+                                                                {child.notes.map((note, noteIndex) => (
+                                                                    <div
+                                                                        className="task-note-item"
+                                                                        key={noteIndex}
+                                                                    >
+                                                                        <span className="dash">
+                                                                            -
+                                                                        </span>
+                                                                        <span className="note-text">
+                                                                            {note}
+                                                                        </span>
+                                                                    </div>
+                                                                ))}
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                ),
+                                            )}
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    </>
+                )}
+
                 <hr className="report-card-divider" />
 
                 {/* Temuan Section */}
@@ -810,6 +947,20 @@ const ProgressReportDetailPage = () => {
                     ) : (
                         <div style={{ minHeight: '18px' }} />
                     )}
+                </div>
+
+                <hr className="report-card-divider" />
+
+                {/* Footer Tanda Tangan Klien */}
+                <div className="report-card-signature-footer">
+                    <div className="signature-box client-signature-box">
+                        <div className="signature-label">Tanda Tangan,</div>
+                        <div className="signature-date">Tanggal: .......................................</div>
+                        <div className="signature-space" />
+                        <div className="signature-name-wrapper">
+                            <span className="signature-name">( {displayClientSignName} )</span>
+                        </div>
+                    </div>
                 </div>
 
                 {/* Dokumen Lampiran Tambahan (jika ada pada level laporan, disembunyikan saat cetak & export PDF) */}

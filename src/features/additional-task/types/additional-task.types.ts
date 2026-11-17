@@ -57,7 +57,7 @@ export const PRIORITY_LABELS: Record<number, string> = {
     2: 'P2 - Rendah',
     3: 'P3 - Sedang',
     4: 'P4 - Tinggi',
-    5: 'P5 - Kritis',
+    5: 'P5 - Urgent',
 }
 
 export const PRIORITY_OPTIONS: Array<{ value: number; label: string }> = [
@@ -65,7 +65,7 @@ export const PRIORITY_OPTIONS: Array<{ value: number; label: string }> = [
     { value: 2, label: 'P2 - Rendah' },
     { value: 3, label: 'P3 - Sedang' },
     { value: 4, label: 'P4 - Tinggi' },
-    { value: 5, label: 'P5 - Kritis' },
+    { value: 5, label: 'P5 - Urgent' },
 ]
 
 export interface AdditionalTask {

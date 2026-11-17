@@ -39,6 +39,7 @@ export interface TemuanNote {
     id: number
     als_job_task_id: number
     task?: TemuanTask | null
+    priority?: number
     note: string
     solution?: string | TemuanNoteSolution | null
     created_at?: string | null
@@ -96,6 +97,36 @@ export interface Temuan {
     updated_at: string | null
 }
 
+export const TEMUAN_PRIORITY_OPTIONS = [
+    { value: 1, label: '1 - Sangat Rendah' },
+    { value: 2, label: '2 - Rendah' },
+    { value: 3, label: '3 - Sedang / Normal' },
+    { value: 4, label: '4 - Tinggi' },
+    { value: 5, label: '5 - Urgent' },
+] as const
+
+export const TEMUAN_PRIORITY_LABELS: Record<number, string> = {
+    1: '1 - Sangat Rendah',
+    2: '2 - Rendah',
+    3: '3 - Sedang / Normal',
+    4: '4 - Tinggi',
+    5: '5 - Urgent',
+}
+
+export const getTemuanPriority = (temuan: Temuan): number => {
+    if (
+        typeof temuan.priority === 'number' &&
+        temuan.priority >= 1 &&
+        temuan.priority <= 5
+    ) {
+        return temuan.priority
+    }
+    const notePriorities = (temuan.notes ?? [])
+        .map((n) => n.priority)
+        .filter((p): p is number => typeof p === 'number' && p >= 1 && p <= 5)
+    return notePriorities.length > 0 ? Math.max(...notePriorities) : 3
+}
+
 export interface TemuanFilters {
     client_code?: string
     als_spk_id?: number
@@ -108,6 +139,7 @@ export interface TemuanFilters {
 export interface CreateTemuanNoteRequest {
     als_job_task_id: number
     note: string
+    priority?: number
 }
 
 export interface CreateTemuanRequest {
@@ -123,6 +155,7 @@ export interface UpdateTemuanNoteRequest {
     id?: number
     als_job_task_id?: number
     note: string
+    priority?: number
 }
 
 export interface UpdateTemuanRequest {

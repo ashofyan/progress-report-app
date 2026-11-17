@@ -13,17 +13,23 @@ import {
 
 import ClientSelect from '@/features/additional-task/components/ClientSelect'
 import { useMarketingClients } from '@/features/additional-task/hooks/useMarketingClients'
+import { useAuth } from '@/features/auth/hooks/useAuth'
 import { dailyProgressApi } from '@/features/daily-progress/api/dailyProgressApi'
 import type {
     DailyProgressFormSpk,
 } from '@/features/daily-progress/types/daily-progress.types'
 import { temuanApi } from '@/features/temuan/api/temuanApi'
+import {
+    TEMUAN_PRIORITY_OPTIONS,
+    type Temuan,
+} from '@/features/temuan/types/temuan.types'
 
 import '@/features/temuan/styles/temuan.scss'
 
 interface TaskNoteEntry {
     id?: number
     note: string
+    priority: number
 }
 
 const getToday = (): string => {
@@ -45,15 +51,17 @@ const getSpkLabel = (
 const TemuanFormPage = () => {
     const navigate = useNavigate()
     const params = useParams<{ id: string }>()
+    const { employee: authEmployee } = useAuth()
+
     const temuanId =
         params.id === undefined ? null : Number(params.id)
     const isEdit =
         temuanId !== null && Number.isFinite(temuanId)
 
+    const [existingTemuan, setExistingTemuan] =
+        useState<Temuan | null>(null)
     const [tanggal, setTanggal] =
         useState<string>(getToday())
-    const [priority, setPriority] =
-        useState<number>(3)
     const [clientCode, setClientCode] =
         useState<string>('')
     const [spks, setSpks] =
@@ -82,6 +90,18 @@ const TemuanFormPage = () => {
         searchClients,
     } = useMarketingClients()
 
+    const isCreator = useMemo(() => {
+        if (!isEdit || existingTemuan === null) {
+            return true
+        }
+        if (!authEmployee?.employee_code || !existingTemuan.created_by) {
+            return true
+        }
+        return authEmployee.employee_code === existingTemuan.created_by
+    }, [isEdit, existingTemuan, authEmployee])
+
+    const isCompleted = existingTemuan?.status === 'selesai'
+
     const selectedSpk = useMemo(
         () =>
             spks.find((spk) => spk.spk_id === selectedSpkId) ??
@@ -93,6 +113,17 @@ const TemuanFormPage = () => {
     )
 
     const selectedJob = selectedSpk?.job ?? null
+
+    // Business Rule 4: Header/Parent Tasks only (parent_id IS NULL)
+    const headerTasks = useMemo(() => {
+        const tasks = selectedJob?.tasks
+        if (!tasks) {
+            return []
+        }
+        return tasks.filter(
+            (task) => task.parent_id === null || task.parent_id === undefined,
+        )
+    }, [selectedJob])
 
     const handleClientSearch = useCallback(
         (query: string): void => {
@@ -123,8 +154,8 @@ const TemuanFormPage = () => {
                     return
                 }
 
+                setExistingTemuan(result.data)
                 setTanggal(result.data.tanggal)
-                setPriority(result.data.priority ?? 3)
                 setClientCode(result.data.client_code)
                 setSelectedSpkId(result.data.spk?.id ?? '')
 
@@ -138,6 +169,7 @@ const TemuanFormPage = () => {
                     initialNotes[key].push({
                         id: note.id,
                         note: note.note ?? '',
+                        priority: note.priority ?? 3,
                     })
                 })
                 setTaskNotes(initialNotes)
@@ -196,7 +228,7 @@ const TemuanFormPage = () => {
     const handleAddNoteForTask = (key: string): void => {
         setTaskNotes((previous) => ({
             ...previous,
-            [key]: [...(previous[key] ?? []), { note: '' }],
+            [key]: [...(previous[key] ?? []), { note: '', priority: 3 }],
         }))
     }
 
@@ -209,6 +241,19 @@ const TemuanFormPage = () => {
             ...previous,
             [key]: (previous[key] ?? []).map((entry, idx) =>
                 idx === index ? { ...entry, note: value } : entry,
+            ),
+        }))
+    }
+
+    const handlePriorityChange = (
+        key: string,
+        index: number,
+        value: number,
+    ): void => {
+        setTaskNotes((previous) => ({
+            ...previous,
+            [key]: (previous[key] ?? []).map((entry, idx) =>
+                idx === index ? { ...entry, priority: value } : entry,
             ),
         }))
     }
@@ -243,6 +288,18 @@ const TemuanFormPage = () => {
         event.preventDefault()
         setErrorMessage(null)
 
+        if (isCompleted) {
+            setErrorMessage('Temuan yang telah selesai tidak dapat diedit.')
+            return
+        }
+
+        if (!isCreator) {
+            setErrorMessage(
+                'Hanya pembuat temuan yang berhak melakukan perubahan.',
+            )
+            return
+        }
+
         if (tanggal === '') {
             setErrorMessage('Tanggal wajib diisi.')
             return
@@ -262,6 +319,7 @@ const TemuanFormPage = () => {
             id?: number
             als_job_task_id: number
             note: string
+            priority: number
         }> = []
 
         Object.entries(taskNotes).forEach(([key, noteList]) => {
@@ -280,6 +338,7 @@ const TemuanFormPage = () => {
                     id: item.id,
                     als_job_task_id: taskId,
                     note: trimmed,
+                    priority: item.priority ?? 3,
                 })
             })
         })
@@ -291,16 +350,22 @@ const TemuanFormPage = () => {
             return
         }
 
+        const maxPriority =
+            submittedNotes.length > 0
+                ? Math.max(...submittedNotes.map((n) => n.priority))
+                : 3
+
         setIsSubmitting(true)
 
         if (isEdit && temuanId !== null) {
             const result = await temuanApi.update(temuanId, {
                 tanggal,
-                priority,
+                priority: maxPriority,
                 notes: submittedNotes.map((note) => ({
                     id: note.id,
                     als_job_task_id: note.als_job_task_id,
                     note: note.note,
+                    priority: note.priority,
                 })),
             })
 
@@ -325,11 +390,12 @@ const TemuanFormPage = () => {
             tanggal,
             client_code: clientCode.trim(),
             als_spk_id: selectedSpk.spk_id,
-            priority,
+            priority: maxPriority,
             type: 'TM',
             notes: submittedNotes.map((note) => ({
                 als_job_task_id: note.als_job_task_id,
                 note: note.note,
+                priority: note.priority,
             })),
         })
 
@@ -361,11 +427,11 @@ const TemuanFormPage = () => {
 
     const renderedTaskKeys = useMemo(() => {
         const keys = new Set<string>()
-        selectedJob?.tasks?.forEach((task) => {
+        headerTasks.forEach((task) => {
             keys.add(String(task.id))
         })
         return keys
-    }, [selectedJob?.tasks])
+    }, [headerTasks])
 
     const unmappedNotes = useMemo(() => {
         return Object.entries(taskNotes).filter(
@@ -383,32 +449,79 @@ const TemuanFormPage = () => {
                     <button
                         type="button"
                         className="temuan-task-add-btn"
+                        disabled={isCompleted || !isCreator}
                         onClick={() => handleAddNoteForTask(key)}
                     >
                         <i className="bi bi-plus-circle" />
-                        <span>Tambah</span>
+                        <span>Tambah Temuan</span>
                     </button>
                 </div>
 
                 {notesList.map((entry, index) => (
                     <div className="temuan-task-note-box" key={index}>
-                        <textarea
-                            className="temuan-task-note-textarea"
-                            placeholder="Tulis Note..."
-                            rows={2}
-                            value={entry.note}
-                            onChange={(e) =>
-                                handleNoteChange(key, index, e.target.value)
-                            }
-                        />
-                        <button
-                            type="button"
-                            className="temuan-task-note-delete-btn"
-                            onClick={() => handleRemoveNoteForTask(key, index)}
-                            title="Hapus Catatan"
-                        >
-                            <i className="bi bi-trash" />
-                        </button>
+                        <div className="temuan-task-note-top">
+                            <div className="temuan-task-note-priority-picker">
+                                <label className="priority-picker-label">
+                                    Prioritas:
+                                </label>
+                                <select
+                                    className="form-select form-select-sm"
+                                    value={entry.priority}
+                                    disabled={isCompleted || !isCreator}
+                                    onChange={(e) =>
+                                        handlePriorityChange(
+                                            key,
+                                            index,
+                                            Number(e.target.value),
+                                        )
+                                    }
+                                    style={{
+                                        width: 'auto',
+                                        minWidth: '160px',
+                                    }}
+                                >
+                                    {TEMUAN_PRIORITY_OPTIONS.map((opt) => (
+                                        <option
+                                            key={opt.value}
+                                            value={opt.value}
+                                        >
+                                            {opt.label}
+                                        </option>
+                                    ))}
+                                </select>
+                                <span
+                                    className={`temuan-priority-badge p${entry.priority}`}
+                                >
+                                    P{entry.priority}
+                                </span>
+                            </div>
+
+                            <button
+                                type="button"
+                                className="temuan-task-note-delete-btn"
+                                disabled={isCompleted || !isCreator}
+                                onClick={() =>
+                                    handleRemoveNoteForTask(key, index)
+                                }
+                                title="Hapus Catatan"
+                            >
+                                <i className="bi bi-trash" />
+                                <span>Hapus</span>
+                            </button>
+                        </div>
+
+                        <div className="temuan-task-note-main">
+                            <textarea
+                                className="temuan-task-note-textarea"
+                                placeholder="Tulis catatan temuan pada task pekerjaan ini..."
+                                rows={2}
+                                value={entry.note}
+                                disabled={isCompleted || !isCreator}
+                                onChange={(e) =>
+                                    handleNoteChange(key, index, e.target.value)
+                                }
+                            />
+                        </div>
                     </div>
                 ))}
             </div>
@@ -450,15 +563,41 @@ const TemuanFormPage = () => {
                         </div>
                     )}
 
+                    {isEdit && isCompleted && (
+                        <div className="alert alert-warning d-flex align-items-center gap-2">
+                            <i className="bi bi-exclamation-triangle-fill" />
+                            <span>
+                                Temuan ini telah berstatus{' '}
+                                <strong>Selesai</strong> dan tidak dapat diubah
+                                lagi.
+                            </span>
+                        </div>
+                    )}
+
+                    {isEdit && !isCompleted && !isCreator && (
+                        <div className="alert alert-warning d-flex align-items-center gap-2">
+                            <i className="bi bi-shield-lock-fill" />
+                            <span>
+                                Hanya pembuat temuan ini (
+                                <strong>
+                                    {existingTemuan?.created_by_name ??
+                                        existingTemuan?.created_by}
+                                </strong>
+                                ) yang dapat mengedit header temuan.
+                            </span>
+                        </div>
+                    )}
+
                     <div className="row g-3 mb-4">
                         <div className="col-md-3">
                             <label className="form-label">
-                                Tanggal
+                                Tanggal <span className="text-danger">*</span>
                             </label>
                             <input
                                 type="date"
                                 className="form-control"
                                 value={tanggal}
+                                disabled={isCompleted || !isCreator}
                                 onChange={(
                                     event: ChangeEvent<HTMLInputElement>,
                                 ) =>
@@ -467,30 +606,9 @@ const TemuanFormPage = () => {
                             />
                         </div>
 
-                        <div className="col-md-2">
+                        <div className="col-md-4">
                             <label className="form-label">
-                                Prioritas
-                            </label>
-                            <select
-                                className="form-select"
-                                value={priority}
-                                onChange={(
-                                    event: ChangeEvent<HTMLSelectElement>,
-                                ) =>
-                                    setPriority(Number(event.target.value))
-                                }
-                            >
-                                <option value={1}>1 - Sangat Rendah</option>
-                                <option value={2}>2 - Rendah</option>
-                                <option value={3}>3 - Sedang / Normal</option>
-                                <option value={4}>4 - Tinggi</option>
-                                <option value={5}>5 - Kritis / Urgent</option>
-                            </select>
-                        </div>
-
-                        <div className="col-md-3">
-                            <label className="form-label">
-                                Client
+                                Client <span className="text-danger">*</span>
                             </label>
                             <ClientSelect
                                 clients={clients}
@@ -501,6 +619,9 @@ const TemuanFormPage = () => {
                                 }
                                 onSearch={handleClientSearch}
                                 onSelect={(client) => {
+                                    if (isEdit) {
+                                        return
+                                    }
                                     setClientCode(
                                         client.customer_code,
                                     )
@@ -510,9 +631,9 @@ const TemuanFormPage = () => {
                             />
                         </div>
 
-                        <div className="col-md-4">
+                        <div className="col-md-5">
                             <label className="form-label">
-                                SPK
+                                SPK <span className="text-danger">*</span>
                             </label>
                             <select
                                 className="form-select"
@@ -565,7 +686,7 @@ const TemuanFormPage = () => {
 
                     {selectedSpk === null && (
                         <div className="daily-progress-task-empty mb-4">
-                            Pilih SPK terlebih dahulu untuk menampilkan daftar pekerjaan.
+                            Pilih SPK terlebih dahulu untuk menampilkan daftar pekerjaan utama.
                         </div>
                     )}
 
@@ -576,8 +697,10 @@ const TemuanFormPage = () => {
                                     <i className="bi bi-list-check" />
                                 </div>
                                 <div>
-                                    <h2>Master Task</h2>
-                                    <p>Pekerjaan utama dari SPK. Tambahkan catatan temuan pada task pekerjaan terkait.</p>
+                                    <h2>Master Task (Header Task Saja)</h2>
+                                    <p>
+                                        Pekerjaan utama SPK. Temuan hanya dikaitkan dengan Header / Parent Task utama SPK. Anda dapat mencatat lebih dari 1 temuan per task dengan prioritas masing-masing.
+                                    </p>
                                 </div>
                             </div>
 
@@ -588,14 +711,14 @@ const TemuanFormPage = () => {
                             )}
 
                             {selectedJob !== null &&
-                                selectedJob.tasks.length === 0 && (
+                                headerTasks.length === 0 && (
                                     <div className="daily-progress-task-empty">
-                                        Tidak ada header task.
+                                        Tidak ada header task utama pada pekerjaan ini.
                                     </div>
                                 )}
 
                             {selectedJob !== null &&
-                                selectedJob.tasks.map((parent) => (
+                                headerTasks.map((parent) => (
                                     <div
                                         className="temuan-task-group"
                                         key={parent.id}
@@ -664,12 +787,16 @@ const TemuanFormPage = () => {
                         <button
                             type="submit"
                             className="btn btn-primary"
-                            disabled={isSubmitting}
+                            disabled={
+                                isSubmitting ||
+                                isCompleted ||
+                                !isCreator
+                            }
                         >
                             {isSubmitting && (
                                 <span className="spinner-border spinner-border-sm me-2" />
                             )}
-                            Simpan
+                            Simpan Temuan
                         </button>
                     </div>
                 </form>

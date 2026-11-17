@@ -1,4 +1,5 @@
 import {
+    Fragment,
     useCallback,
     useEffect,
     useMemo,
@@ -31,6 +32,7 @@ import type {
 } from '@/features/daily-progress/types/daily-progress.types'
 
 import '@/features/daily-progress/styles/daily-progress.scss'
+import '@/features/temuan/styles/temuan.scss'
 
 interface SelectedTask {
     key: string
@@ -248,6 +250,7 @@ const DailyProgressCorrectionPage = () => {
     const [selectedTasks, setSelectedTasks] = useState<SelectedTask[]>([])
     const [selectedFindingIds, setSelectedFindingIds] = useState<number[]>([])
     const [selectedTemuanIds, setSelectedTemuanIds] = useState<number[]>([])
+    const [selectedTemuanNoteIds, setSelectedTemuanNoteIds] = useState<number[]>([])
 
     const [formData, setFormData] = useState<DailyProgressFormData | null>(null)
     const [additionalTasks, setAdditionalTasks] = useState<AdditionalTask[]>([])
@@ -269,8 +272,33 @@ const DailyProgressCorrectionPage = () => {
         useState<'save' | 'save_and_continue'>('save')
     const [errorMessage, setErrorMessage] = useState<string | null>(null)
 
-    const initialDetailMapRef = useRef<Map<string, SelectedTask>>(new Map())
     const initialSpkMatchedRef = useRef<boolean>(false)
+
+    const initialDetailMap = useMemo(() => {
+        const map = new Map<string, SelectedTask>()
+        if (currentProgress === null) return map
+
+        currentProgress.details.forEach((detail) => {
+            const key = detail.als_job_task_id
+                ? `master-${detail.als_job_task_id}`
+                : `additional-${detail.als_task_additional_detail_id}`
+
+            const taskItem: SelectedTask = {
+                key,
+                id: detail.id,
+                als_job_id: detail.als_job_id,
+                als_job_task_id: detail.als_job_task_id ?? undefined,
+                als_task_additional_detail_id:
+                    detail.als_task_additional_detail_id ?? undefined,
+                status: detail.status,
+                catatan: detail.catatan,
+            }
+
+            map.set(key, taskItem)
+        })
+
+        return map
+    }, [currentProgress])
 
     const {
         clients,
@@ -303,6 +331,14 @@ const DailyProgressCorrectionPage = () => {
 
             const dp = result.data
             setCurrentProgress(dp)
+
+            if (dp.is_used_in_progress_report) {
+                setInitialErrorMessage(
+                    'Daily Progress ini sudah dimasukkan ke dalam Progress Report dan terkunci permanen (Read-Only). Form koreksi tidak dapat diubah.',
+                )
+                return
+            }
+
             setTanggal(dp.tanggal)
             setClientCode(dp.client_code)
             setPeriodeBulan(dp.bulan)
@@ -314,14 +350,16 @@ const DailyProgressCorrectionPage = () => {
             setSelectedTemuanIds(
                 (dp.temuans ?? []).map((t) => t.id),
             )
+            setSelectedTemuanNoteIds(
+                (dp.temuans ?? []).flatMap((t) => (t.notes ?? []).map((n) => n.id)),
+            )
 
-            const detailMap = new Map<string, SelectedTask>()
             const initialTasks: SelectedTask[] = dp.details.map((detail) => {
                 const key = detail.als_job_task_id
                     ? `master-${detail.als_job_task_id}`
                     : `additional-${detail.als_task_additional_detail_id}`
 
-                const taskItem: SelectedTask = {
+                return {
                     key,
                     id: detail.id,
                     als_job_id: detail.als_job_id,
@@ -331,12 +369,8 @@ const DailyProgressCorrectionPage = () => {
                     status: detail.status,
                     catatan: detail.catatan,
                 }
-
-                detailMap.set(key, taskItem)
-                return taskItem
             })
 
-            initialDetailMapRef.current = detailMap
             setSelectedTasks(initialTasks)
         }
 
@@ -350,64 +384,68 @@ const DailyProgressCorrectionPage = () => {
             periodeBulan === '' ||
             periodeTahun === ''
         ) {
-            setFormData(null)
-            setSelectedSpkId('')
+            queueMicrotask(() => {
+                setFormData(null)
+                setSelectedSpkId('')
+            })
             return
         }
 
-        const fetchFormData = async (): Promise<void> => {
-            setIsLoadingFormData(true)
-            setFormDataErrorMessage(null)
+        queueMicrotask(() => {
+            const fetchFormData = async (): Promise<void> => {
+                setIsLoadingFormData(true)
+                setFormDataErrorMessage(null)
 
-            const result = await dailyProgressApi.getFormData({
-                client_code: clientCode.trim(),
-                bulan:
-                    typeof periodeBulan === 'number'
-                        ? periodeBulan
-                        : undefined,
-                tahun:
-                    typeof periodeTahun === 'number'
-                        ? periodeTahun
-                        : undefined,
-            })
+                const result = await dailyProgressApi.getFormData({
+                    client_code: clientCode.trim(),
+                    bulan:
+                        typeof periodeBulan === 'number'
+                            ? periodeBulan
+                            : undefined,
+                    tahun:
+                        typeof periodeTahun === 'number'
+                            ? periodeTahun
+                            : undefined,
+                })
 
-            if (result.success && result.data !== undefined) {
-                setFormData(result.data)
-                setIsLoadingFormData(false)
+                if (result.success && result.data !== undefined) {
+                    setFormData(result.data)
+                    setIsLoadingFormData(false)
 
-                // Match initial SPK on first successful load
-                if (
-                    !initialSpkMatchedRef.current &&
-                    currentProgress !== null
-                ) {
-                    initialSpkMatchedRef.current = true
+                    // Match initial SPK on first successful load
+                    if (
+                        !initialSpkMatchedRef.current &&
+                        currentProgress !== null
+                    ) {
+                        initialSpkMatchedRef.current = true
 
-                    const spks = result.data.spks
-                    const matchedSpk =
-                        spks.find((spk) => {
-                            if (currentProgress.als_spk_id) {
-                                return spk.spk_id === currentProgress.als_spk_id
-                            }
-                            if (currentProgress.spk_id) {
-                                return spk.spk_id === currentProgress.spk_id
-                            }
-                            return spk.no_spk === currentProgress.no_spk
-                        }) ?? null
+                        const spks = result.data.spks
+                        const matchedSpk =
+                            spks.find((spk) => {
+                                if (currentProgress.als_spk_id) {
+                                    return spk.spk_id === currentProgress.als_spk_id
+                                }
+                                if (currentProgress.spk_id) {
+                                    return spk.spk_id === currentProgress.spk_id
+                                }
+                                return spk.no_spk === currentProgress.no_spk
+                            }) ?? null
 
-                    if (matchedSpk !== null) {
-                        setSelectedSpkId(matchedSpk.spk_id)
+                        if (matchedSpk !== null) {
+                            setSelectedSpkId(matchedSpk.spk_id)
+                        }
                     }
+                    return
                 }
-                return
+
+                setFormData(null)
+                setSelectedSpkId('')
+                setFormDataErrorMessage(result.message)
+                setIsLoadingFormData(false)
             }
 
-            setFormData(null)
-            setSelectedSpkId('')
-            setFormDataErrorMessage(result.message)
-            setIsLoadingFormData(false)
-        }
-
-        void fetchFormData()
+            void fetchFormData()
+        })
     }, [clientCode, periodeBulan, periodeTahun, currentProgress])
 
     const selectedSpk = useMemo(() => {
@@ -423,76 +461,88 @@ const DailyProgressCorrectionPage = () => {
     // 3. Fetch Additional Tasks when clientCode and selectedJob change
     useEffect(() => {
         if (clientCode.trim() === '' || selectedJob === null) {
-            setAdditionalTasks([])
+            queueMicrotask(() => {
+                setAdditionalTasks([])
+            })
             return
         }
 
-        const fetchAdditionalTasks = async (): Promise<void> => {
-            setIsLoadingAdditional(true)
-            setAdditionalErrorMessage(null)
+        queueMicrotask(() => {
+            const fetchAdditionalTasks = async (): Promise<void> => {
+                setIsLoadingAdditional(true)
+                setAdditionalErrorMessage(null)
 
-            const result = await additionalTaskApi.getAll({
-                client_code: clientCode,
-                job_id: selectedJob.id,
-            })
+                const result = await additionalTaskApi.getAll({
+                    client_code: clientCode,
+                    job_id: selectedJob.id,
+                })
 
-            if (result.success && result.data !== undefined) {
-                setAdditionalTasks(result.data)
+                if (result.success && result.data !== undefined) {
+                    setAdditionalTasks(result.data)
+                    setIsLoadingAdditional(false)
+                    return
+                }
+
+                setAdditionalTasks([])
+                setAdditionalErrorMessage(result.message)
                 setIsLoadingAdditional(false)
-                return
             }
 
-            setAdditionalTasks([])
-            setAdditionalErrorMessage(result.message)
-            setIsLoadingAdditional(false)
-        }
-
-        void fetchAdditionalTasks()
+            void fetchAdditionalTasks()
+        })
     }, [clientCode, selectedJob])
 
     // 4. Fetch Open Temuans when clientCode and selectedSpk change
     useEffect(() => {
         if (clientCode.trim() === '' || selectedSpk === null) {
-            setOpenTemuans([])
+            queueMicrotask(() => {
+                setOpenTemuans([])
+            })
             return
         }
 
-        const fetchOpenTemuans = async (): Promise<void> => {
-            setIsLoadingTemuans(true)
-            setTemuanErrorMessage(null)
+        queueMicrotask(() => {
+            const fetchOpenTemuans = async (): Promise<void> => {
+                setIsLoadingTemuans(true)
+                setTemuanErrorMessage(null)
 
-            const result = await temuanApi.getAll({
-                client_code: clientCode.trim(),
-                als_spk_id: selectedSpk.spk_id,
-                status: 'open,pending',
-            })
+                const result = await temuanApi.getAll({
+                    client_code: clientCode.trim(),
+                    als_spk_id: selectedSpk.spk_id,
+                    status: 'open,pending',
+                })
 
-            setIsLoadingTemuans(false)
+                setIsLoadingTemuans(false)
 
-            if (result.success && result.data !== undefined) {
-                setOpenTemuans(
-                    result.data.map((temuan) => ({
-                        id: temuan.id,
-                        nomor: temuan.nomor,
-                        tanggal: temuan.tanggal,
-                        status: temuan.status,
-                        notes: temuan.notes.map((note) => ({
-                            id: note.id,
-                            task: note.task,
-                            note: note.note,
+                if (result.success && result.data !== undefined) {
+                    setOpenTemuans(
+                        result.data.map((temuan) => ({
+                            id: temuan.id,
+                            nomor: temuan.nomor,
+                            tanggal: temuan.tanggal,
+                            status: temuan.status,
+                            type: temuan.type,
+                            no_pr: temuan.no_pr,
+                            priority: temuan.priority,
+                            notes: temuan.notes?.map((note) => ({
+                                id: note.id,
+                                task: note.task,
+                                note: note.note,
+                                priority: note.priority,
+                            })) ?? [],
+                            spk_id: temuan.spk?.id,
+                            als_spk_id: temuan.spk?.id,
                         })),
-                        spk_id: temuan.spk?.id,
-                        als_spk_id: temuan.spk?.id,
-                    })),
-                )
-                return
+                    )
+                    return
+                }
+
+                setOpenTemuans([])
+                setTemuanErrorMessage(result.message)
             }
 
-            setOpenTemuans([])
-            setTemuanErrorMessage(result.message)
-        }
-
-        void fetchOpenTemuans()
+            void fetchOpenTemuans()
+        })
     }, [clientCode, selectedSpk])
 
     const selectedFindings = useMemo(() => {
@@ -737,27 +787,29 @@ const DailyProgressCorrectionPage = () => {
 
     useEffect(() => {
         if (selectedJob && pendingMasterTasks.length > 0) {
-            setSelectedTasks((prev) => {
-                const map = new Map<string, SelectedTask>()
-                prev.forEach((t) => map.set(t.key, t))
-                pendingMasterTasks.forEach((pending) => {
-                    const key = `master-${pending.taskId}`
-                    if (!map.has(key) && !existingDailyProgressTaskKeys.has(key)) {
-                        const original = initialDetailMapRef.current.get(key)
-                        map.set(key, {
-                            key,
-                            id: original?.id,
-                            als_job_id: selectedJob.id,
-                            als_job_task_id: pending.taskId,
-                            status: original?.status ?? 'open',
-                            catatan: original?.catatan ?? null,
-                        })
-                    }
+            queueMicrotask(() => {
+                setSelectedTasks((prev) => {
+                    const map = new Map<string, SelectedTask>()
+                    prev.forEach((t) => map.set(t.key, t))
+                    pendingMasterTasks.forEach((pending) => {
+                        const key = `master-${pending.taskId}`
+                        if (!map.has(key) && !existingDailyProgressTaskKeys.has(key)) {
+                            const original = initialDetailMap.get(key)
+                            map.set(key, {
+                                key,
+                                id: original?.id,
+                                als_job_id: selectedJob.id,
+                                als_job_task_id: pending.taskId,
+                                status: original?.status ?? 'open',
+                                catatan: original?.catatan ?? null,
+                            })
+                        }
+                    })
+                    return Array.from(map.values())
                 })
-                return Array.from(map.values())
             })
         }
-    }, [selectedJob, pendingMasterTasks, existingDailyProgressTaskKeys])
+    }, [selectedJob, pendingMasterTasks, existingDailyProgressTaskKeys, initialDetailMap])
 
     const handleClientSearch = (keyword: string): void => {
         void searchClients(keyword)
@@ -777,6 +829,7 @@ const DailyProgressCorrectionPage = () => {
         setSelectedTasks([])
         setSelectedFindingIds([])
         setSelectedTemuanIds([])
+        setSelectedTemuanNoteIds([])
         setAdditionalTasks([])
         setOpenParentIds(new Set())
     }
@@ -791,6 +844,7 @@ const DailyProgressCorrectionPage = () => {
         setSelectedTasks([])
         setSelectedFindingIds([])
         setSelectedTemuanIds([])
+        setSelectedTemuanNoteIds([])
         setAdditionalTasks([])
         setOpenParentIds(new Set())
     }
@@ -801,6 +855,7 @@ const DailyProgressCorrectionPage = () => {
         setSelectedTasks([])
         setSelectedFindingIds([])
         setSelectedTemuanIds([])
+        setSelectedTemuanNoteIds([])
         setAdditionalTasks([])
         setOpenParentIds(new Set())
     }
@@ -817,7 +872,7 @@ const DailyProgressCorrectionPage = () => {
 
             if (isCurrentlySelected) {
                 // Jika task statusnya sudah selesai, dikunci dan tidak dapat di-unchecklist (dihapus)
-                const original = initialDetailMapRef.current.get(task.key)
+                const original = initialDetailMap.get(task.key)
                 const current = previous.find(
                     (item) => item.key === task.key,
                 )
@@ -831,7 +886,7 @@ const DailyProgressCorrectionPage = () => {
                 return previous.filter((item) => item.key !== task.key)
             }
 
-            const original = initialDetailMapRef.current.get(task.key)
+            const original = initialDetailMap.get(task.key)
             const taskToAdd: SelectedTask = original ? { ...original } : task
 
             return [...previous, taskToAdd]
@@ -858,12 +913,144 @@ const DailyProgressCorrectionPage = () => {
         })
     }
 
-    const getTemuanNotes = (temuan: DailyProgressTemuan): string => {
-        const notes = (temuan.notes ?? [])
-            .map((note) => note.note.trim())
-            .filter((note) => note !== '')
+    const handleToggleTemuanNote = (
+        temuanId: number,
+        noteId: number,
+    ): void => {
+        setSelectedTemuanNoteIds((previous) => {
+            const isChecked = previous.includes(noteId)
+            const nextNoteIds = isChecked
+                ? previous.filter((id) => id !== noteId)
+                : [...previous, noteId]
 
-        return notes.length === 0 ? 'Tanpa catatan.' : notes.join('\n')
+            setSelectedTemuanIds((prevTemuanIds) => {
+                const temuan = selectedTemuans.find((t) => t.id === temuanId)
+                const hasCheckedNote =
+                    temuan?.notes?.some((n) => nextNoteIds.includes(n.id)) ?? false
+
+                if (hasCheckedNote) {
+                    return prevTemuanIds.includes(temuanId)
+                        ? prevTemuanIds
+                        : [...prevTemuanIds, temuanId]
+                }
+
+                return prevTemuanIds.filter((id) => id !== temuanId)
+            })
+
+            return nextNoteIds
+        })
+    }
+
+    const renderTemuanEntry = (temuan: DailyProgressTemuan) => {
+        const isSelectableTemuan =
+            temuan.status === 'open' || temuan.status === 'pending'
+        const notes = temuan.notes ?? []
+
+        const renderBadges = (priority?: number) => (
+            <div className="d-flex align-items-center gap-2">
+                <span className="daily-progress-subtask-badge temuan d-inline-flex align-items-center gap-1">
+                    <i className="bi bi-shield-exclamation" />
+                    <span>{temuan.nomor}</span>
+                </span>
+                {temuan.type === 'PR' && (
+                    <span
+                        className="badge bg-light text-secondary border"
+                        style={{ fontSize: '11px' }}
+                    >
+                        PR: {temuan.no_pr ?? '-'}
+                    </span>
+                )}
+                {priority !== undefined && (
+                    <span
+                        className={`temuan-priority-badge p${priority}`}
+                        style={{
+                            fontSize: '11px',
+                            flexShrink: 0,
+                        }}
+                    >
+                        P{priority}
+                    </span>
+                )}
+                <span
+                    className={`daily-progress-status ${temuan.status}`}
+                >
+                    {temuan.status}
+                </span>
+            </div>
+        )
+
+        if (notes.length === 0) {
+            return (
+                <div
+                    className="daily-progress-task-entry"
+                    key={`temuan-${temuan.id}`}
+                >
+                    <div className="d-flex align-items-center justify-content-between flex-wrap gap-2">
+                        <label
+                            className={`daily-progress-task-option ${
+                                isSelectableTemuan ? '' : 'disabled'
+                            }`}
+                        >
+                            <input
+                                type="checkbox"
+                                checked={selectedTemuanIds.includes(temuan.id)}
+                                disabled={!isSelectableTemuan}
+                                onChange={() => handleToggleTemuan(temuan.id)}
+                            />
+                            <span
+                                style={{
+                                    fontSize: '12.5px',
+                                    color: '#64748b',
+                                    fontStyle: 'italic',
+                                }}
+                            >
+                                Tanpa rincian catatan
+                            </span>
+                        </label>
+
+                        {renderBadges(temuan.priority)}
+                    </div>
+                </div>
+            )
+        }
+
+        return (
+            <Fragment key={`temuan-${temuan.id}`}>
+                {notes.map((note) => {
+                    const isNoteChecked =
+                        selectedTemuanNoteIds.includes(note.id)
+                    return (
+                        <div
+                            className="daily-progress-task-entry"
+                            key={`temuan-${temuan.id}-note-${note.id}`}
+                        >
+                            <div className="d-flex align-items-center justify-content-between flex-wrap gap-2">
+                                <label
+                                    className={`daily-progress-task-option ${
+                                        isSelectableTemuan ? '' : 'disabled'
+                                    }`}
+                                >
+                                    <input
+                                        type="checkbox"
+                                        checked={isNoteChecked}
+                                        disabled={!isSelectableTemuan}
+                                        onChange={() =>
+                                            handleToggleTemuanNote(
+                                                temuan.id,
+                                                note.id,
+                                            )
+                                        }
+                                    />
+                                    <span>{note.note}</span>
+                                </label>
+
+                                {renderBadges(note.priority ?? temuan.priority)}
+                            </div>
+                        </div>
+                    )
+                })}
+            </Fragment>
+        )
     }
 
     const handleSave = async (
@@ -957,6 +1144,7 @@ const DailyProgressCorrectionPage = () => {
             const queryParams = new URLSearchParams()
             queryParams.set('client_code', clientCode.trim())
             queryParams.set('spk_id', String(spkId))
+            queryParams.set('als_spk_id', String(spkId))
             if (selectedSpk.no_spk) {
                 queryParams.set('no_spk', selectedSpk.no_spk)
             }
@@ -970,6 +1158,7 @@ const DailyProgressCorrectionPage = () => {
                 state: {
                     client_code: clientCode.trim(),
                     spk_id: spkId,
+                    als_spk_id: spkId,
                     no_spk: selectedSpk.no_spk,
                     tanggal,
                     bulan: Number(periodeBulan),
@@ -1107,6 +1296,7 @@ const DailyProgressCorrectionPage = () => {
                                     setSelectedTasks([])
                                     setSelectedFindingIds([])
                                     setSelectedTemuanIds([])
+                                    setSelectedTemuanNoteIds([])
                                     setAdditionalTasks([])
                                 }}
                             />
@@ -1299,11 +1489,16 @@ const DailyProgressCorrectionPage = () => {
                                     (t) => getTemuanParentId(t, selectedJob.tasks) === parent.id,
                                 )
 
+                                const parentTemuanNotesCount = parentTemuans.reduce(
+                                    (acc, t) => acc + (t.notes && t.notes.length > 0 ? t.notes.length : 1),
+                                    0,
+                                )
+
                                 const totalSubCount =
                                     parent.children.length +
                                     parentAdditional.length +
                                     parentFindings.length +
-                                    parentTemuans.length
+                                    parentTemuanNotesCount
 
                                 let selectedCount = 0
                                 parent.children.forEach((child) => {
@@ -1318,7 +1513,13 @@ const DailyProgressCorrectionPage = () => {
                                     if (selectedFindingIds.includes(f.id)) selectedCount++
                                 })
                                 parentTemuans.forEach((t) => {
-                                    if (selectedTemuanIds.includes(t.id)) selectedCount++
+                                    if (t.notes && t.notes.length > 0) {
+                                        t.notes.forEach((n) => {
+                                            if (selectedTemuanNoteIds.includes(n.id)) selectedCount++
+                                        })
+                                    } else if (selectedTemuanIds.includes(t.id)) {
+                                        selectedCount++
+                                    }
                                 })
 
                                 return (
@@ -1354,7 +1555,7 @@ const DailyProgressCorrectionPage = () => {
                                                 {/* 1. Master Sub-tasks */}
                                                 {parent.children.map((child) => {
                                                     const key = `master-${child.id}`
-                                                    const originalDetail = initialDetailMapRef.current.get(key)
+                                                    const originalDetail = initialDetailMap.get(key)
                                                     const isOriginalCompleted = originalDetail?.status === 'selesai'
                                                     const isExternalCompleted = isChildCompleted(child) && !isOriginalCompleted
                                                     const isCompleted = isOriginalCompleted || isExternalCompleted
@@ -1422,7 +1623,7 @@ const DailyProgressCorrectionPage = () => {
                                                 {/* 2. Additional Tasks */}
                                                 {parentAdditional.map(({ additionalTask, task }) => {
                                                     const key = `additional-${task.id}`
-                                                    const originalDetail = initialDetailMapRef.current.get(key)
+                                                    const originalDetail = initialDetailMap.get(key)
                                                     const isOriginalCompleted = originalDetail?.status === 'selesai'
                                                     const isCompleted = task.status === 'selesai' || isOriginalCompleted
                                                     const isAlreadyInDp = existingDailyProgressTaskKeys.has(key)
@@ -1541,52 +1742,9 @@ const DailyProgressCorrectionPage = () => {
                                                 })}
 
                                                 {/* 4. Global Temuan under this parent */}
-                                                {parentTemuans.map((temuan) => {
-                                                    const isSelectableTemuan =
-                                                        temuan.status === 'open' ||
-                                                        temuan.status === 'pending'
-                                                    const isChecked =
-                                                        selectedTemuanIds.includes(temuan.id)
-                                                    return (
-                                                        <div
-                                                            className="daily-progress-task-entry"
-                                                            key={`temuan-${temuan.id}`}
-                                                        >
-                                                            <div className="d-flex align-items-center justify-content-between flex-wrap gap-2">
-                                                                <label
-                                                                    className={`daily-progress-task-option ${
-                                                                        isSelectableTemuan ? '' : 'disabled'
-                                                                    }`}
-                                                                >
-                                                                    <input
-                                                                        type="checkbox"
-                                                                        checked={isChecked}
-                                                                        disabled={!isSelectableTemuan}
-                                                                        onChange={() =>
-                                                                            handleToggleTemuan(temuan.id)
-                                                                        }
-                                                                    />
-                                                                    <span>{temuan.nomor}</span>
-                                                                </label>
-                                                                <div className="d-flex align-items-center gap-2">
-                                                                    <span className="daily-progress-subtask-badge temuan">
-                                                                        Temuan
-                                                                    </span>
-                                                                    <span
-                                                                        className={`daily-progress-status ${temuan.status}`}
-                                                                    >
-                                                                        {temuan.status}
-                                                                    </span>
-                                                                </div>
-                                                            </div>
-                                                            {temuan.status !== 'selesai' && (
-                                                                <div className="daily-progress-task-compact-note">
-                                                                    {temuan.tanggal} • {getTemuanNotes(temuan)}
-                                                                </div>
-                                                            )}
-                                                        </div>
-                                                    )
-                                                })}
+                                                {parentTemuans.map((temuan) =>
+                                                    renderTemuanEntry(temuan),
+                                                )}
                                             </div>
                                         )}
                                     </div>
@@ -1605,30 +1763,67 @@ const DailyProgressCorrectionPage = () => {
                                     <div className="daily-progress-parent-summary">
                                         <i className="bi bi-shield-exclamation text-warning" />
                                         <span className="fw-semibold">Temuan Lainnya / Umum</span>
-                                        <span
-                                            className={`daily-progress-parent-count ${
-                                                unmatchedFindings.filter((f) =>
-                                                    selectedFindingIds.includes(f.id),
-                                                ).length +
-                                                    unmatchedTemuans.filter((t) =>
-                                                        selectedTemuanIds.includes(t.id),
-                                                    ).length >
+                                        {(() => {
+                                            const unmatchedTemuanNotesCount =
+                                                unmatchedTemuans.reduce(
+                                                    (acc, t) =>
+                                                        acc +
+                                                        (t.notes &&
+                                                        t.notes.length > 0
+                                                            ? t.notes.length
+                                                            : 1),
+                                                    0,
+                                                )
+                                            let selectedUnmatchedTemuanNotesCount =
                                                 0
-                                                    ? 'has-selected'
-                                                    : ''
-                                            }`}
-                                        >
-                                            {unmatchedFindings.filter((f) =>
-                                                selectedFindingIds.includes(f.id),
-                                            ).length +
-                                                unmatchedTemuans.filter((t) =>
-                                                    selectedTemuanIds.includes(t.id),
-                                                ).length}{' '}
-                                            /{' '}
-                                            {unmatchedFindings.length +
-                                                unmatchedTemuans.length}{' '}
-                                            dipilih
-                                        </span>
+                                            unmatchedTemuans.forEach((t) => {
+                                                if (
+                                                    t.notes &&
+                                                    t.notes.length > 0
+                                                ) {
+                                                    t.notes.forEach((n) => {
+                                                        if (
+                                                            selectedTemuanNoteIds.includes(
+                                                                n.id,
+                                                            )
+                                                        ) {
+                                                            selectedUnmatchedTemuanNotesCount++
+                                                        }
+                                                    })
+                                                } else if (
+                                                    selectedTemuanIds.includes(
+                                                        t.id,
+                                                    )
+                                                ) {
+                                                    selectedUnmatchedTemuanNotesCount++
+                                                }
+                                            })
+                                            const selectedUnmatchedCount =
+                                                unmatchedFindings.filter((f) =>
+                                                    selectedFindingIds.includes(
+                                                        f.id,
+                                                    ),
+                                                ).length +
+                                                selectedUnmatchedTemuanNotesCount
+                                            const totalUnmatchedCount =
+                                                unmatchedFindings.length +
+                                                unmatchedTemuanNotesCount
+
+                                            return (
+                                                <span
+                                                    className={`daily-progress-parent-count ${
+                                                        selectedUnmatchedCount >
+                                                        0
+                                                            ? 'has-selected'
+                                                            : ''
+                                                    }`}
+                                                >
+                                                    {selectedUnmatchedCount} /{' '}
+                                                    {totalUnmatchedCount}{' '}
+                                                    dipilih
+                                                </span>
+                                            )
+                                        })()}
                                     </div>
                                     <i
                                         className={`bi bi-chevron-${
@@ -1683,52 +1878,9 @@ const DailyProgressCorrectionPage = () => {
                                             )
                                         })}
 
-                                        {unmatchedTemuans.map((temuan) => {
-                                            const isSelectableTemuan =
-                                                temuan.status === 'open' ||
-                                                temuan.status === 'pending'
-                                            const isChecked =
-                                                selectedTemuanIds.includes(temuan.id)
-                                            return (
-                                                <div
-                                                    className="daily-progress-task-entry"
-                                                    key={`unmatched-temuan-${temuan.id}`}
-                                                >
-                                                    <div className="d-flex align-items-center justify-content-between flex-wrap gap-2">
-                                                        <label
-                                                            className={`daily-progress-task-option ${
-                                                                isSelectableTemuan ? '' : 'disabled'
-                                                            }`}
-                                                        >
-                                                            <input
-                                                                type="checkbox"
-                                                                checked={isChecked}
-                                                                disabled={!isSelectableTemuan}
-                                                                onChange={() =>
-                                                                    handleToggleTemuan(temuan.id)
-                                                                }
-                                                            />
-                                                            <span>{temuan.nomor}</span>
-                                                        </label>
-                                                        <div className="d-flex align-items-center gap-2">
-                                                            <span className="daily-progress-subtask-badge temuan">
-                                                                Temuan
-                                                            </span>
-                                                            <span
-                                                                className={`daily-progress-status ${temuan.status}`}
-                                                            >
-                                                                {temuan.status}
-                                                            </span>
-                                                        </div>
-                                                    </div>
-                                                    {temuan.status !== 'selesai' && (
-                                                        <div className="daily-progress-task-compact-note">
-                                                            {temuan.tanggal} • {getTemuanNotes(temuan)}
-                                                        </div>
-                                                    )}
-                                                </div>
-                                            )
-                                        })}
+                                        {unmatchedTemuans.map((temuan) =>
+                                            renderTemuanEntry(temuan),
+                                        )}
                                     </div>
                                 )}
                             </div>

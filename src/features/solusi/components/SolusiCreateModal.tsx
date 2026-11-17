@@ -20,8 +20,9 @@ interface SolusiCreateModalProps {
 const getNoteLabel = (note: TemuanNote, isSolved: boolean): string => {
     const taskName =
         note.task?.task_name ?? `Task #${note.als_job_task_id}`
+    const priorityText = note.priority ? ` [P${note.priority}]` : ''
     const solvedSuffix = isSolved ? ' (Sudah ada solusi)' : ''
-    return `${taskName} - ${note.note}${solvedSuffix}`
+    return `${taskName}${priorityText} - ${note.note}${solvedSuffix}`
 }
 
 const SolusiCreateModal = ({

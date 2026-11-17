@@ -70,13 +70,14 @@ Authorization: Bearer {token}
      - `'TM'`: Temuan murni yang dicatat dari menu Temuan.
      - `'PR'`: Temuan yang dicatat saat pembuatan lembar Progress Report.
    - Temuan tipe `'PR'` memiliki tag visual `no_pr` (contoh: `PR-20261111-0001`) dan relasi `als_progress_report_id`.
-2. **Skala Prioritas (1 – 5)**:
+2. **Skala Prioritas (1 – 5) per Note**:
+   - Skala prioritas melekat **per catatan temuan (*note*)** di `notes.*.priority`.
    - Nilai integer `1` sampai `5` (Default: `3`).
    - `1: Sangat Rendah`, `2: Rendah`, `3: Sedang / Normal`, `4: Tinggi`, `5: Kritis / Urgent`.
 3. **Multi-Temuan dalam 1 Task**:
    - Pengguna **dapat mencatat lebih dari 1 temuan dalam task yang sama**. Tidak ada lagi batasan duplikasi task.
-4. **Cakupan Task (Header Task Saja)**:
-   - Temuan **hanya dapat dikaitkan dengan Header Task Pekerjaan utama SPK** (`als_job_task_id` di mana `parent_id IS NULL`).
+4. **Cakupan Task (Header / Parent Task Saja)**:
+   - Temuan **hanya dapat dikaitkan dengan Header / Parent Task Pekerjaan utama SPK** (`als_job_task_id` di mana `parent_id IS NULL`). Temuan menjadi *children* dari Parent Task tersebut berdampingan dengan sub-task pekerjaan.
    - Sub-task (`parent_id IS NOT NULL`) tidak diizinkan.
    - Tidak ada integrasi dengan Pekerjaan Tambahan maupun Custom Pekerjaan pada Temuan dan Solusi.
 5. **3 Status Siklus Hidup**:
@@ -97,7 +98,6 @@ Authorization: Bearer {token}
   "id": 1,
   "nomor": "TM-20261111-001",
   "type": "PR",
-  "priority": 4,
   "als_progress_report_id": 12,
   "no_pr": "PR-20261111-0001",
   "progress_report": {
@@ -127,6 +127,7 @@ Authorization: Bearer {token}
         "id": 20,
         "task_name": "Pemasangan Pompa"
       },
+      "priority": 4,
       "note": "Sambungan pipa utama bocor di sektor barat.",
       "solution": null,
       "created_at": "2026-11-11T03:00:00.000000Z",
@@ -139,6 +140,7 @@ Authorization: Bearer {token}
         "id": 20,
         "task_name": "Pemasangan Pompa"
       },
+      "priority": 2,
       "note": "Tekanan air drop di sektor barat.",
       "solution": null,
       "created_at": "2026-11-11T03:00:00.000000Z",
@@ -207,11 +209,11 @@ Membuat temuan baru.
 | `tanggal` | date | Ya | Tanggal temuan (`YYYY-MM-DD`). |
 | `client_code` | string | Ya | Kode client. |
 | `als_spk_id` | integer | Ya | ID SPK. |
-| `priority` | integer | Tidak | Skala prioritas (1-5). Default: `3`. |
 | `type` | string | Tidak | `'TM'` (default) atau `'PR'`. |
 | `notes` | array | Ya | Minimal 1 note temuan. Boleh beberapa note dalam 1 header task yang sama. |
-| `notes.*.als_job_task_id` | integer | Ya | ID Header Task pekerjaan utama SPK (`parent_id IS NULL`). Sub-task tidak diizinkan. |
+| `notes.*.als_job_task_id` | integer | Ya | ID Header / Parent Task pekerjaan utama SPK (`parent_id IS NULL`). Sub-task tidak diizinkan. |
 | `notes.*.note` | string | Ya | Isi catatan temuan. |
+| `notes.*.priority` | integer | Tidak | Skala prioritas catatan temuan (1-5). Default: `3`. |
 
 ### Contoh Request Body
 
@@ -220,15 +222,16 @@ Membuat temuan baru.
   "tanggal": "2026-11-11",
   "client_code": "CLIENT-001",
   "als_spk_id": 10,
-  "priority": 4,
   "type": "TM",
   "notes": [
     {
       "als_job_task_id": 20,
-      "note": "Masalah 1: Sambungan pipa bocor."
+      "priority": 5,
+      "note": "Masalah 1: Sambungan pipa bocor bertekanan tinggi."
     },
     {
       "als_job_task_id": 20,
+      "priority": 2,
       "note": "Masalah 2: Tekanan air drop di sektor barat."
     }
   ]

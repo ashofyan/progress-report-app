@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom'
 import type {
     TimelineDocument,
     TimelineFeedItem,
@@ -11,11 +12,17 @@ import {
 
 interface TimelineFeedCardProps {
     feed: TimelineFeedItem
+    hideSpkBar?: boolean
 }
 
-export const TimelineFeedCard = ({ feed }: TimelineFeedCardProps) => {
+export const TimelineFeedCard = ({
+    feed,
+    hideSpkBar = false,
+}: TimelineFeedCardProps) => {
+
     const creatorName =
         feed.creator?.employee_name ??
+        (feed.creator as { name_employee?: string } | undefined)?.name_employee ??
         feed.creator?.employee_code ??
         'Karyawan'
     const creatorAvatar = getAvatarStyle(creatorName)
@@ -60,9 +67,14 @@ export const TimelineFeedCard = ({ feed }: TimelineFeedCardProps) => {
                             {creatorName}
                         </span>
                         <div className="creator-sub">
+                            {feed.creator?.tingkat !== undefined && (
+                                <span className="creator-level">
+                                    Tingkat {feed.creator.tingkat}
+                                </span>
+                            )}
                             <span className="feed-date">
-                        {formatDateTime(feed.tanggal, feed.created_at)}
-                    </span>
+                                {formatDateTime(feed.tanggal, feed.created_at)}
+                            </span>
                         </div>
                     </div>
                 </div>
@@ -79,44 +91,65 @@ export const TimelineFeedCard = ({ feed }: TimelineFeedCardProps) => {
                         {isDp ? 'Daily Progress' : 'Progress Report'}
                     </span>
 
-                    <span className="doc-number">{feed.nomor}</span>
-
-
+                    <Link
+                        to={isDp ? `/daily-progress/${feed.reference_id}` : `/progress-report/${feed.reference_id}`}
+                        className="doc-number doc-number-link"
+                        title={`Buka detail ${isDp ? 'Daily Progress' : 'Progress Report'} ${feed.nomor}`}
+                    >
+                        <span>{feed.nomor}</span>
+                        <i className="bi bi-box-arrow-up-right ms-1" />
+                    </Link>
                 </div>
             </header>
 
-            <div className="timeline-feed-tasks">
-                {(feed.tasks ?? []).map((task) => (
-                    <div key={task.id} className="timeline-feed-task-item">
-                        <div className="task-top-row">
-                            <span className="task-name">
-                                {task.parent_task_name && (
-                                    <span className="parent-task">
-                                        {task.parent_task_name} /{' '}
-                                    </span>
-                                )}
-                                {task.task_name}
-                            </span>
+            {!hideSpkBar && feed.spk && (
+                <div className="timeline-feed-spk-bar">
+                    <i className="bi bi-briefcase-fill" />
+                    <span className="spk-number">{feed.spk.no_spk}</span>
+                    <span className="spk-client-tag">#{feed.spk.kode_klien}</span>
+                    {feed.spk.job_description && (
+                        <span className="spk-desc" title={feed.spk.job_description}>
+                            — {feed.spk.job_description}
+                        </span>
+                    )}
+                </div>
+            )}
 
-                            <span
-                                className={`task-status-pill ${
-                                    task.status === 'selesai'
-                                        ? 'selesai'
-                                        : 'pending'
-                                }`}
-                            >
-                                <i
-                                    className={`bi ${
-                                        task.status === 'selesai'
-                                            ? 'bi-check2-circle'
-                                            : 'bi-hourglass-split'
+
+            <div className="timeline-feed-tasks">
+                {(feed.tasks ?? []).map((task) => {
+                    const isCompleted =
+                        task.is_checked !== undefined
+                            ? Boolean(task.is_checked)
+                            : task.status === 'selesai'
+
+                    return (
+                        <div key={task.id} className="timeline-feed-task-item">
+                            <div className="task-top-row">
+                                <span className="task-name">
+                                    {task.parent_task_name && (
+                                        <span className="parent-task">
+                                            {task.parent_task_name} /{' '}
+                                        </span>
+                                    )}
+                                    {task.task_name}
+                                </span>
+
+                                <span
+                                    className={`task-status-pill ${
+                                        isCompleted ? 'selesai' : 'pending'
                                     }`}
-                                />
-                                {task.status === 'selesai'
-                                    ? 'Selesai'
-                                    : 'Pending'}
-                            </span>
-                        </div>
+                                >
+                                    <i
+                                        className={`bi ${
+                                            isCompleted
+                                                ? 'bi-check2-circle'
+                                                : 'bi-hourglass-split'
+                                        }`}
+                                    />
+                                    {isCompleted ? 'Selesai' : 'Pending'}
+                                </span>
+                            </div>
 
                         {task.catatan && (
                             <div className="task-note-box">
@@ -145,7 +178,8 @@ export const TimelineFeedCard = ({ feed }: TimelineFeedCardProps) => {
                             </div>
                         )}
                     </div>
-                ))}
+                    )
+                })}
             </div>
 
             {feed.findings && feed.findings.length > 0 && (

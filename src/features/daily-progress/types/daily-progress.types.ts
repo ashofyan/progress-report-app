@@ -118,6 +118,7 @@ export interface DailyProgressTemuanNote {
         category?: string
     } | null
     note: string
+    priority?: number
 }
 
 export interface DailyProgressTemuan {
@@ -200,9 +201,17 @@ export interface DailyProgressDetail {
     task?: DailyProgressTask | null
     status: DailyProgressStatus
     catatan: string | null
+    is_used_in_progress_report?: boolean
+    progress_reports?: DailyProgressPrReference[] | null
     documents?: DailyProgressDocument[]
     created_at: string
     updated_at: string
+}
+
+export interface DailyProgressPrReference {
+    id: number
+    nomor: string
+    tanggal?: string
 }
 
 export interface DailyProgress {
@@ -216,7 +225,14 @@ export interface DailyProgress {
     bulan: number
     tahun: number
     created_by: string
+    created_by_name?: string | null
     created_by_level: number
+    is_used_in_progress_report?: boolean
+    progress_reports?: DailyProgressPrReference[] | null
+    progress_report?: DailyProgressPrReference | null
+    progress_report_id?: number | null
+    nomor_progress_report?: string | null
+    progress_report_nomor?: string | null
     details: DailyProgressDetail[]
     findings?: DailyProgressFinding[]
     temuans?: DailyProgressTemuan[]

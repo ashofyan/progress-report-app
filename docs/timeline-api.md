@@ -1,19 +1,24 @@
-# Dokumentasi API Timeline Pekerjaan Team SPK
+# Dokumentasi API Timeline Pekerjaan Team SPK & Client
 
-Dokumen ini menjelaskan endpoint **Timeline Pekerjaan per Team SPK** yang terdaftar pada `routes/api.php`.
+Dokumen ini menjelaskan endpoint **Timeline Pekerjaan per Team SPK & Client** yang terdaftar pada [routes/api.php](file:///home/shofyan/Developments/als-holdings/progress-report/routes/api.php).
 
-Fitur ini dirancang bagi Senior / PIC / Anggota Tim SPK untuk memantau aktivitas pengerjaan seluruh anggota tim di dalam suatu SPK dalam bentuk **Chronological Activity Feed** (gabungan Daily Progress & Progress Report).
+Fitur ini dirancang bagi Senior / PIC / Anggota Tim SPK untuk memantau aktivitas pengerjaan seluruh anggota tim dalam bentuk **Chronological Activity Feed** (gabungan Daily Progress & Progress Report), baik **berdasarkan SPK spesifik** maupun **teragregasi per Client (`kode_klien`)**.
 
 ---
 
 ## Ringkasan Fitur
 
-1. **Seleksi SPK Berdasarkan Aktivitas Tim**:
-   - Menampilkan daftar SPK aktif yang dimiliki oleh user yang sedang login.
-   - **Hanya menampilkan SPK yang sudah memiliki minimal 1 Daily Progress atau 1 Progress Report dari anggota tim**. SPK yang belum ada aktivitas tim tidak akan dimunculkan di opsi dropdown.
+1. **Seleksi Berbasis Client (`kode_klien`) & SPK**:
+   - Mendukung skenario di mana **1 Client memiliki banyak SPK**.
+   - Pengguna dapat memfilter berdasarkan **Client** saja (untuk melihat timeline gabungan seluruh SPK milik client tersebut) atau menyaring hingga **SPK spesifik**.
+   - Hanya menampilkan Client dan SPK yang:
+     - Sesuai dengan tenant database (`asal_pt`) pengguna.
+     - Pengguna terdaftar aktif di dalam kelompok timnya (`als_spk_teams.status_employee = 1`).
+     - **Sudah memiliki minimal 1 aktivitas** (Daily Progress atau Progress Report).
 2. **Unified Chronological Activity Feed**:
-   - Menggabungkan log pengerjaan dari **Daily Progress** (laporan harian) dan **Progress Report** (laporan berkala) dari **seluruh anggota tim** pada SPK terpilih.
+   - Menggabungkan log pengerjaan dari **Daily Progress** (laporan harian) dan **Progress Report** (laporan berkala) dari seluruh anggota tim.
    - Diurutkan secara kronologis terbalik (`tanggal DESC`, `created_at DESC`), sehingga aktivitas tim paling baru selalu berada di baris teratas.
+   - **Identitas SPK di Setiap Feed**: Setiap item feed mencantumkan nomor SPK dan deskripsi pekerjaan terkait (`spk.no_spk`, `spk.job_description`), memudahkan pembacaan saat melihat feed multi-SPK dalam satu Client.
 3. **Detail Informasi Feed**:
    - Identitas pembuat (kode karyawan, nama karyawan, tingkat/jabatan).
    - Rincian tugas yang dikerjakan (nama pekerjaan, master task / additional task, parent task, status `selesai` / `pending`, catatan pekerjaan).
@@ -32,6 +37,7 @@ Route::middleware([
     'tenant.database',
 ])->group(function () {
     Route::prefix('timeline')->group(function () {
+        Route::get('/clients', [TimelineController::class, 'clients']);
         Route::get('/spks', [TimelineController::class, 'spks']);
         Route::get('/', [TimelineController::class, 'index']);
     });
@@ -57,12 +63,79 @@ Database tenant otomatis ditentukan dari field `asal_pt` pada data karyawan di t
 
 | Method | Endpoint | Deskripsi |
 | --- | --- | --- |
-| `GET` | `/api/timeline/spks` | Mengambil daftar SPK aktif milik user yang sudah memiliki aktivitas Daily Progress / Progress Report untuk dropdown filter. |
-| `GET` | `/api/timeline` | Mengambil data Feed Timeline aktivitas pekerjaan seluruh anggota tim pada SPK yang dipilih beserta ringkasan statistik. |
+| `GET` | `/api/timeline/clients` | Mengambil daftar Client unik yang memiliki SPK beraktivitas milik user untuk dropdown filter Client. |
+| `GET` | `/api/timeline/spks` | Mengambil daftar SPK aktif milik user yang sudah beraktivitas, dapat difilter per `client_code`. |
+| `GET` | `/api/timeline` | Mengambil feed kronologis aktivitas tim (bisa per Client multi-SPK atau per SPK spesifik). |
 
 ---
 
-## 1. Daftar Opsi SPK untuk Filter Dropdown
+## 1. Daftar Opsi Client untuk Filter Dropdown
+
+Mengambil daftar Client (`kode_klien`) di mana user memiliki SPK aktif yang sudah beraktivitas.
+
+* **Endpoint**: `GET /api/timeline/clients`
+* **Query Parameters**: Tidak ada.
+
+### Contoh Request
+
+```http
+GET /api/timeline/clients HTTP/1.1
+Host: localhost:8000
+Authorization: Bearer {token}
+Accept: application/json
+```
+
+### Contoh Response Berhasil (200 OK)
+
+```json
+{
+  "status": true,
+  "message": "Daftar Client beraktivitas berhasil diambil.",
+  "data": [
+    {
+      "kode_klien": "BDTA",
+      "total_spk": 2,
+      "total_daily_progress": 14,
+      "total_progress_report": 3,
+      "spks": [
+        {
+          "id": 2576,
+          "no_spk": "SPK-2026/05/000009",
+          "job_description": "Review SPT OP Tahun 2025",
+          "total_daily_progress": 10,
+          "total_progress_report": 2
+        },
+        {
+          "id": 2580,
+          "no_spk": "SPK-2026/05/000015",
+          "job_description": "Pendampingan Pemeriksaan Pajak",
+          "total_daily_progress": 4,
+          "total_progress_report": 1
+        }
+      ]
+    },
+    {
+      "kode_klien": "YSSI",
+      "total_spk": 1,
+      "total_daily_progress": 5,
+      "total_progress_report": 1,
+      "spks": [
+        {
+          "id": 2601,
+          "no_spk": "SPK-2026/06/000001",
+          "job_description": "Jasa Akuntansi Bulanan",
+          "total_daily_progress": 5,
+          "total_progress_report": 1
+        }
+      ]
+    }
+  ]
+}
+```
+
+---
+
+## 2. Daftar Opsi SPK untuk Filter Dropdown
 
 Mengambil daftar SPK yang dimiliki oleh user yang login di mana sudah terdapat aktivitas dari anggota tim.
 
@@ -95,6 +168,18 @@ Accept: application/json
       "periode_akhir": "2026-05",
       "job_code": "TAX-16",
       "job_description": "Review SPT OP Tahun 2025",
+      "total_daily_progress": 10,
+      "total_progress_report": 2
+    },
+    {
+      "id": 2580,
+      "no_spk": "SPK-2026/05/000015",
+      "kode_klien": "BDTA",
+      "jenis": "Project",
+      "periode_awal": "2026-05",
+      "periode_akhir": "2026-06",
+      "job_code": "TAX-18",
+      "job_description": "Pendampingan Pemeriksaan Pajak",
       "total_daily_progress": 4,
       "total_progress_report": 1
     }
@@ -104,27 +189,41 @@ Accept: application/json
 
 ---
 
-## 2. Feed Timeline Pekerjaan Team per SPK
+## 3. Feed Timeline Pekerjaan Team
 
-Mengambil feed gabungan Daily Progress dan Progress Report dari seluruh anggota tim pada SPK terkait.
+Mengambil feed kronologis gabungan Daily Progress dan Progress Report dari anggota tim.
 
 * **Endpoint**: `GET /api/timeline`
 * **Query Parameters**:
 
 | Parameter | Tipe | Wajib | Keterangan |
 | --- | --- | --- | --- |
-| `als_spk_id` | `integer` | Tidak | ID SPK yang ingin dilihat. Jika tidak diisi, backend otomatis memilih SPK pertama yang aktif dari daftar SPK beraktivitas milik user. |
-| `client_code` | `string` | Tidak | Filter kode klien. |
+| `client_code` | `string` | Tidak | Filter kode klien (contoh: `BDTA`). Jika diisi tanpa `als_spk_id`, feed akan menampilkan **gabungan seluruh SPK** milik client tersebut. |
+| `als_spk_id` | `integer` | Tidak | ID SPK spesifik. Jika diisi bersama `client_code`, sistem memastikan SPK tersebut valid milik client tersebut. Jika tidak diisi, backend mengambil SPK aktif milik client / user. |
 | `employee_code`| `string` | Tidak | Filter pengerjaan oleh anggota tim tertentu. |
 | `tanggal` | `date` (`YYYY-MM-DD`) | Tidak | Filter pada tanggal tertentu (contoh: `2026-11-03`). |
 | `bulan` | `integer` (`1`-`12`) | Tidak | Filter pada bulan tertentu. |
 | `tahun` | `integer` (`2000`-`2100`) | Tidak | Filter pada tahun tertentu. |
 | `type` | `string` | Tidak | Opsi: `all` (default), `daily_progress`, atau `progress_report`. |
 
-### Contoh Request
+### Skenario Penggunaan Parameter:
+
+1. **Filter per Client (Multi-SPK Aggregated Feed)**:
+   `GET /api/timeline?client_code=BDTA`
+   Menampilkan seluruh aktivitas tim pada seluruh SPK milik client `BDTA`. Field `current_spk` akan bernilai `null` (jika client memiliki > 1 SPK) atau memuat objek SPK (jika hanya ada 1 SPK), dan `available_spks` memuat seluruh SPK client tersebut.
+2. **Filter per SPK Spesifik**:
+   `GET /api/timeline?client_code=BDTA&als_spk_id=2576` atau `GET /api/timeline?als_spk_id=2576`
+   Menampilkan aktivitas tim pada SPK nomor 2576 saja.
+3. **Tanpa Parameter (Default)**:
+   `GET /api/timeline`
+   Memilih SPK pertama dan Client aktif pertama dari daftar pekerjaan user.
+
+---
+
+### Contoh Request (Filter per Client)
 
 ```http
-GET /api/timeline?als_spk_id=2576 HTTP/1.1
+GET /api/timeline?client_code=BDTA HTTP/1.1
 Host: localhost:8000
 Authorization: Bearer {token}
 Accept: application/json
@@ -137,37 +236,22 @@ Accept: application/json
   "status": true,
   "message": "Timeline pekerjaan team SPK berhasil diambil.",
   "data": {
-    "current_spk": {
-      "id": 2576,
-      "no_spk": "SPK-2026/05/000009",
-      "source_pt": "DNA",
-      "kode_klien": "BDTA",
-      "periode_awal": "2026-05",
-      "periode_akhir": "2026-05",
-      "tanggal": "2026-05-01",
-      "jenis": "Project",
-      "kode_product_jasa": "TAX-16",
-      "note": "Review SPT OP Tahun 2025",
-      "job": {
-        "id": 12,
-        "job_code": "TAX-16",
-        "description": "Review SPT OP Tahun 2025"
+    "current_client": "BDTA",
+    "current_spk": null,
+    "available_clients": [
+      {
+        "kode_klien": "BDTA",
+        "total_spk": 2,
+        "total_daily_progress": 14,
+        "total_progress_report": 3
       },
-      "teams": [
-        {
-          "kode_employee": "wBGVj4ZT",
-          "name_employee": "Ingrid Halim",
-          "tingkat": 7,
-          "status_employee": 1
-        },
-        {
-          "kode_employee": "EMP02",
-          "name_employee": "Budi Santoso",
-          "tingkat": 5,
-          "status_employee": 1
-        }
-      ]
-    },
+      {
+        "kode_klien": "YSSI",
+        "total_spk": 1,
+        "total_daily_progress": 5,
+        "total_progress_report": 1
+      }
+    ],
     "available_spks": [
       {
         "id": 2576,
@@ -178,6 +262,18 @@ Accept: application/json
         "periode_akhir": "2026-05",
         "job_code": "TAX-16",
         "job_description": "Review SPT OP Tahun 2025",
+        "total_daily_progress": 10,
+        "total_progress_report": 2
+      },
+      {
+        "id": 2580,
+        "no_spk": "SPK-2026/05/000015",
+        "kode_klien": "BDTA",
+        "jenis": "Project",
+        "periode_awal": "2026-05",
+        "periode_akhir": "2026-06",
+        "job_code": "TAX-18",
+        "job_description": "Pendampingan Pemeriksaan Pajak",
         "total_daily_progress": 4,
         "total_progress_report": 1
       }
@@ -200,9 +296,15 @@ Accept: application/json
         "bulan": 11,
         "tahun": 2026,
         "created_at": "2026-11-04T15:30:00.000000Z",
+        "spk": {
+          "id": 2576,
+          "no_spk": "SPK-2026/05/000009",
+          "kode_klien": "BDTA",
+          "job_description": "Review SPT OP Tahun 2025"
+        },
         "creator": {
           "employee_code": "wBGVj4ZT",
-          "name_employee": "Ingrid Halim",
+          "employee_name": "Ingrid Halim",
           "tingkat": 7
         },
         "tasks": [
@@ -254,9 +356,15 @@ Accept: application/json
         "bulan": 11,
         "tahun": 2026,
         "created_at": "2026-11-03T11:00:00.000000Z",
+        "spk": {
+          "id": 2580,
+          "no_spk": "SPK-2026/05/000015",
+          "kode_klien": "BDTA",
+          "job_description": "Pendampingan Pemeriksaan Pajak"
+        },
         "creator": {
           "employee_code": "EMP02",
-          "name_employee": "Budi Santoso",
+          "employee_name": "Budi Santoso",
           "tingkat": 5
         },
         "tasks": [
@@ -264,10 +372,9 @@ Accept: application/json
             "id": 99,
             "type": "master",
             "task_id": 10,
-            "task_name": "Pengumpulan Bukti Potong",
+            "task_name": "Pengumpulan Dokumen Bukti Potong",
             "parent_task_name": "Pemeriksaan Dokumen",
-            "status": "pending",
-            "catatan": "Masih menunggu dokumen tambahan dari klien",
+            "is_checked": true,
             "documents": [
               {
                 "id": 22,
@@ -309,7 +416,16 @@ Terjadi jika user mencoba mengakses `als_spk_id` yang bukan merupakan anggota ti
 }
 ```
 
-### 3. Validasi Query Parameter Gagal (422 Unprocessable Entity)
+### 3. SPK Tidak Sesuai dengan Kode Klien yang Dikirim (422 Unprocessable Entity)
+Terjadi jika user mengirim kombinasi `client_code` dan `als_spk_id` yang tidak cocok:
+```json
+{
+  "status": false,
+  "message": "SPK #SPK-2026/05/000009 tidak sesuai dengan kode klien 'YSSI'."
+}
+```
+
+### 4. Validasi Format Query Parameter Gagal (422 Unprocessable Entity)
 ```json
 {
   "message": "Bulan harus antara 1 sampai 12.",

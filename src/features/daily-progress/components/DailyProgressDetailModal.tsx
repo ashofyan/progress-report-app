@@ -140,7 +140,18 @@ const DailyProgressDetailModal = ({
                     </div>
 
                     <div className="d-flex align-items-center gap-2">
-                        {onEditForm !== undefined && (
+                        {currentProgress.is_used_in_progress_report && (
+                            <span
+                                className="badge bg-secondary text-white py-1.5 px-2 d-inline-flex align-items-center gap-1"
+                                style={{ fontSize: '11px' }}
+                                title="Telah digunakan di Progress Report"
+                            >
+                                <i className="bi bi-lock-fill" />
+                                Terkunci
+                            </span>
+                        )}
+
+                        {onEditForm !== undefined && !currentProgress.is_used_in_progress_report && (
                             <button
                                 type="button"
                                 className="btn btn-outline-primary btn-sm"
@@ -183,6 +194,15 @@ const DailyProgressDetailModal = ({
                         >
                             <i className="bi bi-exclamation-circle-fill" />
                             <span>{errorMessage}</span>
+                        </div>
+                    )}
+
+                    {currentProgress.is_used_in_progress_report && (
+                        <div className="alert alert-secondary d-flex align-items-center gap-2 mb-3 py-2 px-3">
+                            <i className="bi bi-lock-fill text-secondary fs-5" />
+                            <span className="small">
+                                Daily Progress ini telah dimasukkan ke dalam <strong>Progress Report</strong> dan terkunci permanen (Read-Only).
+                            </span>
                         </div>
                     )}
 
@@ -238,10 +258,11 @@ const DailyProgressDetailModal = ({
                             <div className="daily-progress-info-meta">
                                 <span className="label">Dibuat Oleh</span>
                                 <strong className="value">
-                                    {currentProgress.created_by ?? '-'}
+                                    {currentProgress.created_by_name ?? currentProgress.created_by ?? '-'}
                                 </strong>
                                 <small className="sub">
-                                    {currentProgress.created_by_level ?? 'Staff'}
+                                    {currentProgress.created_by_name && currentProgress.created_by ? `${currentProgress.created_by} • ` : ''}
+                                    {currentProgress.created_by_level ? `Tingkat ${currentProgress.created_by_level}` : 'Staff'}
                                 </small>
                             </div>
                         </div>

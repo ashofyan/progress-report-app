@@ -118,7 +118,7 @@ const getFormData = async (
 }
 
 const getById = async (
-    id: number,
+    id: number | string,
 ): Promise<DailyProgressApiResult<DailyProgress>> => {
     return httpClient
         .get<DailyProgressDetailResponse | ProgressError>(

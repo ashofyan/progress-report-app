@@ -2,11 +2,79 @@ import {
     useEffect,
     useState,
 } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import type {
     DailyProgress,
 } from '@/features/daily-progress/types/daily-progress.types'
 import { getPeriodeLabel } from '@/features/daily-progress/utils/dailyProgressPeriod'
+
+const getProgressReportsList = (
+    progress: DailyProgress,
+): Array<{ id?: number; nomor: string }> => {
+    const list: Array<{ id?: number; nomor: string }> = []
+    const seen = new Set<string>()
+
+    const addPr = (id?: number, nomor?: string | null) => {
+        if (!nomor) return
+        const key = `${id ?? ''}-${nomor}`
+        if (!seen.has(key)) {
+            seen.add(key)
+            list.push({ id, nomor })
+        }
+    }
+
+    // 1. From progress.progress_reports array (new backend response)
+    if (Array.isArray(progress.progress_reports)) {
+        for (const pr of progress.progress_reports) {
+            if (pr && pr.nomor) addPr(pr.id, pr.nomor)
+        }
+    }
+
+    // 2. From progress.progress_report object
+    if (progress.progress_report && progress.progress_report.nomor) {
+        addPr(progress.progress_report.id, progress.progress_report.nomor)
+    }
+
+    // 3. From scalar fields
+    if (progress.nomor_progress_report) {
+        addPr(progress.progress_report_id ?? undefined, progress.nomor_progress_report)
+    }
+    if (progress.progress_report_nomor) {
+        addPr(progress.progress_report_id ?? undefined, progress.progress_report_nomor)
+    }
+
+    // 4. From details
+    for (const d of progress.details ?? []) {
+        if (Array.isArray(d.progress_reports)) {
+            for (const pr of d.progress_reports) {
+                if (pr && pr.nomor) addPr(pr.id, pr.nomor)
+            }
+        }
+        const anyD = (d as unknown) as Record<string, unknown>
+        if (Array.isArray(anyD.progress_reports)) {
+            for (const pr of anyD.progress_reports as Array<{ id?: number; nomor?: string }>) {
+                if (pr && pr.nomor) addPr(pr.id, pr.nomor)
+            }
+        }
+        if (anyD.progress_report && typeof anyD.progress_report === 'object') {
+            const pr = anyD.progress_report as { id?: number; nomor?: string }
+            if (pr.nomor) addPr(pr.id, pr.nomor)
+        }
+        if (anyD.last_progress_report && typeof anyD.last_progress_report === 'object') {
+            const lpr = anyD.last_progress_report as { progress_report_id?: number; nomor?: string }
+            if (lpr.nomor) addPr(lpr.progress_report_id, lpr.nomor)
+        }
+    }
+
+    // 5. From findings
+    for (const f of progress.findings ?? []) {
+        if (f.nomor_pr) {
+            addPr(f.progress_report_id, f.nomor_pr)
+        }
+    }
+
+    return list
+}
 
 interface DailyProgressTableProps {
     progresses: DailyProgress[]
@@ -85,6 +153,7 @@ const DailyProgressTable = ({
                     <th className="th-periode">Periode</th>
                     <th className="th-client">Client</th>
                     <th className="th-spk">No SPK</th>
+                    <th className="th-pr">No. Progress Report</th>
                     <th className="th-aksi text-center">Aksi</th>
                 </tr>
                 </thead>
@@ -94,6 +163,7 @@ const DailyProgressTable = ({
                     const isDropup =
                         progresses.length >= 3 &&
                         index >= progresses.length - 2
+                    const prList = getProgressReportsList(progress)
 
                     return (
                         <tr
@@ -139,6 +209,28 @@ const DailyProgressTable = ({
                                     <span className="daily-progress-badge spk">
                                         {progress.no_spk}
                                     </span>
+                                ) : (
+                                    <span className="text-muted small">-</span>
+                                )}
+                            </td>
+
+                            <td>
+                                {prList.length > 0 ? (
+                                    <div className="d-flex flex-wrap gap-1 align-items-center">
+                                        {prList.map((pr) => (
+                                            <Link
+                                                key={`${pr.id ?? pr.nomor}`}
+                                                to={pr.id ? `/progress-report/${pr.id}` : `/progress-report`}
+                                                className="daily-progress-badge pr"
+                                                onClick={(event) => event.stopPropagation()}
+                                                title={`Buka detail Progress Report ${pr.nomor}`}
+                                            >
+                                                <i className="bi bi-journal-check me-1" />
+                                                <span>{pr.nomor}</span>
+                                                <i className="bi bi-box-arrow-up-right ms-1 text-primary-emphasis" style={{ fontSize: '9.5px' }} />
+                                            </Link>
+                                        ))}
+                                    </div>
                                 ) : (
                                     <span className="text-muted small">-</span>
                                 )}
@@ -190,48 +282,59 @@ const DailyProgressTable = ({
                                                 <span>Lihat Detail</span>
                                             </button>
 
-                                            <button
-                                                type="button"
-                                                className="daily-progress-action-item"
-                                                onClick={(event) => {
-                                                    event.stopPropagation()
-                                                    setOpenMenuId(null)
-                                                    onEdit(progress)
-                                                }}
-                                            >
-                                                <i className="bi bi-arrow-repeat text-warning" />
-                                                <span>Update Status &amp; Catatan</span>
-                                            </button>
+                                            {progress.is_used_in_progress_report ? (
+                                                <div className="px-3 py-2 text-muted small d-flex align-items-center gap-2 border-top">
+                                                    <i className="bi bi-lock-fill text-secondary" />
+                                                    <span style={{ fontSize: '11.5px' }}>
+                                                        Terkunci di Progress Report
+                                                    </span>
+                                                </div>
+                                            ) : (
+                                                <>
+                                                    <button
+                                                        type="button"
+                                                        className="daily-progress-action-item"
+                                                        onClick={(event) => {
+                                                            event.stopPropagation()
+                                                            setOpenMenuId(null)
+                                                            onEdit(progress)
+                                                        }}
+                                                    >
+                                                        <i className="bi bi-arrow-repeat text-warning" />
+                                                        <span>Update Status &amp; Catatan</span>
+                                                    </button>
 
-                                            {onEditForm !== undefined && (
-                                                <button
-                                                    type="button"
-                                                    className="daily-progress-action-item"
-                                                    onClick={(event) => {
-                                                        event.stopPropagation()
-                                                        setOpenMenuId(null)
-                                                        onEditForm(progress)
-                                                    }}
-                                                >
-                                                    <i className="bi bi-pencil text-info" />
-                                                    <span>Edit Lengkap (SPK / Pekerjaan)</span>
-                                                </button>
+                                                    {onEditForm !== undefined && (
+                                                        <button
+                                                            type="button"
+                                                            className="daily-progress-action-item"
+                                                            onClick={(event) => {
+                                                                event.stopPropagation()
+                                                                setOpenMenuId(null)
+                                                                onEditForm(progress)
+                                                            }}
+                                                        >
+                                                            <i className="bi bi-pencil text-info" />
+                                                            <span>Edit</span>
+                                                        </button>
+                                                    )}
+
+                                                    <div className="daily-progress-action-divider" />
+
+                                                    <button
+                                                        type="button"
+                                                        className="daily-progress-action-item danger"
+                                                        onClick={(event) => {
+                                                            event.stopPropagation()
+                                                            setOpenMenuId(null)
+                                                            onDelete(progress)
+                                                        }}
+                                                    >
+                                                        <i className="bi bi-trash3 text-danger" />
+                                                        <span>Hapus Laporan</span>
+                                                    </button>
+                                                </>
                                             )}
-
-                                            <div className="daily-progress-action-divider" />
-
-                                            <button
-                                                type="button"
-                                                className="daily-progress-action-item danger"
-                                                onClick={(event) => {
-                                                    event.stopPropagation()
-                                                    setOpenMenuId(null)
-                                                    onDelete(progress)
-                                                }}
-                                            >
-                                                <i className="bi bi-trash3 text-danger" />
-                                                <span>Hapus Laporan</span>
-                                            </button>
                                         </div>
                                     )}
                                 </div>

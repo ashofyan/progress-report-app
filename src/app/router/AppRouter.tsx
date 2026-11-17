@@ -13,6 +13,7 @@ import AdditionalTaskCreatePage from '@/features/additional-task/pages/Additiona
 import AdditionalTaskPage from '@/features/additional-task/pages/AdditionalTaskPage'
 import DailyProgressCorrectionPage from '@/features/daily-progress/pages/DailyProgressCorrectionPage'
 import DailyProgressCreatePage from '@/features/daily-progress/pages/DailyProgressCreatePage'
+import DailyProgressDetailPage from '@/features/daily-progress/pages/DailyProgressDetailPage'
 import DailyProgressEditPage from '@/features/daily-progress/pages/DailyProgressEditPage'
 import DailyProgressPage from '@/features/daily-progress/pages/DailyProgressPage'
 import MasterJobPage from '@/features/master-job/pages/MasterJobPage'
@@ -135,6 +136,16 @@ const AppRouter = () => {
                     />
 
                     <Route
+                        path="/daily-progress/create"
+                        element={<DailyProgressCreatePage />}
+                    />
+
+                    <Route
+                        path="/daily-progress/:id"
+                        element={<DailyProgressDetailPage />}
+                    />
+
+                    <Route
                         path="/daily-progress/:id/edit"
                         element={<DailyProgressEditPage />}
                     />
@@ -156,6 +167,11 @@ const AppRouter = () => {
 
                     <Route
                         path="/progress-report/tambah"
+                        element={<ProgressReportCreatePage />}
+                    />
+
+                    <Route
+                        path="/progress-report/create"
                         element={<ProgressReportCreatePage />}
                     />
 

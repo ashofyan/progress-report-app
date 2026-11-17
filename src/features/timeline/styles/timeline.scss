@@ -93,11 +93,54 @@
   .timeline-select {
     cursor: pointer;
     min-width: 140px;
+
+    &.timeline-spk-select {
+      min-width: 170px;
+      max-width: 280px;
+    }
+  }
+
+
+  .timeline-date-input-wrap {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+
+    .timeline-date-input {
+      min-width: 145px;
+      padding-right: 28px;
+    }
+
+    .timeline-date-clear-btn {
+      position: absolute;
+      right: 8px;
+      top: 50%;
+      transform: translateY(-50%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 20px;
+      height: 20px;
+      padding: 0;
+      border: none;
+      background: #e5e7eb;
+      color: #6b7280;
+      border-radius: 50%;
+      font-size: 14px;
+      cursor: pointer;
+      line-height: 1;
+
+      &:hover {
+        background: #d1d5db;
+        color: #111827;
+      }
+    }
   }
 
   .timeline-date-input {
     min-width: 145px;
   }
+
 
   .timeline-refresh-btn {
     display: flex;
@@ -161,6 +204,11 @@
 .timeline-sidebar {
   width: 330px;
   flex-shrink: 0;
+  position: sticky;
+  top: 68px;
+  max-height: calc(100vh - 84px);
+  display: flex;
+  flex-direction: column;
   background-color: #ffffff;
   border: 1px solid #e5e7eb;
   border-radius: 12px;
@@ -169,8 +217,11 @@
 
   @media (max-width: 991.98px) {
     width: 100%;
+    position: static;
+    max-height: none;
   }
 }
+
 
 .timeline-sidebar-header {
   display: flex;
@@ -208,7 +259,44 @@
   }
 }
 
+.timeline-sidebar-filter-tag {
+
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 10px;
+  margin-bottom: 10px;
+  background-color: #eff6ff;
+  border: 1px solid #bfdbfe;
+  border-radius: 8px;
+  font-size: 12px;
+  color: #1e40af;
+
+  strong {
+    color: #1d4ed8;
+  }
+
+  .btn-clear-client {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    border: none;
+    background: transparent;
+    color: #3b82f6;
+    font-size: 14px;
+    cursor: pointer;
+    line-height: 1;
+    transition: color 0.15s ease;
+
+    &:hover {
+      color: #dc2626;
+    }
+  }
+}
+
 .timeline-search-box {
+
   position: relative;
   margin-bottom: 12px;
 
@@ -491,7 +579,389 @@
  * Current SPK Card Banner & Stats
  * ============================================================ */
 
+.timeline-client-overview-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding: 10px 16px;
+  margin-bottom: 16px;
+  background-color: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
+
+  .overview-left {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .overview-client-title {
+    font-size: 13.5px;
+    color: #111827;
+
+    strong {
+      color: #2563eb;
+    }
+  }
+
+  .overview-badge {
+    padding: 2px 8px;
+    background-color: #eff6ff;
+    color: #1d4ed8;
+    border-radius: 6px;
+    font-size: 11px;
+    font-weight: 600;
+  }
+
+  .overview-desc {
+    font-size: 12px;
+    color: #6b7280;
+  }
+
+  .overview-right {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 12px;
+    font-size: 12px;
+
+    .overview-stat {
+      color: #4b5563;
+
+      strong {
+        color: #111827;
+      }
+    }
+  }
+}
+
+.timeline-feed-groups {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.timeline-group-section {
+  position: relative;
+}
+
+.timeline-sticky-group-header {
+  position: sticky;
+  top: 56px;
+  z-index: 20;
+
+  background-color: rgba(255, 255, 255, 0.98);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 14px 18px;
+  margin-bottom: 14px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+
+  .sticky-header-main {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-bottom: 10px;
+  }
+
+  .sticky-header-title {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    margin: 0;
+    color: #111827;
+    font-size: 15px;
+    font-weight: 700;
+  }
+
+  .sticky-header-sub {
+    margin: 3px 0 0 0;
+    color: #4b5563;
+    font-size: 12.5px;
+  }
+
+  .sticky-header-team {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 6px;
+
+    .team-label {
+      font-size: 11.5px;
+      color: #6b7280;
+      margin-right: 4px;
+    }
+
+    .team-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 2px 8px;
+      background-color: #f3f4f6;
+      border-radius: 6px;
+      font-size: 11.5px;
+      color: #374151;
+    }
+  }
+
+  .timeline-summary-chips {
+    padding-top: 10px;
+    border-top: 1px solid #f1f5f9;
+  }
+}
+
+.timeline-client-cards-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.timeline-client-card {
+  background-color: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 16px 20px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
+
+  &:hover {
+    border-color: #3b82f6;
+    box-shadow: 0 4px 14px rgba(59, 130, 246, 0.08);
+    transform: translateY(-1px);
+
+    .client-card-title {
+      color: #2563eb;
+    }
+
+    .client-card-action-btn {
+      background-color: #2563eb;
+      color: #ffffff;
+      border-color: #2563eb;
+    }
+  }
+
+  .client-card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 14px;
+    margin-bottom: 14px;
+  }
+
+  .client-card-info {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .client-card-avatar {
+    width: 44px;
+    height: 44px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 15px;
+    font-weight: 700;
+    border: 1.5px solid transparent;
+    flex-shrink: 0;
+  }
+
+  .client-card-title-wrap {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .client-card-title-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .client-card-title {
+    margin: 0;
+    font-size: 15.5px;
+    font-weight: 700;
+    color: #1e293b;
+    transition: color 0.15s ease;
+  }
+
+  .client-card-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 2px 8px;
+    background-color: #eff6ff;
+    color: #1d4ed8;
+    border: 1px solid #dbeafe;
+    border-radius: 6px;
+    font-size: 11.5px;
+    font-weight: 600;
+  }
+
+  .client-card-sub {
+    margin: 0;
+    font-size: 12px;
+    color: #64748b;
+  }
+
+  .client-card-action {
+    display: flex;
+    align-items: center;
+  }
+
+  .client-card-action-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    font-weight: 600;
+    color: #2563eb;
+    background-color: #eff6ff;
+    border: 1px solid #bfdbfe;
+    padding: 6px 14px;
+    border-radius: 8px;
+    transition: all 0.2s ease;
+  }
+}
+
+.spk-summary-card {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  min-height: 110px;
+  background-color: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 14px 16px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
+
+  &:hover {
+    border-color: #3b82f6;
+    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.08);
+    transform: translateY(-1px);
+
+    .spk-card-number {
+      color: #2563eb;
+    }
+
+    .spk-card-link {
+      color: #1d4ed8;
+    }
+  }
+
+  .spk-card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin-bottom: 6px;
+  }
+
+  .spk-card-title-wrap {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+
+    i {
+      font-size: 14px;
+      color: #3b82f6;
+    }
+  }
+
+  .spk-card-number {
+    font-size: 13.5px;
+    font-weight: 700;
+    color: #1e293b;
+    transition: color 0.15s ease;
+  }
+
+  .spk-card-badges {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+
+  .spk-stat-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 10.5px;
+    font-weight: 600;
+
+    &.dp {
+      background: #eff6ff;
+      color: #1d4ed8;
+    }
+
+    &.pr {
+      background: #ecfdf5;
+      color: #047857;
+    }
+  }
+
+  .spk-card-desc {
+    font-size: 12px;
+    color: #64748b;
+    margin: 0 0 10px 0;
+    line-height: 1.4;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  .spk-card-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 11.5px;
+    padding-top: 8px;
+    border-top: 1px solid #f1f5f9;
+
+    .spk-total-act {
+      color: #6b7280;
+      font-weight: 500;
+    }
+
+    .spk-card-link {
+      color: #2563eb;
+      font-weight: 600;
+      display: inline-flex;
+      align-items: center;
+      gap: 2px;
+      transition: color 0.15s ease;
+    }
+  }
+}
+
+.client-open-timeline-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 5px 12px;
+  border-radius: 6px;
+  transition: all 0.15s ease;
+}
+
 .timeline-spk-banner {
+
   background-color: #ffffff;
   border: 1px solid #e5e7eb;
   border-radius: 12px;
@@ -546,6 +1016,7 @@
   }
 }
 
+
 .timeline-summary-chips {
   display: flex;
   align-items: center;
@@ -587,8 +1058,14 @@
       background-color: #f5f3ff;
       color: #6d28d9;
     }
+
+    &.dark {
+      background-color: #f1f5f9;
+      color: #334155;
+    }
   }
 }
+
 
 /* ============================================================
  * Feed Cards
@@ -696,6 +1173,31 @@
       font-size: 12px;
       font-weight: 600;
       color: #374151;
+
+      &.doc-number-btn,
+      &.doc-number-link {
+        display: inline-flex;
+        align-items: center;
+        gap: 3px;
+        background: transparent;
+        border: none;
+        padding: 2px 6px;
+        border-radius: 4px;
+        color: #2563eb;
+        text-decoration: none;
+        cursor: pointer;
+        transition: all 0.15s ease;
+
+        &:hover {
+          background-color: #eff6ff;
+          color: #1d4ed8;
+          text-decoration: underline;
+        }
+
+        i {
+          font-size: 10.5px;
+        }
+      }
     }
 
     .feed-date {
@@ -705,7 +1207,48 @@
   }
 }
 
+.timeline-feed-spk-bar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 6px 12px;
+  margin-bottom: 12px;
+  background-color: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  font-size: 12px;
+
+  i {
+    color: #3b82f6;
+    font-size: 13px;
+  }
+
+  .spk-number {
+    font-weight: 700;
+    color: #1e293b;
+  }
+
+  .spk-client-tag {
+    padding: 1px 6px;
+    background-color: #eff6ff;
+    color: #1d4ed8;
+    border-radius: 4px;
+    font-weight: 600;
+    font-size: 11px;
+  }
+
+  .spk-desc {
+    color: #64748b;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 480px;
+  }
+}
+
 .timeline-feed-tasks {
+
   display: flex;
   flex-direction: column;
   gap: 10px;

@@ -26,6 +26,18 @@ Bagian ini merangkum perubahan kontrak Daily Progress dibanding dokumentasi sebe
 18. **Proteksi Task Selesai**: Task/detail yang sudah berstatus `selesai` dikunci permanen: tidak dapat diubah status/isinya, tidak dapat dihapus (baik melalui delete detail, delete DP, maupun melalui payload edit), dan header DP tidak dapat diubah jika memiliki task yang sudah selesai.
 19. **Batasan Hari Edit DP**: Daily Progress hanya dapat diubah pada hari yang sama. Jika sudah berbeda hari, Daily Progress tidak dapat diedit.
 20. **Daily Progress Khusus Temuan**: Daily Progress kini dapat disimpan/diperbarui meskipun user **hanya menyelesaikan/menindaklanjuti temuan** (`temuans`, `temuan_ids`, atau `finding_ids`) tanpa memilih task pekerjaan (`details: []` atau dihilangkan). Minimal salah satu antara `details` atau temuan wajib diisi.
+21. **Tracking & Proteksi Penggunaan di Progress Report (`is_used_in_progress_report` & `progress_reports`)**:
+    - Response Daily Progress (baik header maupun tiap task detail) sekarang menyertakan flag boolean `is_used_in_progress_report`.
+    - Jika Daily Progress sudah pernah digunakan/diserap ke dalam Progress Report (`is_used_in_progress_report: true`), response menyertakan array **`progress_reports`** yang berisi rincian Progress Report terkait (`id`, `nomor`, `tanggal`).
+    - Jika Daily Progress sudah masuk Progress Report, sistem **mengunci total** DP tersebut: tidak dapat diubah melalui `PUT /api/daily-progress/{id}/edit`, tidak dapat di-update status melalui `PUT /api/daily-progress/{id}`, tidak dapat dihapus (`DELETE`), detail task tidak dapat dihapus (`DELETE details/{detail}`), dan dokumen pendukung tidak dapat ditambah/dihapus.
+22. **View Detail Daily Progress Tim (`GET /api/daily-progress/{id_or_nomor}`)**:
+    - Endpoint detail `GET /api/daily-progress/{dailyProgress}` sekarang mendukung pencarian menggunakan **ID** (contoh: `/api/daily-progress/45`) maupun **Nomor DP** (contoh: `/api/daily-progress/DP-2026/11/0002`).
+    - Hal ini memudahkan implementasi **direct link** dari fitur Timeline (yang menampilkan `nomor` dan `reference_id`) langsung ke halaman detail Daily Progress.
+    - Dapat diakses oleh **seluruh anggota tim SPK** yang terdaftar aktif pada SPK yang sama (bukan hanya pembuatnya saja).
+    - Response menyertakan field `created_by_name` (nama pembuat DP) dan `is_used_in_progress_report`.
+23. **Auto-Selected SPK Forwarding Support (`als_spk_id` & `spk_id`)**:
+    - Response Daily Progress (baik list maupun detail) sekarang menyertakan `als_spk_id` dan `spk_id` di top-level header.
+    - Hal ini mempermudah frontend saat melakukan redirect/forward ke halaman pembuatan Progress Report (`/progress-report/create`) agar dapat langsung mem-passing ID SPK tanpa harus mencocokkan string `no_spk`.
 
 ```php
 Route::prefix('daily-progress')->group(function () {
@@ -34,7 +46,7 @@ Route::prefix('daily-progress')->group(function () {
     Route::post('/', [DailyProgressController::class, 'store']);
     Route::get('/pending', [DailyProgressController::class, 'pending']);
     Route::get('/{dailyProgress}', [DailyProgressController::class, 'show'])
-        ->whereNumber('dailyProgress');
+        ->where('dailyProgress', '.*');
     Route::put('/{dailyProgress}', [DailyProgressController::class, 'update'])
         ->whereNumber('dailyProgress');
     Route::put('/{dailyProgress}/edit', [DailyProgressController::class, 'edit'])
