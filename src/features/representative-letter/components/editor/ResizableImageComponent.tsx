@@ -75,7 +75,7 @@ export const ResizableImageComponent = ({
 
             // Container max boundary
             const parentWidth = containerRef.current?.parentElement?.clientWidth || 800
-            let newWidth = Math.max(80, Math.min(parentWidth, startWidth + diffX))
+            const newWidth = Math.max(80, Math.min(parentWidth, startWidth + diffX))
             const widthPercent = Math.round((newWidth / parentWidth) * 100)
 
             // Prefer percentage if within 10-100%

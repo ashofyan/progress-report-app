@@ -27,7 +27,7 @@ export const exportHtmlToDocx = async (
 
         const traverse = (
             currentNode: Node,
-            styles: { bold?: boolean; italics?: boolean; underline?: {} },
+            styles: { bold?: boolean; italics?: boolean; underline?: Record<string, unknown>; color?: string },
         ) => {
             if (currentNode.nodeType === Node.TEXT_NODE) {
                 const text = currentNode.textContent || ''
@@ -38,6 +38,7 @@ export const exportHtmlToDocx = async (
                             bold: styles.bold,
                             italics: styles.italics,
                             underline: styles.underline,
+                            color: styles.color,
                             font: 'Arial',
                             size: 22, // 11pt
                         }),
@@ -49,12 +50,14 @@ export const exportHtmlToDocx = async (
             if (currentNode.nodeType === Node.ELEMENT_NODE) {
                 const el = currentNode as HTMLElement
                 const tag = el.tagName.toLowerCase()
+                const isLink = tag === 'a'
 
                 const newStyles = {
                     ...styles,
                     bold: styles.bold || tag === 'strong' || tag === 'b',
                     italics: styles.italics || tag === 'em' || tag === 'i',
-                    underline: styles.underline || (tag === 'u' ? {} : undefined),
+                    underline: styles.underline || (tag === 'u' || isLink ? {} : undefined),
+                    color: isLink ? '2563EB' : styles.color,
                 }
 
                 currentNode.childNodes.forEach((child) =>

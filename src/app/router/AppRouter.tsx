@@ -31,6 +31,7 @@ import RepresentativeLetterCreatePage from '@/features/representative-letter/pag
 import RepresentativeLetterEditorPage from '@/features/representative-letter/pages/RepresentativeLetterEditorPage'
 import RepresentativeLetterListPage from '@/features/representative-letter/pages/RepresentativeLetterListPage'
 import RepresentativeLetterMasterLayoutPage from '@/features/representative-letter/pages/RepresentativeLetterMasterLayoutPage'
+import RepresentativeLetterTemplateEditorPage from '@/features/representative-letter/pages/RepresentativeLetterTemplateEditorPage'
 import SolusiFormPage from '@/features/solusi/pages/SolusiFormPage'
 import TemuanFormPage from '@/features/temuan/pages/TemuanFormPage'
 import TemuanPage from '@/features/temuan/pages/TemuanPage'
@@ -256,6 +257,16 @@ const AppRouter = () => {
                     <Route
                         path="/representative-letter/templates"
                         element={<RepresentativeLetterMasterLayoutPage defaultTab="template" />}
+                    />
+
+                    <Route
+                        path="/representative-letter/templates/create"
+                        element={<RepresentativeLetterTemplateEditorPage />}
+                    />
+
+                    <Route
+                        path="/representative-letter/templates/:id/edit"
+                        element={<RepresentativeLetterTemplateEditorPage />}
                     />
 
                     <Route

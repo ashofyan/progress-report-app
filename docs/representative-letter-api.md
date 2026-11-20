@@ -238,14 +238,63 @@ Status: `200 OK`
 
 ## POST /api/representative-letters/generate-draft
 
-Endpoint untuk menginisialisasi draft dokumen RL. Backend memuat Master Template RL dan otomatis menginjeksi daftar Progress Report yang dipilih (nomor pekerjaan, deskripsi, temuan/hasil yang selesai) ke dalam template konten WYSIWYG Docs / ala MS Word (JSON fleksibel).
+Endpoint untuk menginisialisasi draft dokumen RL. Backend memuat Master Template RL dan otomatis menginjeksi daftar Progress Report yang dipilih atau otomatis mengambil semua task berstatus selesai berdasarkan rentang tanggal (`start_date` & `end_date`) atau periode (`bulan` & `tahun`).
+
+### Fitur & Logika Baru Generate Draft:
+
+1. **Pemilihan Task / Checklist PR Bersifat Opsional (Bisa Dihapus di Frontend):**
+   - Frontend tidak perlu lagi menampilkan modal / checklist pemilihan task PR yang panjang.
+   - Cukup memilih Klien / SPK dan menentukan rentang tanggal (`start_date` & `end_date`) atau periode (`bulan` & `tahun`).
+   - Backend akan otomatis memfilter dan mengumpulkan seluruh detail pekerjaan berstatus `selesai` (`AlsProgressReportDetail`) pada periode tersebut.
+   - Jika `progress_report_detail_ids` atau `progress_report_ids` tidak dikirim (atau dikirim `null`), backend otomatis memuat semua task yang memenuhi kriteria tanggal/periode.
+
+2. **Hierarki Konten Dokumen (HTML & WYSIWYG):**
+   ```text
+   Nama Jasa (Header Jasa)
+   1. Nama Task (Parent Task / Header Task)
+      a. Sub Task 1
+         Catatan Pekerjaan 1
+         Catatan Pekerjaan 2
+
+         [Foto / Gambar Lampiran Subtask (<img>)]
+         📎 [Tautan Dokumen Non-Gambar (PDF / Excel)]
+
+         • Identifikasi Masalah
+           [Isi Catatan Temuan]
+
+         • Saran
+           [Isi Catatan Solusi]
+
+      b. Sub Task 2
+         Catatan Pekerjaan
+
+   2. Nama Task 2
+   ...
+   ```
+
+3. **Dukungan Temuan & Solusi Global (Fitur Temuan & Solusi Terpadu):**
+   - **Temuan Global (`type = 'TM'`):** Temuan yang dibuat dari menu Temuan & Solusi (terikat pada Header/Parent Task pekerjaan SPK) **otomatis diikutsertakan** ke dalam RL.
+   - **Penempatan:** Jika Parent Task memiliki sub-task (misalnya `a. Sub Task 1`), maka Temuan & Solusi Global otomatis diposisikan di bawah sub-task pertama (`Sub Task 1`) agar tersaji terstruktur. Jika Parent Task tidak memiliki sub-task, temuan langsung ditampilkan di bawah Parent Task tersebut.
+   - **Solusi:** Baik solusi yang bersumber dari menu (`source = 'menu'`), Daily Progress (`source = 'daily_progress'`), maupun Progress Report (`source = 'progress_report'`) otomatis ditarik dan dirender di bawah **"&bull; Saran"**.
+
+4. **Lampiran Subtask (Gambar & Dokumen Non-Gambar):**
+   - **Gambar (`image/*`, jpg, png, webp, gif):** Langsung ditampilkan di bawah catatan subtask dalam tag `<img>` berukuran responsif (`max-width: 100%; max-height: 280px`).
+   - **Dokumen Non-Gambar (PDF, DOCX, XLSX, ZIP):** Ditampilkan sebagai tautan link/shortlink berikon `📎 <a href="..." target="_blank">Nama Dokumen</a>`.
+   - **Export PDF:** Pada endpoint `/api/representative-letters/{id}/export-pdf`, tag `<img src="...">` yang mengarah ke storage lokal secara otomatis dikonversi menjadi *Base64 Data URI* sehingga DomPDF dapat merendernya secara offline dan presisi tanpa error timeout atau permission path.
 
 ### Request Body
 
 | Field | Tipe | Wajib | Keterangan |
 | --- | --- | --- | --- |
-| `spk_id` | integer | Ya | ID SPK sumber data. |
-| `progress_report_ids` | array of int | Ya | Array ID Progress Report berstatus selesai yang dipilih user. |
+| `spk_id` | integer | Opsional* | ID SPK sumber data (*Wajib salah satu: `spk_id` atau `client_code`). |
+| `client_code` | string | Opsional* | Kode Klien sumber data (*Wajib salah satu: `spk_id` atau `client_code`). |
+| `start_date` / `tanggal_awal` | date (Y-m-d) | Opsional | Tanggal mulai rentang pekerjaan PR. |
+| `end_date` / `tanggal_akhir` | date (Y-m-d) | Opsional | Tanggal akhir rentang pekerjaan PR. |
+| `bulan` | integer (1-12) | Opsional | Bulan periode PR (alternatif date range). |
+| `tahun` | integer (YYYY) | Opsional | Tahun periode PR (alternatif date range). |
+| `job_id` | integer | Opsional | Filter pekerjaan jasa tertentu. |
+| `progress_report_ids` | array of int | Opsional | Array ID PR. Boleh dikosongkan/dihapus jika menggunakan filter tanggal/periode. |
+| `progress_report_detail_ids` | array of int | Opsional | Array ID Detail PR. Boleh dikosongkan/dihapus jika menggunakan filter tanggal/periode. |
 | `template_id` | integer | Opsional | ID Master Template RL. Jika kosong, memakai template default aktif. |
 | `header_id` | integer | Opsional | ID header kop surat. Jika kosong, memakai default header template/aktif. |
 | `title` | string | Opsional | Judul draft dokumen RL. |
@@ -253,7 +302,8 @@ Endpoint untuk menginisialisasi draft dokumen RL. Backend memuat Master Template
 ```json
 {
   "spk_id": 123,
-  "progress_report_ids": [101, 102],
+  "start_date": "2026-11-01",
+  "end_date": "2026-11-30",
   "template_id": 1
 }
 ```

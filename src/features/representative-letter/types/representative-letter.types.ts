@@ -93,6 +93,21 @@ export interface AvailableProgressReportTaskNote {
     catatan: string
 }
 
+export interface AvailableProgressReportDocument {
+    id: number
+    path: string
+    url: string
+    original_name: string
+    mime_type?: string
+    is_image: boolean
+}
+
+export interface AvailableProgressReportTemuan {
+    id?: number
+    masalah: string
+    saran?: string | null
+}
+
 export interface AvailableProgressReportTask {
     id: number
     progress_report_detail_id: number
@@ -103,6 +118,8 @@ export interface AvailableProgressReportTask {
     status: string
     source_type?: 'master' | 'additional'
     notes: AvailableProgressReportTaskNote[]
+    documents?: AvailableProgressReportDocument[]
+    temuans?: AvailableProgressReportTemuan[]
 }
 
 export interface AvailableProgressReport {
@@ -137,23 +154,37 @@ export interface AvailableProgressReportsResponse {
     data: AvailableProgressReport[]
 }
 
-export interface GenerateDraftPayload {
-    spk_id?: number
-    als_spk_id?: number
+export interface GenerateDraftRepresentativeLetterPayload {
+    // Target Sumber Data (Wajib salah satu: spk_id atau client_code)
+    spk_id?: number | null
     client_code?: string
     client_name?: string
-    job_id?: number
-    als_job_id?: number
-    start_date?: string
-    end_date?: string
+
+    // Filter Rentang Tanggal / Periode (Baru - Otomatis mengambil seluruh task selesai)
+    start_date?: string // Format: YYYY-MM-DD
+    end_date?: string   // Format: YYYY-MM-DD
     tanggal_awal?: string
     tanggal_akhir?: string
-    progress_report_ids?: number[]
+    bulan?: number      // 1 - 12 (Alternatif rentang tanggal)
+    tahun?: number      // YYYY (Alternatif rentang tanggal)
+
+    // Filter Pekerjaan Jasa (Opsional)
+    job_id?: number | null
+    als_job_id?: number | null
+    als_spk_id?: number | null
+
+    // Seleksi Manual Task (OPSIONAL - Boleh dikosongkan/diabaikan)
     progress_report_detail_ids?: number[]
-    template_id?: number
-    header_id?: number
+    progress_report_ids?: number[]
+
+    // Template & Header Kop Surat (Opsional)
+    template_id?: number | null
+    header_id?: number | null
     title?: string
 }
+
+export type GenerateDraftPayload = GenerateDraftRepresentativeLetterPayload
+export type GenerateDraftRequest = GenerateDraftRepresentativeLetterPayload
 
 export interface GeneratedDraftDocument {
     title: string
@@ -217,6 +248,8 @@ export interface RepresentativeLetterDetail {
     task_name: string
     status: 'selesai'
     notes?: RepresentativeLetterPreviewNote[]
+    documents?: AvailableProgressReportDocument[]
+    temuans?: AvailableProgressReportTemuan[]
 }
 
 export interface RepresentativeLetter {
@@ -245,6 +278,7 @@ export interface RepresentativeLetter {
 export interface RepresentativeLetterListItem {
     id: number
     nomor: string
+    nomor_surat?: string | null
     status: 'draft' | 'final' | string
     tanggal_awal?: string | null
     tanggal_akhir?: string | null
@@ -278,6 +312,8 @@ export interface RepresentativeLetterPreviewTask {
     }
     status: 'selesai'
     notes: RepresentativeLetterPreviewNote[]
+    documents?: AvailableProgressReportDocument[]
+    temuans?: AvailableProgressReportTemuan[]
 }
 
 export interface RepresentativeLetterPreview {
@@ -318,6 +354,10 @@ export interface RepresentativeLetterHeader {
 
 export interface RepresentativeLetterFilters {
     als_spk_id?: number
+    spk_id?: number
+    client_code?: string
+    status?: string
+    search?: string
     bulan?: number
     tahun?: number
     page?: number

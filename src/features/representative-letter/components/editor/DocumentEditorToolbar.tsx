@@ -482,7 +482,7 @@ const DocumentEditorToolbar = ({ editor }: DocumentEditorToolbarProps) => {
                 </button>
             </div>
 
-            {/* Extra: Quote, Horizontal Rule, AI Button */}
+            {/* Extra: Quote, Horizontal Rule */}
             <div className="doc-toolbar-group">
                 <button
                     type="button"
@@ -499,17 +499,6 @@ const DocumentEditorToolbar = ({ editor }: DocumentEditorToolbarProps) => {
                     onClick={() => editor.chain().focus().setHorizontalRule().run()}
                 >
                     <i className="bi bi-dash-lg" />
-                </button>
-                <button
-                    type="button"
-                    className="doc-tool-btn doc-ai-btn"
-                    title="AI Assist"
-                    onClick={() => {
-                        window.alert('Fitur AI Assistant siap dihubungkan dengan prompt dokumen.')
-                    }}
-                >
-                    <i className="bi bi-stars" />
-                    <span>AI</span>
                 </button>
             </div>
         </div>

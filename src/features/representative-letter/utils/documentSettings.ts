@@ -123,6 +123,16 @@ export const resolveRepresentativeLetterDocumentSettings = (
             width: watermarkWidth,
             image_url: watermarkImageUrl,
         },
+        header_footer: s.header_footer
+            ? {
+                  header_enabled: headerEnabled,
+                  footer_enabled: footerEnabled,
+                  header_image_url: s.header_footer.header_image_url ?? null,
+                  footer_image_url: s.header_footer.footer_image_url ?? null,
+                  footer_text: s.header_footer.footer_text ?? null,
+                  footer_type: s.header_footer.footer_type ?? 'image',
+              }
+            : undefined,
     }
 }
 

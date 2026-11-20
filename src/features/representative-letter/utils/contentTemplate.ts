@@ -1,4 +1,6 @@
 import type {
+    AvailableProgressReportDocument,
+    AvailableProgressReportTemuan,
     RepresentativeLetterPreview,
     RepresentativeLetterPreviewTask,
 } from '@/features/representative-letter/types/representative-letter.types'
@@ -26,6 +28,57 @@ const formatIndonesianDate = (date: Date): string => {
     return `${day} ${monthLabel} ${year}`
 }
 
+interface SubtaskDetailData {
+    notes: string[]
+    documents: AvailableProgressReportDocument[]
+    temuans: AvailableProgressReportTemuan[]
+}
+
+const renderSubtaskDetailHtml = (subData: SubtaskDetailData): string => {
+    let html = ''
+
+    // 1. Catatan per subtask
+    subData.notes.forEach((noteText) => {
+        html += `<p style="margin: 2px 0 2px 0; color: #333;">${escapeHtml(noteText)}</p>`
+    })
+
+    // 2. Hasil Gambar Langsung di Bawah Catatan per Subtask
+    const images = subData.documents.filter((d) => d.is_image)
+    if (images.length > 0) {
+        html += '<div class="subtask-images" style="margin: 6px 0 8px 0;">'
+        images.forEach((img) => {
+            html += `<div style="margin: 4px 0 6px 0;"><img src="${escapeHtml(img.url)}" alt="${escapeHtml(img.original_name)}" style="max-width: 100%; max-height: 280px; object-fit: contain; border-radius: 4px; display: block;" /></div>`
+        })
+        html += '</div>'
+    }
+
+    // 3. Dokumen Non-Gambar (Link / Shortlink)
+    const nonImages = subData.documents.filter((d) => !d.is_image)
+    if (nonImages.length > 0) {
+        html += '<div class="subtask-documents" style="margin: 4px 0 6px 0;">'
+        nonImages.forEach((doc) => {
+            html += `<p style="margin: 2px 0; font-size: 9pt;">📎 <a href="${escapeHtml(doc.url)}" target="_blank" style="color: #2563eb; text-decoration: underline;">${escapeHtml(doc.original_name)}</a></p>`
+        })
+        html += '</div>'
+    }
+
+    // 4. Temuan & Solusi (Identifikasi Masalah & Saran)
+    if (subData.temuans && subData.temuans.length > 0) {
+        html += '<div class="subtask-findings" style="margin-top: 8px; margin-bottom: 8px;">'
+        subData.temuans.forEach((t) => {
+            html += '<p style="margin: 6px 0 2px 0; font-weight: bold; color: #111827;">&bull;&nbsp;Identifikasi Masalah</p>'
+            html += `<p style="margin: 2px 0 6px 14px; color: #374151; line-height: 1.45;">${escapeHtml(t.masalah)}</p>`
+            if (t.saran) {
+                html += '<p style="margin: 6px 0 2px 0; font-weight: bold; color: #111827;">&bull;&nbsp;Saran</p>'
+                html += `<p style="margin: 2px 0 6px 14px; color: #374151; line-height: 1.45;">${escapeHtml(t.saran)}</p>`
+            }
+        })
+        html += '</div>'
+    }
+
+    return html
+}
+
 /**
  * Builds hierarchical Progress Report HTML representation:
  *
@@ -35,7 +88,8 @@ const formatIndonesianDate = (date: Date): string => {
  *     <ol type="a">
  *       <li>Sub Task
  *         <p>note subtask1</p>
- *         <p>note subtask2</p>
+ *         <div class="subtask-images"><img ... /></div>
+ *         <div class="subtask-documents">📎 <a ...>...</a></div>
  *       </li>
  *     </ol>
  *   </li>
@@ -46,7 +100,7 @@ export const buildProgressReportHierarchicalHtml = (
     jasaName: string,
     tasks: RepresentativeLetterPreviewTask[],
 ): string => {
-    const taskMap = new Map<string, Map<string, string[]>>()
+    const taskMap = new Map<string, Map<string, SubtaskDetailData>>()
 
     tasks.forEach((item) => {
         const parentTaskName =
@@ -60,23 +114,39 @@ export const buildProgressReportHierarchicalHtml = (
                 : ''
 
         if (!taskMap.has(parentTaskName)) {
-            taskMap.set(parentTaskName, new Map<string, string[]>())
+            taskMap.set(parentTaskName, new Map<string, SubtaskDetailData>())
         }
 
         const subMap = taskMap.get(parentTaskName)!
         const subKey = subTaskName || '__none__'
 
         if (!subMap.has(subKey)) {
-            subMap.set(subKey, [])
+            subMap.set(subKey, { notes: [], documents: [], temuans: [] })
         }
 
-        const noteList = subMap.get(subKey)!
+        const subData = subMap.get(subKey)!
         item.notes.forEach((note) => {
             const txt = note.catatan.trim()
-            if (txt && !noteList.includes(txt)) {
-                noteList.push(txt)
+            if (txt && !subData.notes.includes(txt)) {
+                subData.notes.push(txt)
             }
         })
+
+        if (item.documents && Array.isArray(item.documents)) {
+            item.documents.forEach((doc) => {
+                if (!subData.documents.some((d) => d.path === doc.path)) {
+                    subData.documents.push(doc)
+                }
+            })
+        }
+
+        if (item.temuans && Array.isArray(item.temuans)) {
+            item.temuans.forEach((t) => {
+                if (!subData.temuans.some((x) => x.masalah === t.masalah)) {
+                    subData.temuans.push(t)
+                }
+            })
+        }
     })
 
     if (taskMap.size === 0) {
@@ -96,20 +166,16 @@ export const buildProgressReportHierarchicalHtml = (
 
         if (hasSubtasks) {
             html += '<ol type="a" style="margin-top: 4px; margin-bottom: 6px; padding-left: 20px;">'
-            subMap.forEach((notes, subName) => {
+            subMap.forEach((subData, subName) => {
                 if (subName === '__none__') return
                 html += `<li style="margin-bottom: 4px;">${escapeHtml(subName)}`
-                notes.forEach((noteText) => {
-                    html += `<p style="margin: 2px 0 2px 0; color: #333;">${escapeHtml(noteText)}</p>`
-                })
+                html += renderSubtaskDetailHtml(subData)
                 html += '</li>'
             })
             html += '</ol>'
         } else {
-            const directNotes = subMap.get('__none__') ?? []
-            directNotes.forEach((noteText) => {
-                html += `<p style="margin: 2px 0 2px 0; color: #333;">${escapeHtml(noteText)}</p>`
-            })
+            const directData = subMap.get('__none__') ?? { notes: [], documents: [], temuans: [] }
+            html += renderSubtaskDetailHtml(directData)
         }
 
         html += '</li>'

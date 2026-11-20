@@ -15,6 +15,7 @@ import { TableHeader } from '@tiptap/extension-table-header'
 import { TaskList } from '@tiptap/extension-task-list'
 import { TaskItem } from '@tiptap/extension-task-item'
 import { CharacterCount } from '@tiptap/extension-character-count'
+import { Link } from '@tiptap/extension-link'
 import { useEffect, useRef } from 'react'
 
 import {
@@ -86,6 +87,16 @@ const RepresentativeLetterDocumentWorkspace = ({
             CharacterCount,
             FontSize,
             LineHeight,
+            Link.configure({
+                openOnClick: false,
+                autolink: true,
+                defaultProtocol: 'https',
+                HTMLAttributes: {
+                    target: '_blank',
+                    rel: 'noopener noreferrer',
+                    class: 'representative-letter-link',
+                },
+            }),
         ],
         content: content || '<p></p>',
         editable: letter.status === 'draft',
