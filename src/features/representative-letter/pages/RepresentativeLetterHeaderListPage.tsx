@@ -21,6 +21,9 @@ interface HeaderFormState {
     name: string
     isActive: boolean
     file: File | null
+    footerFile: File | null
+    footerText: string
+    footerType: 'image' | 'text' | 'both' | 'none'
 }
 
 const defaultMeta: RepresentativeLetterMeta = {
@@ -35,46 +38,42 @@ const emptyFormState: HeaderFormState = {
     name: '',
     isActive: false,
     file: null,
+    footerFile: null,
+    footerText: '',
+    footerType: 'image',
 }
 
-const RepresentativeLetterHeaderListPage = () => {
+interface RepresentativeLetterHeaderListPageProps {
+    embedded?: boolean
+}
+
+const RepresentativeLetterHeaderListPage = ({
+    embedded = false,
+}: RepresentativeLetterHeaderListPageProps = {}) => {
     const navigate = useNavigate()
 
-    const [headers, setHeaders] =
-        useState<RepresentativeLetterHeader[]>([])
-    const [meta, setMeta] =
-        useState<RepresentativeLetterMeta>(defaultMeta)
-    const [currentPage, setCurrentPage] =
-        useState<number>(1)
-    const [editingHeader, setEditingHeader] =
-        useState<RepresentativeLetterHeader | null>(null)
-    const [formState, setFormState] =
-        useState<HeaderFormState>(emptyFormState)
-    const [previewUrl, setPreviewUrl] =
-        useState<string | null>(null)
-    const [isLoading, setIsLoading] =
-        useState<boolean>(false)
-    const [isSubmitting, setIsSubmitting] =
-        useState<boolean>(false)
-    const [activatingHeaderId, setActivatingHeaderId] =
-        useState<number | null>(null)
-    const [errorMessage, setErrorMessage] =
-        useState<string | null>(null)
+    const [headers, setHeaders] = useState<RepresentativeLetterHeader[]>([])
+    const [, setMeta] = useState<RepresentativeLetterMeta>(defaultMeta)
+    const [currentPage] = useState<number>(1)
+    const [editingHeader, setEditingHeader] = useState<RepresentativeLetterHeader | null>(null)
+    const [formState, setFormState] = useState<HeaderFormState>(emptyFormState)
+    const [previewUrl, setPreviewUrl] = useState<string | null>(null)
+    const [footerPreviewUrl, setFooterPreviewUrl] = useState<string | null>(null)
+    const [isLoading, setIsLoading] = useState<boolean>(false)
+    const [isSubmitting, setIsSubmitting] = useState<boolean>(false)
+    const [activatingHeaderId, setActivatingHeaderId] = useState<number | null>(null)
+    const [errorMessage, setErrorMessage] = useState<string | null>(null)
 
     const fetchHeaders = useCallback(async (): Promise<void> => {
         setIsLoading(true)
         setErrorMessage(null)
 
-        const result =
-            await representativeLetterApi.getHeaders({
-                page: currentPage,
-                per_page: 20,
-            })
+        const result = await representativeLetterApi.getHeaders({
+            page: currentPage,
+            per_page: 20,
+        })
 
-        if (
-            result.success &&
-            result.data !== undefined
-        ) {
+        if (result.success && result.data !== undefined) {
             setHeaders(result.data)
             setMeta(result.meta ?? defaultMeta)
             setIsLoading(false)
@@ -98,25 +97,33 @@ const RepresentativeLetterHeaderListPage = () => {
             if (previewUrl !== null) {
                 URL.revokeObjectURL(previewUrl)
             }
+            if (footerPreviewUrl !== null) {
+                URL.revokeObjectURL(footerPreviewUrl)
+            }
         }
-    }, [previewUrl])
+    }, [previewUrl, footerPreviewUrl])
 
     const resetForm = (): void => {
         if (previewUrl !== null) {
             URL.revokeObjectURL(previewUrl)
         }
+        if (footerPreviewUrl !== null) {
+            URL.revokeObjectURL(footerPreviewUrl)
+        }
 
         setEditingHeader(null)
         setFormState(emptyFormState)
         setPreviewUrl(null)
+        setFooterPreviewUrl(null)
         setErrorMessage(null)
     }
 
-    const startEdit = (
-        header: RepresentativeLetterHeader,
-    ): void => {
+    const startEdit = (header: RepresentativeLetterHeader): void => {
         if (previewUrl !== null) {
             URL.revokeObjectURL(previewUrl)
+        }
+        if (footerPreviewUrl !== null) {
+            URL.revokeObjectURL(footerPreviewUrl)
         }
 
         setEditingHeader(header)
@@ -125,14 +132,16 @@ const RepresentativeLetterHeaderListPage = () => {
             name: header.name,
             isActive: header.is_active,
             file: null,
+            footerFile: null,
+            footerText: header.footer?.text ?? '',
+            footerType: header.footer?.type ?? 'image',
         })
         setPreviewUrl(null)
+        setFooterPreviewUrl(null)
         setErrorMessage(null)
     }
 
-    const handleFileChange = (
-        event: ChangeEvent<HTMLInputElement>,
-    ): void => {
+    const handleFileChange = (event: ChangeEvent<HTMLInputElement>): void => {
         const file = event.target.files?.[0] ?? null
 
         if (previewUrl !== null) {
@@ -143,14 +152,24 @@ const RepresentativeLetterHeaderListPage = () => {
             ...current,
             file,
         }))
-        setPreviewUrl(
-            file === null ? null : URL.createObjectURL(file),
-        )
+        setPreviewUrl(file === null ? null : URL.createObjectURL(file))
     }
 
-    const handleSubmit = async (
-        event: FormEvent<HTMLFormElement>,
-    ): Promise<void> => {
+    const handleFooterFileChange = (event: ChangeEvent<HTMLInputElement>): void => {
+        const file = event.target.files?.[0] ?? null
+
+        if (footerPreviewUrl !== null) {
+            URL.revokeObjectURL(footerPreviewUrl)
+        }
+
+        setFormState((current) => ({
+            ...current,
+            footerFile: file,
+        }))
+        setFooterPreviewUrl(file === null ? null : URL.createObjectURL(file))
+    }
+
+    const handleSubmit = async (event: FormEvent<HTMLFormElement>): Promise<void> => {
         event.preventDefault()
         setErrorMessage(null)
 
@@ -176,30 +195,25 @@ const RepresentativeLetterHeaderListPage = () => {
                 ? {
                     code: formState.code.trim(),
                     name: formState.name.trim(),
-                    header_image:
-                        formState.file === null
-                            ? undefined
-                            : formState.file,
+                    header_image: formState.file === null ? undefined : formState.file,
+                    footer_image: formState.footerFile === null ? undefined : formState.footerFile,
+                    footer_text: formState.footerText.trim() === '' ? undefined : formState.footerText.trim(),
+                    footer_type: formState.footerType,
                     is_active: formState.isActive,
                 }
                 : {
                     name: formState.name.trim(),
-                    header_image:
-                        formState.file === null
-                            ? undefined
-                            : formState.file,
+                    header_image: formState.file === null ? undefined : formState.file,
+                    footer_image: formState.footerFile === null ? undefined : formState.footerFile,
+                    footer_text: formState.footerText.trim() === '' ? undefined : formState.footerText.trim(),
+                    footer_type: formState.footerType,
                     is_active: formState.isActive,
                 }
 
         const result =
             editingHeader === null
-                ? await representativeLetterApi.createHeader(
-                    payload,
-                )
-                : await representativeLetterApi.updateHeader(
-                    editingHeader.id,
-                    payload,
-                )
+                ? await representativeLetterApi.createHeader(payload)
+                : await representativeLetterApi.updateHeader(editingHeader.id, payload)
 
         setIsSubmitting(false)
 
@@ -212,16 +226,11 @@ const RepresentativeLetterHeaderListPage = () => {
         setErrorMessage(result.message)
     }
 
-    const handleActivate = async (
-        header: RepresentativeLetterHeader,
-    ): Promise<void> => {
+    const handleActivate = async (header: RepresentativeLetterHeader): Promise<void> => {
         setActivatingHeaderId(header.id)
         setErrorMessage(null)
 
-        const result =
-            await representativeLetterApi.activateHeader(
-                header.id,
-            )
+        const result = await representativeLetterApi.activateHeader(header.id)
 
         setActivatingHeaderId(null)
 
@@ -234,24 +243,37 @@ const RepresentativeLetterHeaderListPage = () => {
     }
 
     return (
-        <div className="representative-letter-page-shell">
-            <div className="representative-letter-heading">
-                <h1 className="representative-letter-title">
-                    Representative Letter Header
-                </h1>
+        <div className={embedded ? 'mt-2' : 'representative-letter-page-shell'}>
+            {!embedded && (
+                <div className="representative-letter-heading">
+                    <div>
+                        <h1 className="representative-letter-title">
+                            Master Kop Surat (Header & Footer)
+                        </h1>
+                        <p className="text-muted small mb-0">
+                            Atur kop surat resmi perusahaan (logo atas & footer bawah) yang diload otomatis saat generate RL.
+                        </p>
+                    </div>
 
-                <div className="representative-letter-actions">
-                    <button
-                        type="button"
-                        className="btn btn-light"
-                        onClick={() =>
-                            navigate('/representative-letter')
-                        }
-                    >
-                        Kembali
-                    </button>
+                    <div className="representative-letter-actions d-flex gap-2">
+                        <button
+                            type="button"
+                            className="btn btn-outline-primary btn-sm"
+                            onClick={() => navigate('/representative-letter/master-layout')}
+                        >
+                            <i className="bi bi-layout-text-window-reverse me-1" />
+                            Master Layout RL
+                        </button>
+                        <button
+                            type="button"
+                            className="btn btn-light btn-sm"
+                            onClick={() => navigate('/representative-letter')}
+                        >
+                            Kembali
+                        </button>
+                    </div>
                 </div>
-            </div>
+            )}
 
             {errorMessage !== null && (
                 <div className="alert alert-danger">
@@ -264,47 +286,43 @@ const RepresentativeLetterHeaderListPage = () => {
                     className="representative-letter-header-form"
                     onSubmit={handleSubmit}
                 >
-                    <h2>
-                        {editingHeader === null
-                            ? 'Create Header'
-                            : 'Edit Header'}
+                    <h2 className="h5 fw-bold mb-3">
+                        {editingHeader === null ? 'Buat Kop Baru' : 'Edit Kop Surat'}
                     </h2>
 
                     <label className="form-label">
-                        Code
+                        Kode Kop
                         <input
                             className="form-control"
+                            placeholder="Contoh: PRO-2026"
                             value={formState.code}
                             disabled={editingHeader !== null}
-                            onChange={(
-                                event: ChangeEvent<HTMLInputElement>,
-                            ) =>
+                            onChange={(e: ChangeEvent<HTMLInputElement>) =>
                                 setFormState((current) => ({
                                     ...current,
-                                    code: event.target.value,
+                                    code: e.target.value,
                                 }))
                             }
                         />
                     </label>
 
                     <label className="form-label">
-                        Name
+                        Nama Kop
                         <input
                             className="form-control"
+                            placeholder="Contoh: Kop Surat Resmi PRO 2026"
                             value={formState.name}
-                            onChange={(
-                                event: ChangeEvent<HTMLInputElement>,
-                            ) =>
+                            onChange={(e: ChangeEvent<HTMLInputElement>) =>
                                 setFormState((current) => ({
                                     ...current,
-                                    name: event.target.value,
+                                    name: e.target.value,
                                 }))
                             }
                         />
                     </label>
 
                     <label className="form-label">
-                        Header Image
+                        Gambar Kop Atas (Header Image)
                         <input
                             type="file"
                             className="form-control"
@@ -313,36 +331,90 @@ const RepresentativeLetterHeaderListPage = () => {
                         />
                     </label>
 
-                    {(previewUrl !== null ||
-                        editingHeader !== null) && (
-                        <div className="representative-letter-header-preview">
+                    {(previewUrl !== null || editingHeader !== null) && (
+                        <div className="representative-letter-header-preview mb-3">
+                            <span className="small text-muted d-block mb-1">Preview Kop Atas:</span>
                             <img
-                                src={
-                                    previewUrl ??
-                                    editingHeader?.image.url
-                                }
+                                src={previewUrl ?? editingHeader?.image.url}
                                 alt="Preview Header"
+                                style={{ maxHeight: '80px', objectFit: 'contain' }}
                             />
                         </div>
                     )}
 
-                    <label className="form-check form-switch">
+                    <div className="mb-3">
+                        <label className="form-label">Tipe Footer</label>
+                        <select
+                            className="form-select"
+                            value={formState.footerType}
+                            onChange={(e: ChangeEvent<HTMLSelectElement>) =>
+                                setFormState((current) => ({
+                                    ...current,
+                                    footerType: e.target.value as 'image' | 'text' | 'both' | 'none',
+                                }))
+                            }
+                        >
+                            <option value="image">Gambar Saja (Logo / Border Bawah)</option>
+                            <option value="text">Teks Saja (Alamat / Disclaimer)</option>
+                            <option value="both">Kombinasi (Gambar + Teks)</option>
+                            <option value="none">Tanpa Footer</option>
+                        </select>
+                    </div>
+
+                    {(formState.footerType === 'image' || formState.footerType === 'both') && (
+                        <div className="mb-3">
+                            <label className="form-label">Gambar Footer (Opsional)</label>
+                            <input
+                                type="file"
+                                className="form-control"
+                                accept=".png,.jpg,.jpeg,.webp"
+                                onChange={handleFooterFileChange}
+                            />
+                            {(footerPreviewUrl !== null || editingHeader?.footer?.url) && (
+                                <div className="representative-letter-header-preview mt-2">
+                                    <span className="small text-muted d-block mb-1">Preview Kop Bawah:</span>
+                                    <img
+                                        src={footerPreviewUrl ?? editingHeader?.footer?.url ?? ''}
+                                        alt="Preview Footer"
+                                        style={{ maxHeight: '50px', objectFit: 'contain' }}
+                                    />
+                                </div>
+                            )}
+                        </div>
+                    )}
+
+                    {(formState.footerType === 'text' || formState.footerType === 'both') && (
+                        <div className="mb-3">
+                            <label className="form-label">Teks Footer (Alamat / Catatan Kaki)</label>
+                            <textarea
+                                className="form-control"
+                                rows={2}
+                                placeholder="Contoh: Gedung Menara ALS Lt. 15, Jl. Sudirman Jakarta | www.als-holdings.com"
+                                value={formState.footerText}
+                                onChange={(e: ChangeEvent<HTMLTextAreaElement>) =>
+                                    setFormState((current) => ({
+                                        ...current,
+                                        footerText: e.target.value,
+                                    }))
+                                }
+                            />
+                        </div>
+                    )}
+
+                    <label className="form-check form-switch mb-3">
                         <input
                             type="checkbox"
                             className="form-check-input"
                             checked={formState.isActive}
-                            onChange={(
-                                event: ChangeEvent<HTMLInputElement>,
-                            ) =>
+                            onChange={(e: ChangeEvent<HTMLInputElement>) =>
                                 setFormState((current) => ({
                                     ...current,
-                                    isActive:
-                                        event.target.checked,
+                                    isActive: e.target.checked,
                                 }))
                             }
                         />
-                        <span className="form-check-label">
-                            Set Active
+                        <span className="form-check-label fw-semibold">
+                            Aktifkan Kop Ini untuk Tenant
                         </span>
                     </label>
 
@@ -365,7 +437,7 @@ const RepresentativeLetterHeaderListPage = () => {
                             {isSubmitting && (
                                 <span className="spinner-border spinner-border-sm me-2" />
                             )}
-                            Simpan Header
+                            Simpan Kop Surat
                         </button>
                     </div>
                 </form>
@@ -373,13 +445,13 @@ const RepresentativeLetterHeaderListPage = () => {
                 <div className="representative-letter-board">
                     {isLoading && (
                         <div className="representative-letter-state">
-                            Memuat header...
+                            Memuat kop surat...
                         </div>
                     )}
 
                     {!isLoading && headers.length === 0 && (
                         <div className="representative-letter-state">
-                            Belum ada header.
+                            Belum ada kop surat.
                         </div>
                     )}
 
@@ -388,44 +460,49 @@ const RepresentativeLetterHeaderListPage = () => {
                             <table className="table representative-letter-table">
                                 <thead>
                                 <tr>
-                                    <th>Code</th>
-                                    <th>Name</th>
-                                    <th>Preview Header</th>
+                                    <th>Kode</th>
+                                    <th>Nama Kop</th>
+                                    <th>Kop Atas</th>
+                                    <th>Kop Bawah (Footer)</th>
                                     <th>Status</th>
-                                    <th>Created By</th>
-                                    <th>Created At</th>
-                                    <th>Action</th>
+                                    <th>Aksi</th>
                                 </tr>
                                 </thead>
                                 <tbody>
-                                {headers.map((header) => (
-                                    <tr key={header.id}>
-                                        <td>{header.code}</td>
-                                        <td>{header.name}</td>
+                                {headers.map((h) => (
+                                    <tr key={h.id}>
+                                        <td><code>{h.code}</code></td>
+                                        <td><strong>{h.name}</strong></td>
                                         <td>
                                             <img
                                                 className="representative-letter-header-thumb"
-                                                src={header.image.url}
-                                                alt={header.name}
+                                                src={h.image.url}
+                                                alt={h.name}
+                                                style={{ maxHeight: '40px', objectFit: 'contain' }}
                                             />
+                                        </td>
+                                        <td>
+                                            {h.footer?.url ? (
+                                                <img
+                                                    className="representative-letter-header-thumb"
+                                                    src={h.footer.url}
+                                                    alt="Footer"
+                                                    style={{ maxHeight: '30px', objectFit: 'contain' }}
+                                                />
+                                            ) : h.footer?.text ? (
+                                                <span className="small text-muted">{h.footer.text.substring(0, 30)}...</span>
+                                            ) : (
+                                                <span className="text-muted small">Default</span>
+                                            )}
                                         </td>
                                         <td>
                                             <span
                                                 className={`representative-letter-header-status ${
-                                                    header.is_active
-                                                        ? 'active'
-                                                        : 'inactive'
+                                                    h.is_active ? 'active' : 'inactive'
                                                 }`}
                                             >
-                                                {header.is_active
-                                                    ? 'Active'
-                                                    : 'Inactive'}
+                                                {h.is_active ? 'Aktif' : 'Non-Aktif'}
                                             </span>
-                                        </td>
-                                        <td>{header.created_by}</td>
-                                        <td>
-                                            {header.created_at ??
-                                                '-'}
                                         </td>
                                         <td>
                                             <div className="representative-letter-row-actions">
@@ -433,35 +510,18 @@ const RepresentativeLetterHeaderListPage = () => {
                                                     type="button"
                                                     className="representative-letter-action-button"
                                                     title="View/Edit"
-                                                    onClick={() =>
-                                                        startEdit(
-                                                            header,
-                                                        )
-                                                    }
+                                                    onClick={() => startEdit(h)}
                                                 >
                                                     <i className="bi bi-pencil-square" />
                                                 </button>
                                                 <button
                                                     type="button"
                                                     className="representative-letter-action-button"
-                                                    title="Activate"
-                                                    disabled={
-                                                        header.is_active ||
-                                                        activatingHeaderId ===
-                                                            header.id
-                                                    }
-                                                    onClick={() =>
-                                                        void handleActivate(
-                                                            header,
-                                                        )
-                                                    }
+                                                    title="Aktifkan Kop Ini"
+                                                    disabled={h.is_active || activatingHeaderId === h.id}
+                                                    onClick={() => void handleActivate(h)}
                                                 >
-                                                    {activatingHeaderId ===
-                                                    header.id ? (
-                                                        <span className="spinner-border spinner-border-sm" />
-                                                    ) : (
-                                                        <i className="bi bi-check2-circle" />
-                                                    )}
+                                                    <i className="bi bi-check2-circle" />
                                                 </button>
                                             </div>
                                         </td>
@@ -469,47 +529,6 @@ const RepresentativeLetterHeaderListPage = () => {
                                 ))}
                                 </tbody>
                             </table>
-                        </div>
-                    )}
-
-                    {!isLoading && headers.length > 0 && (
-                        <div className="representative-letter-pagination">
-                            <button
-                                type="button"
-                                className="pagination-arrow"
-                                disabled={currentPage <= 1}
-                                onClick={() =>
-                                    setCurrentPage((previous) =>
-                                        Math.max(
-                                            1,
-                                            previous - 1,
-                                        ),
-                                    )
-                                }
-                            >
-                                <i className="bi bi-caret-left-fill" />
-                            </button>
-                            <span className="representative-letter-page-info">
-                                {meta.current_page} /{' '}
-                                {meta.last_page}
-                            </span>
-                            <button
-                                type="button"
-                                className="pagination-arrow"
-                                disabled={
-                                    currentPage >= meta.last_page
-                                }
-                                onClick={() =>
-                                    setCurrentPage((previous) =>
-                                        Math.min(
-                                            meta.last_page,
-                                            previous + 1,
-                                        ),
-                                    )
-                                }
-                            >
-                                <i className="bi bi-caret-right-fill" />
-                            </button>
                         </div>
                     )}
                 </div>

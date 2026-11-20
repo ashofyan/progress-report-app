@@ -26,71 +26,110 @@ const formatIndonesianDate = (date: Date): string => {
     return `${day} ${monthLabel} ${year}`
 }
 
-const groupTasks = (
+/**
+ * Builds hierarchical Progress Report HTML representation:
+ *
+ * <p><strong><u>Nama Jasa</u></strong></p>
+ * <ol>
+ *   <li>Nama Task
+ *     <ol type="a">
+ *       <li>Sub Task
+ *         <p>note subtask1</p>
+ *         <p>note subtask2</p>
+ *       </li>
+ *     </ol>
+ *   </li>
+ *   <li>Nama Task 2</li>
+ * </ol>
+ */
+export const buildProgressReportHierarchicalHtml = (
+    jasaName: string,
     tasks: RepresentativeLetterPreviewTask[],
-): Array<{
-    parentName: string
-    tasks: RepresentativeLetterPreviewTask[]
-}> => {
-    const grouped = new Map<string, RepresentativeLetterPreviewTask[]>()
+): string => {
+    const taskMap = new Map<string, Map<string, string[]>>()
 
-    tasks.forEach((task) => {
-        const parentName = task.parent.task_name
-        const current = grouped.get(parentName) ?? []
+    tasks.forEach((item) => {
+        const parentTaskName =
+            item.parent?.task_name?.trim() ||
+            item.task?.task_name?.trim() ||
+            'Pekerjaan / Task'
+        const subTaskName =
+            item.parent?.task_name &&
+            item.parent.task_name !== item.task.task_name
+                ? item.task.task_name.trim()
+                : ''
 
-        grouped.set(parentName, [
-            ...current,
-            task,
-        ])
+        if (!taskMap.has(parentTaskName)) {
+            taskMap.set(parentTaskName, new Map<string, string[]>())
+        }
+
+        const subMap = taskMap.get(parentTaskName)!
+        const subKey = subTaskName || '__none__'
+
+        if (!subMap.has(subKey)) {
+            subMap.set(subKey, [])
+        }
+
+        const noteList = subMap.get(subKey)!
+        item.notes.forEach((note) => {
+            const txt = note.catatan.trim()
+            if (txt && !noteList.includes(txt)) {
+                noteList.push(txt)
+            }
+        })
     })
 
-    return Array.from(grouped.entries()).map(
-        ([parentName, groupedTasks]) => ({
-            parentName,
-            tasks: groupedTasks,
-        }),
-    )
-}
-
-const renderNotes = (
-    task: RepresentativeLetterPreviewTask,
-): string => {
-    if (task.notes.length === 0) {
-        return '<p><em>Tidak ada note Progress Report.</em></p>'
+    if (taskMap.size === 0) {
+        return `
+            <p style="margin-bottom: 6px;"><strong><u>${escapeHtml(jasaName)}</u></strong></p>
+            <p><em>(Belum ada data task selesai)</em></p>
+        `
     }
 
-    return `<ul>${task.notes
-        .map(
-            (note) =>
-                `<li>${escapeHtml(note.catatan)}</li>`,
-        )
-        .join('')}</ul>`
+    let html = `<p style="margin-bottom: 6px;"><strong><u>${escapeHtml(jasaName)}</u></strong></p>`
+    html += '<ol style="margin-top: 4px; margin-bottom: 16px; padding-left: 24px;">'
+
+    taskMap.forEach((subMap, taskName) => {
+        html += `<li style="margin-bottom: 6px;">${escapeHtml(taskName)}`
+
+        const hasSubtasks = Array.from(subMap.keys()).some((k) => k !== '__none__')
+
+        if (hasSubtasks) {
+            html += '<ol type="a" style="margin-top: 4px; margin-bottom: 6px; padding-left: 20px;">'
+            subMap.forEach((notes, subName) => {
+                if (subName === '__none__') return
+                html += `<li style="margin-bottom: 4px;">${escapeHtml(subName)}`
+                notes.forEach((noteText) => {
+                    html += `<p style="margin: 2px 0 2px 0; color: #333;">${escapeHtml(noteText)}</p>`
+                })
+                html += '</li>'
+            })
+            html += '</ol>'
+        } else {
+            const directNotes = subMap.get('__none__') ?? []
+            directNotes.forEach((noteText) => {
+                html += `<p style="margin: 2px 0 2px 0; color: #333;">${escapeHtml(noteText)}</p>`
+            })
+        }
+
+        html += '</li>'
+    })
+
+    html += '</ol>'
+
+    return html
 }
 
 export const buildRepresentativeLetterContentFromPreview = (
     preview: RepresentativeLetterPreview,
     createdAt: Date,
 ): string => {
-    const clientName = escapeHtml(preview.spk.client_code)
-    const groups = groupTasks(preview.tasks)
-        .map(
-            (group) => `
-                <h3>${escapeHtml(group.parentName)}</h3>
-                ${group.tasks
-                    .map(
-                        (task) => `
-                            <p>
-                                <strong>${escapeHtml(task.task.task_name)}</strong><br>
-                                ${escapeHtml(task.progress_report.nomor)} / ${escapeHtml(task.progress_report.tanggal)} / ${escapeHtml(task.employee.name)}
-                            </p>
-                            <p><strong>Note Progress Report:</strong></p>
-                            ${renderNotes(task)}
-                        `,
-                    )
-                    .join('')}
-            `,
-        )
-        .join('')
+    const clientName = escapeHtml(preview.client_name || preview.spk?.client_code || "")
+    const jasaName = preview.job?.description || 'Pekerjaan Jasa'
+    const progressReportContent = buildProgressReportHierarchicalHtml(
+        jasaName,
+        preview.tasks,
+    )
 
     return `
         <p><strong>Representative letter</strong></p>
@@ -106,8 +145,7 @@ export const buildRepresentativeLetterContentFromPreview = (
             Hal ini bertujuan agar Direksi mengetahui kondisi badan usaha saat ini.
         </p>
         <p>Beberapa hal yang ingin kami sampaikan, yaitu:</p>
-        <p><strong>Progress Report:</strong></p>
-        ${groups}
+        ${progressReportContent}
         <p>
             Akhir kata, kami dari ALS AccounTax Management Consultant ingin mengucapkan
             terima kasih yang sebesar-besarnya atas kerja sama yang baik yang telah terjalin

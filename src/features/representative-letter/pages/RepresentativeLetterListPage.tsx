@@ -6,6 +6,7 @@ import {
     type ChangeEvent,
 } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { saveAs } from 'file-saver'
 
 import { representativeLetterApi } from '@/features/representative-letter/api/representativeLetterApi'
 import type {
@@ -41,6 +42,15 @@ const RepresentativeLetterListPage = () => {
         useState<boolean>(false)
     const [errorMessage, setErrorMessage] =
         useState<string | null>(null)
+
+    const [deleteTarget, setDeleteTarget] =
+        useState<RepresentativeLetterListItem | null>(null)
+    const [isDeleting, setIsDeleting] =
+        useState<boolean>(false)
+    const [deleteError, setDeleteError] =
+        useState<string | null>(null)
+    const [exportingId, setExportingId] =
+        useState<number | null>(null)
 
     const filters = useMemo(
         () => ({
@@ -98,6 +108,35 @@ const RepresentativeLetterListPage = () => {
         }
     }, [fetchLetters])
 
+    const handleExportPdf = async (letter: RepresentativeLetterListItem): Promise<void> => {
+        setExportingId(letter.id)
+        try {
+            const blob = await representativeLetterApi.exportPdf(letter.id)
+            const cleanNomor = (letter.nomor || 'Representative-Letter').replace(/[/\\?%*:|"<>]/g, '-')
+            saveAs(blob, `${cleanNomor}.pdf`)
+        } catch {
+            alert('Gagal mengunduh file PDF dari server.')
+        } finally {
+            setExportingId(null)
+        }
+    }
+
+    const handleDelete = async (): Promise<void> => {
+        if (!deleteTarget) return
+        setIsDeleting(true)
+        setDeleteError(null)
+
+        const result = await representativeLetterApi.delete(deleteTarget.id)
+        if (result.success) {
+            setDeleteTarget(null)
+            setIsDeleting(false)
+            void fetchLetters()
+        } else {
+            setIsDeleting(false)
+            setDeleteError(result.message || 'Gagal menghapus Representative Letter.')
+        }
+    }
+
     const resetPage = (): void => {
         setCurrentPage(1)
     }
@@ -105,97 +144,96 @@ const RepresentativeLetterListPage = () => {
     return (
         <div className="representative-letter-page-shell">
             <div className="representative-letter-heading">
-                <h1 className="representative-letter-title">
-                    Representative Letter
-                </h1>
-
-                <div className="representative-letter-breadcrumb">
-                    <span className="active">Progress</span>
-                    <span>/</span>
-                    <span>Representative Letter</span>
+                <div>
+                    <h1 className="representative-letter-title">
+                        Data Representative Letter (RL)
+                    </h1>
+                    <p className="representative-letter-subtitle">
+                        Kelola dan generate draf surat representasi manajemen
+                        dari kumpulan Progress Report yang telah disetujui.
+                    </p>
                 </div>
             </div>
 
-            <section className="representative-letter-board">
-                <div className="representative-letter-board-header">
-                    <div className="representative-letter-filter-grid">
-                        <label className="form-label">
-                            SPK ID
+            <section className="representative-letter-card">
+                <div className="representative-letter-filter-row">
+                    <div className="row g-2 align-items-end flex-grow-1">
+                        <div className="col-12 col-md-3">
+                            <label className="form-label text-muted small mb-1">
+                                SPK ID
+                            </label>
                             <input
                                 type="number"
-                                min="1"
-                                className="form-control"
+                                className="form-control form-control-sm"
+                                placeholder="Filter SPK ID..."
                                 value={spkId}
-                                onChange={(
-                                    event: ChangeEvent<HTMLInputElement>,
-                                ) => {
-                                    setSpkId(event.target.value)
+                                onChange={(e: ChangeEvent<HTMLInputElement>) => {
+                                    setSpkId(e.target.value)
                                     resetPage()
                                 }}
                             />
-                        </label>
+                        </div>
 
-                        <label className="form-label">
-                            Bulan
+                        <div className="col-6 col-md-3">
+                            <label className="form-label text-muted small mb-1">
+                                Periode Bulan
+                            </label>
                             <select
-                                className="form-select"
+                                className="form-select form-select-sm"
                                 value={bulan}
-                                onChange={(
-                                    event: ChangeEvent<HTMLSelectElement>,
-                                ) => {
-                                    setBulan(event.target.value)
+                                onChange={(e: ChangeEvent<HTMLSelectElement>) => {
+                                    setBulan(e.target.value)
                                     resetPage()
                                 }}
                             >
-                                <option value="">Semua</option>
-                                {monthOptions.map((option) => (
-                                    <option
-                                        key={option.value}
-                                        value={option.value}
-                                    >
-                                        {option.label}
+                                <option value="">Semua Bulan</option>
+                                {monthOptions.map((opt) => (
+                                    <option key={opt.value} value={opt.value}>
+                                        {opt.label}
                                     </option>
                                 ))}
                             </select>
-                        </label>
+                        </div>
 
-                        <label className="form-label">
-                            Tahun
+                        <div className="col-6 col-md-3">
+                            <label className="form-label text-muted small mb-1">
+                                Periode Tahun
+                            </label>
                             <input
                                 type="number"
-                                className="form-control"
+                                className="form-control form-control-sm"
+                                placeholder="Contoh: 2026"
                                 value={tahun}
-                                onChange={(
-                                    event: ChangeEvent<HTMLInputElement>,
-                                ) => {
-                                    setTahun(event.target.value)
+                                onChange={(e: ChangeEvent<HTMLInputElement>) => {
+                                    setTahun(e.target.value)
                                     resetPage()
                                 }}
                             />
-                        </label>
+                        </div>
+
+                        <div className="col-12 col-md-3">
+                            <button
+                                type="button"
+                                className="btn btn-outline-secondary btn-sm w-100"
+                                onClick={() => {
+                                    setSpkId('')
+                                    setBulan('')
+                                    setTahun('')
+                                    resetPage()
+                                }}
+                            >
+                                <i className="bi bi-arrow-counterclockwise me-1" />
+                                Reset Filter
+                            </button>
+                        </div>
                     </div>
 
                     <div className="representative-letter-actions">
                         <button
                             type="button"
-                            className="btn btn-outline-primary"
+                            className="btn btn-primary btn-sm d-flex align-items-center gap-2"
                             onClick={() =>
-                                navigate(
-                                    '/representative-letter/header',
-                                )
-                            }
-                        >
-                            <i className="bi bi-image me-1" />
-                            Kelola Kop Surat
-                        </button>
-
-                        <button
-                            type="button"
-                            className="representative-letter-add-button"
-                            onClick={() =>
-                                navigate(
-                                    '/representative-letter/create',
-                                )
+                                navigate('/representative-letter/create')
                             }
                         >
                             <i className="bi bi-plus-lg" />
@@ -252,6 +290,7 @@ const RepresentativeLetterListPage = () => {
                                     <th>Periode</th>
                                     <th>Total Detail</th>
                                     <th>Dibuat Oleh</th>
+                                    <th>Status</th>
                                     <th>Tanggal Dibuat</th>
                                     <th className="text-center">
                                         Action
@@ -267,13 +306,12 @@ const RepresentativeLetterListPage = () => {
                                             </strong>
                                         </td>
                                         <td>
-                                            {letter.spk.no_spk}
+                                            {letter.spk?.no_spk || '-'}
                                         </td>
                                         <td>
-                                            {
-                                                letter.spk
-                                                    .client_code
-                                            }
+                                            {letter.client_name
+                                                ? `${letter.client_name}${letter.spk?.client_code ? ` (${letter.spk.client_code})` : ''}`
+                                                : (letter.spk?.client_code || '-')}
                                         </td>
                                         <td>
                                             {
@@ -291,7 +329,18 @@ const RepresentativeLetterListPage = () => {
                                             {letter.total_detail}
                                         </td>
                                         <td>
-                                            {letter.created_by}
+                                            {letter.created_by_name || letter.created_by}
+                                        </td>
+                                        <td>
+                                            {letter.status === 'final' ? (
+                                                <span className="badge bg-success">
+                                                    Final
+                                                </span>
+                                            ) : (
+                                                <span className="badge bg-warning text-dark">
+                                                    Draft
+                                                </span>
+                                            )}
                                         </td>
                                         <td>
                                             {letter.created_at ?? '-'}
@@ -300,16 +349,57 @@ const RepresentativeLetterListPage = () => {
                                             <div className="representative-letter-row-actions">
                                                 <button
                                                     type="button"
-                                                    className="representative-letter-action-button"
-                                                    title="Buka / Edit"
-                                                    onClick={() =>
-                                                        navigate(
-                                                            `/representative-letter/${letter.id}`,
-                                                        )
-                                                    }
+                                                    className="representative-letter-action-button text-secondary"
+                                                    title="Unduh PDF (Server-side)"
+                                                    disabled={exportingId === letter.id}
+                                                    onClick={() => void handleExportPdf(letter)}
                                                 >
-                                                    <i className="bi bi-pencil-square" />
+                                                    {exportingId === letter.id ? (
+                                                        <span className="spinner-border spinner-border-sm" />
+                                                    ) : (
+                                                        <i className="bi bi-file-pdf" />
+                                                    )}
                                                 </button>
+                                                {letter.status === 'draft' ? (
+                                                    <>
+                                                        <button
+                                                            type="button"
+                                                            className="representative-letter-action-button"
+                                                            title="Edit Draf RL"
+                                                            onClick={() =>
+                                                                navigate(
+                                                                    `/representative-letter/${letter.id}`,
+                                                                )
+                                                            }
+                                                        >
+                                                            <i className="bi bi-pencil-square" />
+                                                        </button>
+                                                        <button
+                                                            type="button"
+                                                            className="representative-letter-action-button text-danger"
+                                                            title="Hapus Draf RL"
+                                                            onClick={() => {
+                                                                setDeleteError(null)
+                                                                setDeleteTarget(letter)
+                                                            }}
+                                                        >
+                                                            <i className="bi bi-trash" />
+                                                        </button>
+                                                    </>
+                                                ) : (
+                                                    <button
+                                                        type="button"
+                                                        className="representative-letter-action-button text-primary"
+                                                        title="Lihat Dokumen (Final)"
+                                                        onClick={() =>
+                                                            navigate(
+                                                                `/representative-letter/${letter.id}`,
+                                                            )
+                                                        }
+                                                    >
+                                                        <i className="bi bi-eye" />
+                                                    </button>
+                                                )}
                                             </div>
                                         </td>
                                     </tr>
@@ -362,6 +452,69 @@ const RepresentativeLetterListPage = () => {
                         </div>
                     )}
             </section>
+
+            {deleteTarget && (
+                <div
+                    className="modal fade show d-block"
+                    tabIndex={-1}
+                    style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}
+                >
+                    <div className="modal-dialog modal-dialog-centered">
+                        <div className="modal-content">
+                            <div className="modal-header">
+                                <h5 className="modal-title">
+                                    Konfirmasi Hapus RL
+                                </h5>
+                                <button
+                                    type="button"
+                                    className="btn-close"
+                                    disabled={isDeleting}
+                                    onClick={() => setDeleteTarget(null)}
+                                />
+                            </div>
+                            <div className="modal-body">
+                                {deleteError && (
+                                    <div className="alert alert-danger py-2">
+                                        {deleteError}
+                                    </div>
+                                )}
+                                <p>
+                                    Apakah Anda yakin ingin menghapus Representative Letter{' '}
+                                    <strong>{deleteTarget.nomor}</strong>?
+                                </p>
+                                <div className="text-muted small">
+                                    Client: {deleteTarget.client_name || deleteTarget.spk?.client_code || '-'} | SPK: {deleteTarget.spk?.no_spk || '-'}
+                                </div>
+                            </div>
+                            <div className="modal-footer">
+                                <button
+                                    type="button"
+                                    className="btn btn-secondary btn-sm"
+                                    disabled={isDeleting}
+                                    onClick={() => setDeleteTarget(null)}
+                                >
+                                    Batal
+                                </button>
+                                <button
+                                    type="button"
+                                    className="btn btn-danger btn-sm"
+                                    disabled={isDeleting}
+                                    onClick={() => void handleDelete()}
+                                >
+                                    {isDeleting ? (
+                                        <>
+                                            <span className="spinner-border spinner-border-sm me-1" />
+                                            Menghapus...
+                                        </>
+                                    ) : (
+                                        'Ya, Hapus'
+                                    )}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     )
 }

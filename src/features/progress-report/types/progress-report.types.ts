@@ -89,6 +89,7 @@ export interface ProgressReportFormTemuanNote {
         task_name: string
         category?: string
     } | null
+    priority?: number
     note: string
 }
 
@@ -225,6 +226,7 @@ export interface ProgressReport {
     bulan?: number | null
     tahun?: number | null
     client_code: string
+    client_name?: string | null
     spk: ProgressReportSpk | null
     job?: ProgressReportJob | null
     notes?: ProgressReportNote[]
@@ -252,6 +254,7 @@ export interface ProgressReportSummary {
     bulan?: number | null
     tahun?: number | null
     client_code: string
+    client_name?: string | null
     spk: ProgressReportSpk | null
     job?: ProgressReportJob | null
     total_task: number
@@ -338,6 +341,7 @@ export interface CreateProgressReportRequest {
     bulan: number
     tahun: number
     client_code: string
+    client_name?: string
     als_spk_id: number
     notes?: Array<{
         judul?: string

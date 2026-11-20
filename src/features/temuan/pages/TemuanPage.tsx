@@ -355,7 +355,7 @@ const TemuanPage = () => {
                         <option value="2">P2 - Rendah</option>
                         <option value="3">P3 - Sedang / Normal</option>
                         <option value="4">P4 - Tinggi</option>
-                        <option value="5">P5 - Urgent</option>
+                        <option value="5">P5 - Sangat Tinggi</option>
                     </select>
 
                     <button

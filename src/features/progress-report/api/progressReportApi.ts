@@ -1,6 +1,7 @@
 import type { AxiosResponse } from 'axios'
 
 import httpClient from '@/shared/services/httpClient'
+import { authStorage } from '@/features/auth/services/authStorage'
 
 import type {
     CreateProgressReportRequest,
@@ -493,6 +494,69 @@ const getTeam = async (
         }))
 }
 
+const exportPdf = async (
+    progressReportId: number,
+): Promise<{ success: boolean; blob?: Blob; message?: string }> => {
+    try {
+        const token = authStorage.getToken()
+        const apiBaseUrl = (import.meta.env.VITE_API_BASE_URL || '/api').replace(/\/+$/, '')
+        const url = `${apiBaseUrl}/progress-report/${progressReportId}/export-pdf`
+
+        const response = await fetch(url, {
+            headers: {
+                Authorization: `Bearer ${token ?? ''}`,
+                Accept: 'application/pdf, application/json',
+            },
+        })
+
+        if (!response.ok) {
+            if (response.status === 401) {
+                authStorage.removeToken()
+                if (!window.location.pathname.includes('/login')) {
+                    window.location.href = '/login'
+                }
+            }
+
+            let message = 'Gagal mengekspor PDF.'
+            try {
+                const errorData = await response.json()
+                if (errorData.message) {
+                    message = errorData.message
+                }
+            } catch {
+                // response is not json
+            }
+            return { success: false, message }
+        }
+
+        const blob = await response.blob()
+        return { success: true, blob }
+    } catch {
+        return { success: false, message: 'Tidak dapat terhubung ke server.' }
+    }
+}
+
+const downloadPdf = async (
+    progressReportId: number,
+    customFilename?: string,
+): Promise<{ success: boolean; message?: string }> => {
+    const result = await exportPdf(progressReportId)
+    if (!result.success || !result.blob) {
+        return { success: false, message: result.message || 'Gagal mengunduh PDF.' }
+    }
+
+    const blobUrl = window.URL.createObjectURL(result.blob)
+    const anchor = document.createElement('a')
+    anchor.href = blobUrl
+    anchor.download = customFilename || `Progress_Report_${progressReportId}.pdf`
+    document.body.appendChild(anchor)
+    anchor.click()
+    document.body.removeChild(anchor)
+    window.URL.revokeObjectURL(blobUrl)
+
+    return { success: true }
+}
+
 export const progressReportApi = {
     getAll,
     getFormData,
@@ -509,4 +573,6 @@ export const progressReportApi = {
     deleteDocument,
     deleteDetailDocument,
     deleteFindingDocument,
+    exportPdf,
+    downloadPdf,
 }

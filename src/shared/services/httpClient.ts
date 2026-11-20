@@ -39,6 +39,11 @@ httpClient.interceptors.response.use(
                 window.location.href = '/login'
             }
         }
+        if (response.status === 502) {
+            if (!window.location.pathname.includes('/502')) {
+                window.location.href = '/502'
+            }
+        }
         return response
     },
     (error) => {
@@ -46,6 +51,11 @@ httpClient.interceptors.response.use(
             authStorage.removeToken()
             if (!window.location.pathname.includes('/login')) {
                 window.location.href = '/login'
+            }
+        }
+        if (error.response?.status === 502) {
+            if (!window.location.pathname.includes('/502')) {
+                window.location.href = '/502'
             }
         }
         return Promise.reject(error)

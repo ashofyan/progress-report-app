@@ -24,6 +24,7 @@ import type {
 } from '@/features/progress-report/types/progress-report.types'
 
 import '@/features/progress-report/styles/progress-report.scss'
+import '@/features/temuan/styles/temuan.scss'
 
 const statusLabels: Record<
     ProgressReportStatus,
@@ -719,18 +720,28 @@ const ProgressReportDetailModal = ({
                                                 key={finding.id}
                                             >
                                                 <div className="progress-report-task-title">
-                                                    <strong>
-                                                        {finding.source_type ===
-                                                        'master'
-                                                            ? finding
-                                                                .master_task
-                                                                ?.task_name ??
-                                                            'Master Pekerjaan'
-                                                            : finding
-                                                                .additional_task
-                                                                ?.task_name ??
-                                                            'Additional Task'}
-                                                    </strong>
+                                                    <div className="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-1">
+                                                        <strong>
+                                                            {finding.source_type ===
+                                                            'master'
+                                                                ? finding
+                                                                    .master_task
+                                                                    ?.task_name ??
+                                                                'Master Pekerjaan'
+                                                                : finding
+                                                                    .additional_task
+                                                                    ?.task_name ??
+                                                                'Additional Task'}
+                                                        </strong>
+                                                        {finding.priority && (
+                                                            <span
+                                                                className={`temuan-priority-badge p${finding.priority}`}
+                                                                style={{ fontSize: '10.5px' }}
+                                                            >
+                                                                P{finding.priority}
+                                                            </span>
+                                                        )}
+                                                    </div>
                                                     <span>
                                                         {
                                                             finding.keterangan
@@ -820,6 +831,8 @@ const ProgressReportPage = () => {
 
     const [selectedReport, setSelectedReport] =
         useState<ProgressReportSummary | null>(null)
+
+    const [exportingPdfId, setExportingPdfId] = useState<number | null>(null)
 
     const filters = useMemo(
         () => ({
@@ -1182,7 +1195,9 @@ const ProgressReportPage = () => {
                                             )}
                                         </td>
                                         <td>
-                                            {report.client_code}
+                                            {report.client_name
+                                                ? `${report.client_name} (${report.client_code})`
+                                                : report.client_code}
                                         </td>
                                         <td>
                                             {report.spk?.no_spk ?? '-'}
@@ -1234,6 +1249,36 @@ const ProgressReportPage = () => {
                                                     }}
                                                 >
                                                     <i className="bi bi-eye" />
+                                                </button>
+
+                                                <button
+                                                    type="button"
+                                                    className="progress-report-action-button"
+                                                    title="Export PDF"
+                                                    disabled={exportingPdfId === report.id}
+                                                    onClick={async (event) => {
+                                                        event.stopPropagation()
+                                                        setExportingPdfId(report.id)
+                                                        const filename = report.nomor
+                                                            ? `Progress_Report_${report.nomor.replace(/[/\\?%*:|"<>]/g, '-')}.pdf`
+                                                            : `Progress_Report_${report.id}.pdf`
+                                                        const result = await progressReportApi.downloadPdf(report.id, filename)
+                                                        setExportingPdfId(null)
+                                                        if (!result.success) {
+                                                            alert(result.message || 'Gagal mengekspor PDF.')
+                                                        }
+                                                    }}
+                                                >
+                                                    {exportingPdfId === report.id ? (
+                                                        <span
+                                                            className="spinner-border spinner-border-sm"
+                                                            style={{ width: '12px', height: '12px' }}
+                                                            role="status"
+                                                            aria-hidden="true"
+                                                        />
+                                                    ) : (
+                                                        <i className="bi bi-file-earmark-pdf" />
+                                                    )}
                                                 </button>
 
                                                 {report.approval_status !== 'approved' && (

@@ -29,8 +29,8 @@ import ProgressReportEditPage from '@/features/progress-report/pages/ProgressRep
 import ProgressReportPage from '@/features/progress-report/pages/ProgressReportPage'
 import RepresentativeLetterCreatePage from '@/features/representative-letter/pages/RepresentativeLetterCreatePage'
 import RepresentativeLetterEditorPage from '@/features/representative-letter/pages/RepresentativeLetterEditorPage'
-import RepresentativeLetterHeaderListPage from '@/features/representative-letter/pages/RepresentativeLetterHeaderListPage'
 import RepresentativeLetterListPage from '@/features/representative-letter/pages/RepresentativeLetterListPage'
+import RepresentativeLetterMasterLayoutPage from '@/features/representative-letter/pages/RepresentativeLetterMasterLayoutPage'
 import SolusiFormPage from '@/features/solusi/pages/SolusiFormPage'
 import TemuanFormPage from '@/features/temuan/pages/TemuanFormPage'
 import TemuanPage from '@/features/temuan/pages/TemuanPage'
@@ -39,6 +39,9 @@ import UnderDevelopmentPage from '@/shared/components/UnderDevelopmentPage'
 
 import DashboardLayout from '@/layouts/dashboard/DashboardLayout'
 import DashboardPage from '@/pages/dashboard/DashboardPage'
+import LogAktifitasTimPage from '@/features/timeline/pages/LogAktifitasTimPage'
+import NotFoundPage from '@/pages/error/NotFoundPage'
+import BadGatewayPage from '@/pages/error/BadGatewayPage'
 
 const AppRouter = () => {
     return (
@@ -78,6 +81,21 @@ const AppRouter = () => {
                     <Route
                         path="/dashboard"
                         element={<DashboardPage />}
+                    />
+
+                    <Route
+                        path="/log-aktifitas-tim"
+                        element={<LogAktifitasTimPage />}
+                    />
+
+                    <Route
+                        path="/log-aktivitas-tim"
+                        element={<Navigate to="/log-aktifitas-tim" replace />}
+                    />
+
+                    <Route
+                        path="/timeline"
+                        element={<Navigate to="/log-aktifitas-tim" replace />}
                     />
 
                     <Route
@@ -226,8 +244,18 @@ const AppRouter = () => {
                     />
 
                     <Route
+                        path="/representative-letter/master-layout"
+                        element={<RepresentativeLetterMasterLayoutPage />}
+                    />
+
+                    <Route
                         path="/representative-letter/header"
-                        element={<RepresentativeLetterHeaderListPage />}
+                        element={<RepresentativeLetterMasterLayoutPage defaultTab="header" />}
+                    />
+
+                    <Route
+                        path="/representative-letter/templates"
+                        element={<RepresentativeLetterMasterLayoutPage defaultTab="template" />}
                     />
 
                     <Route
@@ -279,13 +307,18 @@ const AppRouter = () => {
                 </Route>
 
                 <Route
+                    path="/404"
+                    element={<NotFoundPage />}
+                />
+
+                <Route
+                    path="/502"
+                    element={<BadGatewayPage />}
+                />
+
+                <Route
                     path="*"
-                    element={
-                        <Navigate
-                            to="/master-data/pekerjaan"
-                            replace
-                        />
-                    }
+                    element={<NotFoundPage />}
                 />
             </Routes>
         </BrowserRouter>

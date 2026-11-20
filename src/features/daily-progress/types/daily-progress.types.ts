@@ -219,6 +219,7 @@ export interface DailyProgress {
     nomor: string
     tanggal: string
     client_code: string
+    client_name?: string | null
     als_spk_id?: number | null
     spk_id?: number | null
     no_spk: string | null
@@ -311,6 +312,7 @@ export interface CreateDailyProgressDetailRequest {
 export interface CreateDailyProgressRequest {
     tanggal: string
     client_code: string
+    client_name?: string
     als_spk_id: number
     bulan: number
     tahun: number

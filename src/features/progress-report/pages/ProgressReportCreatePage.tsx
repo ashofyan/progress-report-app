@@ -395,6 +395,20 @@ const ProgressReportCreatePage = () => {
         searchClients,
     } = useMarketingClients()
 
+    const selectedClient = useMemo(
+        () => clients.find((c) => c.customer_code === clientCode) ?? null,
+        [clientCode, clients],
+    )
+    const clientFullName = useMemo(
+        () =>
+            selectedClient
+                ? selectedClient.company_name ||
+                  selectedClient.customer_name ||
+                  selectedClient.customer_code
+                : undefined,
+        [selectedClient],
+    )
+
     useEffect(() => {
         if (initialClientCode.trim() !== '') {
             void searchClients(initialClientCode.trim())
@@ -978,6 +992,7 @@ const ProgressReportCreatePage = () => {
             bulan: Number(periodeBulan),
             tahun: Number(periodeTahun),
             client_code: clientCode.trim(),
+            client_name: clientFullName,
             als_spk_id: Number(selectedSpkId),
             notes:
                 payloadNotes.length === 0
@@ -1216,7 +1231,7 @@ const ProgressReportCreatePage = () => {
                         <div className="temuan-task-note-main flex-column w-100">
                             <textarea
                                 className="temuan-task-note-textarea w-100"
-                                placeholder="Tulis catatan temuan pada pekerjaan ini..."
+                                placeholder="Tulis catatan temuan pada task pekerjaan ini..."
                                 rows={2}
                                 value={note.catatan}
                                 onChange={(e) =>
@@ -1571,7 +1586,15 @@ const ProgressReportCreatePage = () => {
                                         </div>
                                         <div className="progress-report-completion-note-content">
                                             {temuan.notes.map((n) => (
-                                                <div key={n.id} className="mb-1">
+                                                <div key={n.id} className="mb-1 d-flex align-items-center gap-1 flex-wrap">
+                                                    {n.priority !== undefined && (
+                                                        <span
+                                                            className={`temuan-priority-badge p${n.priority}`}
+                                                            style={{ fontSize: '10px', padding: '1px 6px' }}
+                                                        >
+                                                            P{n.priority}
+                                                        </span>
+                                                    )}
                                                     {n.task?.task_name && n.task.task_name !== taskParentName && (
                                                         <span className="fw-semibold text-secondary me-1">
                                                             [{n.task.task_name}]:
@@ -1803,11 +1826,14 @@ const ProgressReportCreatePage = () => {
                                     Tidak ada daftar pekerjaan utama untuk SPK ini.
                                 </div>
                             ) : (
-                                <div className="temuan-task-group">
-                                    {masterFindings.map((finding) =>
-                                        renderFindingTaskRow(finding),
-                                    )}
-                                </div>
+                                masterFindings.map((finding) => (
+                                    <div
+                                        className="temuan-task-group"
+                                        key={getFindingKey(finding)}
+                                    >
+                                        {renderFindingTaskRow(finding)}
+                                    </div>
+                                ))
                             )}
                         </div>
 
@@ -1824,11 +1850,14 @@ const ProgressReportCreatePage = () => {
                                         </p>
                                     </div>
                                 </div>
-                                <div className="temuan-task-group">
-                                    {additionalFindings.map((finding) =>
-                                        renderFindingTaskRow(finding),
-                                    )}
-                                </div>
+                                {additionalFindings.map((finding) => (
+                                    <div
+                                        className="temuan-task-group"
+                                        key={getFindingKey(finding)}
+                                    >
+                                        {renderFindingTaskRow(finding)}
+                                    </div>
+                                ))}
                             </div>
                         )}
                     </>

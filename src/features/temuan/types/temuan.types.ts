@@ -102,7 +102,7 @@ export const TEMUAN_PRIORITY_OPTIONS = [
     { value: 2, label: '2 - Rendah' },
     { value: 3, label: '3 - Sedang / Normal' },
     { value: 4, label: '4 - Tinggi' },
-    { value: 5, label: '5 - Urgent' },
+    { value: 5, label: '5 - Sangat Tinggi' },
 ] as const
 
 export const TEMUAN_PRIORITY_LABELS: Record<number, string> = {
@@ -110,7 +110,7 @@ export const TEMUAN_PRIORITY_LABELS: Record<number, string> = {
     2: '2 - Rendah',
     3: '3 - Sedang / Normal',
     4: '4 - Tinggi',
-    5: '5 - Urgent',
+    5: '5 - Sangat Tinggi',
 }
 
 export const getTemuanPriority = (temuan: Temuan): number => {

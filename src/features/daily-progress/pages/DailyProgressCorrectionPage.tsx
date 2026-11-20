@@ -28,6 +28,7 @@ import type {
     DailyProgressFormTaskHistory,
     DailyProgressStatus,
     DailyProgressTemuan,
+    DailyProgressTemuanNote,
     EditDailyProgressRequest,
 } from '@/features/daily-progress/types/daily-progress.types'
 
@@ -713,39 +714,37 @@ const DailyProgressCorrectionPage = () => {
         return map
     }, [additionalTasks])
 
-    const getTemuanParentId = useCallback(
+    const getTemuanNoteParentId = useCallback(
         (
-            temuan: DailyProgressTemuan,
-            tasks: DailyProgressFormJobTask[],
+            note: DailyProgressTemuanNote,
+            tasks?: DailyProgressFormJobTask[],
         ): number | null => {
-            if (!temuan.notes || temuan.notes.length === 0) return null
+            if (!tasks || tasks.length === 0) return null
 
-            for (const note of temuan.notes) {
-                const taskId = note.task?.id
-                if (taskId) {
-                    const parentMatch = tasks.find((p) => p.id === taskId)
-                    if (parentMatch) return parentMatch.id
+            const taskId = note.task?.id
+            if (taskId) {
+                const parentMatch = tasks.find((p) => p.id === taskId)
+                if (parentMatch) return parentMatch.id
 
-                    const childMatch = tasks.find((p) =>
-                        p.children.some((c) => c.id === taskId),
-                    )
-                    if (childMatch) return childMatch.id
-                }
+                const childMatch = tasks.find((p) =>
+                    p.children.some((c) => c.id === taskId),
+                )
+                if (childMatch) return childMatch.id
+            }
 
-                const taskName = note.task?.task_name?.toLowerCase()
-                if (taskName) {
-                    const match = tasks.find(
-                        (p) =>
-                            p.task_name.toLowerCase().includes(taskName) ||
-                            taskName.includes(p.task_name.toLowerCase()) ||
-                            p.children.some(
-                                (c) =>
-                                    c.task_name.toLowerCase().includes(taskName) ||
-                                    taskName.includes(c.task_name.toLowerCase()),
-                            ),
-                    )
-                    if (match) return match.id
-                }
+            const taskName = note.task?.task_name?.toLowerCase()
+            if (taskName) {
+                const match = tasks.find(
+                    (p) =>
+                        p.task_name.toLowerCase().includes(taskName) ||
+                        taskName.includes(p.task_name.toLowerCase()) ||
+                        p.children.some(
+                            (c) =>
+                                c.task_name.toLowerCase().includes(taskName) ||
+                                taskName.includes(c.task_name.toLowerCase()),
+                        ),
+                )
+                if (match) return match.id
             }
 
             return null
@@ -780,10 +779,14 @@ const DailyProgressCorrectionPage = () => {
 
     const unmatchedTemuans = useMemo(() => {
         if (!selectedJob) return selectedTemuans
-        return selectedTemuans.filter(
-            (t) => getTemuanParentId(t, selectedJob.tasks) === null,
-        )
-    }, [selectedTemuans, selectedJob, getTemuanParentId])
+        return selectedTemuans.filter((t) => {
+            if (!t.notes || t.notes.length === 0) return true
+            return t.notes.some(
+                (note) =>
+                    getTemuanNoteParentId(note, selectedJob.tasks) === null,
+            )
+        })
+    }, [selectedTemuans, selectedJob, getTemuanNoteParentId])
 
     useEffect(() => {
         if (selectedJob && pendingMasterTasks.length > 0) {
@@ -941,10 +944,21 @@ const DailyProgressCorrectionPage = () => {
         })
     }
 
-    const renderTemuanEntry = (temuan: DailyProgressTemuan) => {
+    const renderTemuanEntry = (
+        temuan: DailyProgressTemuan,
+        parentId?: number | null,
+    ) => {
         const isSelectableTemuan =
             temuan.status === 'open' || temuan.status === 'pending'
-        const notes = temuan.notes ?? []
+        const allNotes = temuan.notes ?? []
+        const notes =
+            parentId !== undefined
+                ? allNotes.filter((note) =>
+                      parentId === null
+                          ? getTemuanNoteParentId(note, selectedJob?.tasks) === null
+                          : getTemuanNoteParentId(note, selectedJob?.tasks) === parentId,
+                  )
+                : allNotes
 
         const renderBadges = (priority?: number) => (
             <div className="d-flex align-items-center gap-2">
@@ -979,7 +993,11 @@ const DailyProgressCorrectionPage = () => {
             </div>
         )
 
-        if (notes.length === 0) {
+        if (allNotes.length === 0) {
+            if (parentId !== undefined && parentId !== null) {
+                return null
+            }
+
             return (
                 <div
                     className="daily-progress-task-entry"
@@ -1014,8 +1032,12 @@ const DailyProgressCorrectionPage = () => {
             )
         }
 
+        if (notes.length === 0) {
+            return null
+        }
+
         return (
-            <Fragment key={`temuan-${temuan.id}`}>
+            <Fragment key={`temuan-${temuan.id}-parent-${parentId ?? 'unmatched'}`}>
                 {notes.map((note) => {
                     const isNoteChecked =
                         selectedTemuanNoteIds.includes(note.id)
@@ -1482,30 +1504,56 @@ const DailyProgressCorrectionPage = () => {
                             selectedJob.tasks.map((parent) => {
                                 const isOpen = openParentIds.has(parent.id)
                                 const parentAdditional = additionalTasksByParentId.get(parent.id) ?? []
+                                const visibleChildren = parent.children.filter((child) => {
+                                    const key = `master-${child.id}`
+                                    const originalDetail = initialDetailMap.get(key)
+                                    const isOriginalCompleted = originalDetail?.status === 'selesai'
+                                    const isExternalCompleted = isChildCompleted(child) && !isOriginalCompleted
+                                    return !isExternalCompleted
+                                })
+                                const visibleAdditional = parentAdditional.filter(({ task }) => {
+                                    const key = `additional-${task.id}`
+                                    const originalDetail = initialDetailMap.get(key)
+                                    const isOriginalCompleted = originalDetail?.status === 'selesai'
+                                    const isExternalCompleted = task.status === 'selesai' && !isOriginalCompleted
+                                    return !isExternalCompleted
+                                })
                                 const parentFindings = selectedFindings.filter(
                                     (f) => getFindingParentId(f, selectedJob.tasks) === parent.id,
                                 )
-                                const parentTemuans = selectedTemuans.filter(
-                                    (t) => getTemuanParentId(t, selectedJob.tasks) === parent.id,
-                                )
+                                const parentTemuans = selectedTemuans.filter((t) => {
+                                    if (!t.notes || t.notes.length === 0) return false
+                                    return t.notes.some(
+                                        (note) =>
+                                            getTemuanNoteParentId(note, selectedJob.tasks) === parent.id,
+                                    )
+                                })
 
                                 const parentTemuanNotesCount = parentTemuans.reduce(
-                                    (acc, t) => acc + (t.notes && t.notes.length > 0 ? t.notes.length : 1),
+                                    (acc, t) => {
+                                        const matchingNotes =
+                                            t.notes?.filter(
+                                                (note) =>
+                                                    getTemuanNoteParentId(note, selectedJob.tasks) ===
+                                                    parent.id,
+                                            ) ?? []
+                                        return acc + matchingNotes.length
+                                    },
                                     0,
                                 )
 
                                 const totalSubCount =
-                                    parent.children.length +
-                                    parentAdditional.length +
+                                    visibleChildren.length +
+                                    visibleAdditional.length +
                                     parentFindings.length +
                                     parentTemuanNotesCount
 
                                 let selectedCount = 0
-                                parent.children.forEach((child) => {
+                                visibleChildren.forEach((child) => {
                                     const key = `master-${child.id}`
                                     if (isSelected(key)) selectedCount++
                                 })
-                                parentAdditional.forEach(({ task }) => {
+                                visibleAdditional.forEach(({ task }) => {
                                     const key = `additional-${task.id}`
                                     if (isSelected(key)) selectedCount++
                                 })
@@ -1513,13 +1561,15 @@ const DailyProgressCorrectionPage = () => {
                                     if (selectedFindingIds.includes(f.id)) selectedCount++
                                 })
                                 parentTemuans.forEach((t) => {
-                                    if (t.notes && t.notes.length > 0) {
-                                        t.notes.forEach((n) => {
-                                            if (selectedTemuanNoteIds.includes(n.id)) selectedCount++
-                                        })
-                                    } else if (selectedTemuanIds.includes(t.id)) {
-                                        selectedCount++
-                                    }
+                                    const matchingNotes =
+                                        t.notes?.filter(
+                                            (note) =>
+                                                getTemuanNoteParentId(note, selectedJob.tasks) ===
+                                                parent.id,
+                                        ) ?? []
+                                    matchingNotes.forEach((n) => {
+                                        if (selectedTemuanNoteIds.includes(n.id)) selectedCount++
+                                    })
                                 })
 
                                 return (
@@ -1553,7 +1603,7 @@ const DailyProgressCorrectionPage = () => {
                                         {isOpen && (
                                             <div className="daily-progress-parent-body">
                                                 {/* 1. Master Sub-tasks */}
-                                                {parent.children.map((child) => {
+                                                {visibleChildren.map((child) => {
                                                     const key = `master-${child.id}`
                                                     const originalDetail = initialDetailMap.get(key)
                                                     const isOriginalCompleted = originalDetail?.status === 'selesai'
@@ -1621,7 +1671,7 @@ const DailyProgressCorrectionPage = () => {
                                                 })}
 
                                                 {/* 2. Additional Tasks */}
-                                                {parentAdditional.map(({ additionalTask, task }) => {
+                                                {visibleAdditional.map(({ additionalTask, task }) => {
                                                     const key = `additional-${task.id}`
                                                     const originalDetail = initialDetailMap.get(key)
                                                     const isOriginalCompleted = originalDetail?.status === 'selesai'
@@ -1743,7 +1793,7 @@ const DailyProgressCorrectionPage = () => {
 
                                                 {/* 4. Global Temuan under this parent */}
                                                 {parentTemuans.map((temuan) =>
-                                                    renderTemuanEntry(temuan),
+                                                    renderTemuanEntry(temuan, parent.id),
                                                 )}
                                             </div>
                                         )}
@@ -1766,22 +1816,46 @@ const DailyProgressCorrectionPage = () => {
                                         {(() => {
                                             const unmatchedTemuanNotesCount =
                                                 unmatchedTemuans.reduce(
-                                                    (acc, t) =>
-                                                        acc +
-                                                        (t.notes &&
-                                                        t.notes.length > 0
-                                                            ? t.notes.length
-                                                            : 1),
+                                                    (acc, t) => {
+                                                        if (!t.notes || t.notes.length === 0) return acc + 1
+                                                        const unNotes = selectedJob
+                                                            ? t.notes.filter(
+                                                                  (n) =>
+                                                                      getTemuanNoteParentId(
+                                                                          n,
+                                                                          selectedJob.tasks,
+                                                                      ) === null,
+                                                              )
+                                                            : t.notes
+                                                        return acc + unNotes.length
+                                                    },
                                                     0,
                                                 )
                                             let selectedUnmatchedTemuanNotesCount =
                                                 0
                                             unmatchedTemuans.forEach((t) => {
                                                 if (
-                                                    t.notes &&
-                                                    t.notes.length > 0
+                                                    !t.notes ||
+                                                    t.notes.length === 0
                                                 ) {
-                                                    t.notes.forEach((n) => {
+                                                    if (
+                                                        selectedTemuanIds.includes(
+                                                            t.id,
+                                                        )
+                                                    ) {
+                                                        selectedUnmatchedTemuanNotesCount++
+                                                    }
+                                                } else {
+                                                    const unNotes = selectedJob
+                                                        ? t.notes.filter(
+                                                              (n) =>
+                                                                  getTemuanNoteParentId(
+                                                                      n,
+                                                                      selectedJob.tasks,
+                                                                  ) === null,
+                                                          )
+                                                        : t.notes
+                                                    unNotes.forEach((n) => {
                                                         if (
                                                             selectedTemuanNoteIds.includes(
                                                                 n.id,
@@ -1790,12 +1864,6 @@ const DailyProgressCorrectionPage = () => {
                                                             selectedUnmatchedTemuanNotesCount++
                                                         }
                                                     })
-                                                } else if (
-                                                    selectedTemuanIds.includes(
-                                                        t.id,
-                                                    )
-                                                ) {
-                                                    selectedUnmatchedTemuanNotesCount++
                                                 }
                                             })
                                             const selectedUnmatchedCount =
@@ -1879,7 +1947,7 @@ const DailyProgressCorrectionPage = () => {
                                         })}
 
                                         {unmatchedTemuans.map((temuan) =>
-                                            renderTemuanEntry(temuan),
+                                            renderTemuanEntry(temuan, null),
                                         )}
                                     </div>
                                 )}

@@ -47,7 +47,11 @@ const RepresentativeLetterPreview = ({
                 </div>
                 <div>
                     <span>Client</span>
-                    <strong>{preview.spk.client_code}</strong>
+                    <strong>
+                        {preview.client_name
+                            ? `${preview.client_name} (${preview.spk.client_code})`
+                            : preview.spk.client_code}
+                    </strong>
                 </div>
                 <div>
                     <span>Pekerjaan</span>

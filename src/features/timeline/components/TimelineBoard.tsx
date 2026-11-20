@@ -391,9 +391,9 @@ export const TimelineBoard = () => {
         <div className="timeline-page">
             {/* Top Page Heading */}
             <div className="timeline-heading">
-                <h1 className="timeline-title">Dashboard</h1>
+                <h1 className="timeline-title">Log Aktifitas Tim</h1>
                 <p className="timeline-subtitle">
-                    Ringkasan progress, task aktif, dan laporan terbaru.
+                    Pantau aktivitas laporan harian tim per SPK dan per Client secara real-time.
                 </p>
             </div>
 
@@ -401,15 +401,14 @@ export const TimelineBoard = () => {
             <div className="timeline-section-header">
                 <div className="timeline-section-title-wrap">
                     <div className="timeline-section-icon">
-                        <i className="bi bi-chat-square-text text-primary" />
+                        <i className="bi bi-clock-history text-primary" />
                     </div>
                     <div>
                         <h2 className="timeline-section-title">
-                            Timeline Progress Report Tim
+                            Log Aktifitas Tim
                         </h2>
                         <p className="timeline-section-desc">
-                            Pantau aktivitas laporan harian tim per SPK dan per Client
-                            secara real-time.
+                            Pantau riwayat aktivitas Daily Progress dan Progress Report tim secara terpadu.
                         </p>
                     </div>
                 </div>
@@ -515,7 +514,7 @@ export const TimelineBoard = () => {
                     {isLoading && (
                         <div className="timeline-loading-box">
                             <div className="spinner-border" />
-                            <span>Memuat timeline aktivitas tim...</span>
+                            <span>Memuat log aktifitas tim...</span>
                         </div>
                     )}
 
@@ -625,7 +624,7 @@ export const TimelineBoard = () => {
                                         onClick={() => handleSelectClient(item.kode_klien)}
                                         role="button"
                                         tabIndex={0}
-                                        title={`Buka detail timeline klien ${item.kode_klien}`}
+                                        title={`Buka detail log aktifitas klien ${item.kode_klien}`}
                                     >
                                         <div className="client-card-header">
                                             <div className="client-card-info">
@@ -656,7 +655,7 @@ export const TimelineBoard = () => {
 
                                             <div className="client-card-action">
                                                 <span className="client-card-action-btn">
-                                                    <span>Buka Detail Timeline</span>
+                                                    <span>Buka Detail Log Aktifitas</span>
                                                     <i className="bi bi-arrow-right ms-1" />
                                                 </span>
                                             </div>

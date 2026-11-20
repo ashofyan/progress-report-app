@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>502 - Bad Gateway | ALS Holdings</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+      background-color: #f8fafc;
+      color: #1e293b;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+    }
+    .card {
+      max-width: 520px;
+      width: 100%;
+      background: #ffffff;
+      border: 1px solid #e2e8f0;
+      border-radius: 16px;
+      padding: 40px 32px;
+      text-align: center;
+      box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05);
+      border-top: 4px solid #ea580c;
+    }
+    .code {
+      font-size: 64px;
+      font-weight: 900;
+      color: #ea580c;
+      line-height: 1;
+      margin-bottom: 12px;
+    }
+    h1 {
+      font-size: 20px;
+      font-weight: 700;
+      margin-bottom: 12px;
+    }
+    p {
+      font-size: 14px;
+      color: #64748b;
+      line-height: 1.6;
+      margin-bottom: 24px;
+    }
+    .btn {
+      display: inline-block;
+      padding: 10px 24px;
+      font-size: 13.5px;
+      font-weight: 600;
+      border-radius: 8px;
+      text-decoration: none;
+      background-color: #ea580c;
+      color: #ffffff;
+      cursor: pointer;
+      border: none;
+      transition: background-color 0.15s ease;
+    }
+    .btn:hover {
+      background-color: #c2410c;
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="code">502</div>
+    <h1>Bad Gateway / Layanan Bermasalah</h1>
+    <p>Server backend sedang mengalami gangguan atau proses pemeliharaan. Silakan coba beberapa saat lagi.</p>
+    <button class="btn" onclick="window.location.reload()">Muat Ulang Halaman</button>
+  </div>
+</body>
+</html>

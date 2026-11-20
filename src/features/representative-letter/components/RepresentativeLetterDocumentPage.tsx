@@ -1,3 +1,4 @@
+import type { Editor } from '@tiptap/react'
 import RepresentativeLetterContentEditor from '@/features/representative-letter/components/RepresentativeLetterContentEditor'
 import RepresentativeLetterDocumentFooter from '@/features/representative-letter/components/RepresentativeLetterDocumentFooter'
 import RepresentativeLetterDocumentHeader from '@/features/representative-letter/components/RepresentativeLetterDocumentHeader'
@@ -9,21 +10,23 @@ import type {
 
 interface RepresentativeLetterDocumentPageProps {
     header: RepresentativeLetterHeaderSummary | null
-    content: string
+    editor: Editor | null
     settings: RepresentativeLetterDocumentSettings
-    onContentChange: (value: string) => void
 }
 
 const RepresentativeLetterDocumentPage = ({
-                                              header,
-                                              content,
-                                              settings,
-                                              onContentChange,
-                                          }: RepresentativeLetterDocumentPageProps) => {
+    header,
+    editor,
+    settings,
+}: RepresentativeLetterDocumentPageProps) => {
     const pageClassName =
         settings.page.orientation === 'landscape'
             ? 'representative-letter-page landscape'
             : 'representative-letter-page portrait'
+
+    const footerImageUrl = header?.footer_image_url || settings.header_footer?.footer_image_url
+    const footerText = header?.footer_text || settings.header_footer?.footer_text
+    const footerType = header?.footer_type || settings.header_footer?.footer_type || 'image'
 
     return (
         <div className={pageClassName}>
@@ -31,6 +34,7 @@ const RepresentativeLetterDocumentPage = ({
                 enabled={settings.watermark.enabled}
                 opacity={settings.watermark.opacity}
                 width={settings.watermark.width}
+                imageUrl={settings.watermark.image_url}
             />
 
             <RepresentativeLetterDocumentHeader
@@ -48,13 +52,15 @@ const RepresentativeLetterDocumentPage = ({
                 }}
             >
                 <RepresentativeLetterContentEditor
-                    value={content}
-                    onChange={onContentChange}
+                    editor={editor}
                 />
             </div>
 
             <RepresentativeLetterDocumentFooter
                 enabled={settings.footer.enabled}
+                footerImageUrl={footerImageUrl}
+                footerText={footerText}
+                footerType={footerType}
             />
         </div>
     )

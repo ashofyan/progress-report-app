@@ -70,6 +70,23 @@ const AppSidebar = ({ isOpen = false, onClose }: AppSidebarProps) => {
                     <span>Dashboard</span>
                 </NavLink>
 
+                <NavLink
+                    to="/log-aktifitas-tim"
+                    onClick={handleLinkClick}
+                    className={({ isActive }) =>
+                        `app-sidebar-link ${
+                            isActive ||
+                            location.pathname.startsWith('/log-aktifitas') ||
+                            location.pathname.startsWith('/timeline')
+                                ? 'active'
+                                : ''
+                        }`
+                    }
+                >
+                    <i className="bi bi-clock-history" />
+                    <span>Log Aktifitas Tim</span>
+                </NavLink>
+
                 <div className="app-sidebar-group">
                     <button
                         type="button"
@@ -232,28 +249,38 @@ const AppSidebar = ({ isOpen = false, onClose }: AppSidebarProps) => {
                     {isRepresentativeLetterOpen && (
                         <div className="app-sidebar-submenu">
                             <NavLink
+                                to="/representative-letter/master-layout"
+                                onClick={handleLinkClick}
+                                className={({ isActive }) =>
+                                    `app-sidebar-submenu-link ${
+                                        isActive ||
+                                        location.pathname.startsWith('/representative-letter/master-layout') ||
+                                        location.pathname.startsWith('/representative-letter/templates') ||
+                                        location.pathname.startsWith('/representative-letter/header')
+                                            ? 'active'
+                                            : ''
+                                    }`
+                                }
+                            >
+                                Master Layout RL
+                            </NavLink>
+
+                            <NavLink
                                 to="/representative-letter"
                                 end
                                 onClick={handleLinkClick}
                                 className={({ isActive }) =>
                                     `app-sidebar-submenu-link ${
-                                        isActive ? 'active' : ''
+                                        isActive &&
+                                        !location.pathname.startsWith('/representative-letter/master-layout') &&
+                                        !location.pathname.startsWith('/representative-letter/templates') &&
+                                        !location.pathname.startsWith('/representative-letter/header')
+                                            ? 'active'
+                                            : ''
                                     }`
                                 }
                             >
-                                Dokumen
-                            </NavLink>
-
-                            <NavLink
-                                to="/representative-letter/header"
-                                onClick={handleLinkClick}
-                                className={({ isActive }) =>
-                                    `app-sidebar-submenu-link ${
-                                        isActive ? 'active' : ''
-                                    }`
-                                }
-                            >
-                                Header Kop Surat
+                                Data RL
                             </NavLink>
                         </div>
                     )}

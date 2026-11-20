@@ -15,6 +15,7 @@ import type {
 } from '@/features/progress-report/types/progress-report.types'
 
 import '@/features/progress-report/styles/progress-report.scss'
+import '@/features/temuan/styles/temuan.scss'
 
 const INDO_MONTHS = [
     'Januari',
@@ -217,6 +218,7 @@ const ProgressReportDetailPage = () => {
         useState<string | null>(null)
     const [isApproving, setIsApproving] = useState<boolean>(false)
     const [approveSuccessMessage, setApproveSuccessMessage] = useState<string | null>(null)
+    const [isExportingPdf, setIsExportingPdf] = useState<boolean>(false)
 
     useEffect(() => {
         if (!Number.isFinite(reportId) || reportId <= 0) {
@@ -417,6 +419,20 @@ const ProgressReportDetailPage = () => {
         window.print()
     }
 
+    const handleExportPdf = async (): Promise<void> => {
+        if (!detail) return
+        setIsExportingPdf(true)
+        const filename = detail.nomor
+            ? `Progress_Report_${detail.nomor.replace(/[/\\?%*:|"<>]/g, '-')}.pdf`
+            : `Progress_Report_${detail.id}.pdf`
+        const result = await progressReportApi.downloadPdf(detail.id, filename)
+        setIsExportingPdf(false)
+
+        if (!result.success) {
+            alert(result.message || 'Gagal mengekspor PDF.')
+        }
+    }
+
     if (isLoading) {
         return (
             <div className="progress-report-detail-page">
@@ -535,7 +551,7 @@ const ProgressReportDetailPage = () => {
                         type="button"
                         className="btn-print-action"
                         onClick={handlePrint}
-                        title="Cetak Progress Report"
+                        title="Cetak Progress Report (Browser Print)"
                     >
                         <i className="bi bi-printer" />
                         <span>Print</span>
@@ -544,11 +560,16 @@ const ProgressReportDetailPage = () => {
                     <button
                         type="button"
                         className="btn-print-action"
-                        onClick={handlePrint}
-                        title="Export ke PDF"
+                        onClick={handleExportPdf}
+                        disabled={isExportingPdf}
+                        title="Export ke PDF dari server"
                     >
-                        <i className="bi bi-file-earmark-text" />
-                        <span>Export PDF</span>
+                        {isExportingPdf ? (
+                            <span className="spinner-border spinner-border-sm" role="status" aria-hidden="true" />
+                        ) : (
+                            <i className="bi bi-file-earmark-pdf" />
+                        )}
+                        <span>{isExportingPdf ? 'Mengunduh...' : 'Export PDF'}</span>
                     </button>
                 </div>
             </div>
@@ -884,10 +905,10 @@ const ProgressReportDetailPage = () => {
                                                 </strong>
                                                 {finding.priority && (
                                                     <span
-                                                        className="badge bg-secondary ms-2"
-                                                        style={{ fontSize: '10px', verticalAlign: 'middle' }}
+                                                        className={`temuan-priority-badge p${finding.priority} ms-2`}
+                                                        style={{ fontSize: '10px', verticalAlign: 'middle', padding: '1px 7px' }}
                                                     >
-                                                        Prioritas {finding.priority}
+                                                        P{finding.priority}
                                                     </span>
                                                 )}
                                             </div>
@@ -955,7 +976,6 @@ const ProgressReportDetailPage = () => {
                 <div className="report-card-signature-footer">
                     <div className="signature-box client-signature-box">
                         <div className="signature-label">Tanda Tangan,</div>
-                        <div className="signature-date">Tanggal: .......................................</div>
                         <div className="signature-space" />
                         <div className="signature-name-wrapper">
                             <span className="signature-name">( {displayClientSignName} )</span>

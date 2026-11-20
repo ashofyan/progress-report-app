@@ -18,9 +18,10 @@ export interface RepresentativeLetterMeta {
 }
 
 export interface RepresentativeLetterSpk {
-    id: number
-    no_spk: string
-    client_code: string
+    id?: number | null
+    no_spk?: string | null
+    client_code?: string | null
+    client_name?: string | null
 }
 
 export interface RepresentativeLetterJob {
@@ -30,8 +31,10 @@ export interface RepresentativeLetterJob {
 }
 
 export interface RepresentativeLetterPeriode {
-    bulan: number
-    tahun: number
+    bulan?: number | null
+    tahun?: number | null
+    tanggal_awal?: string | null
+    tanggal_akhir?: string | null
     label: string
 }
 
@@ -40,6 +43,17 @@ export interface RepresentativeLetterHeaderSummary {
     code: string
     name: string
     image_url: string
+    header_image_url?: string | null
+    footer_image_url?: string | null
+    footer_text?: string | null
+    footer_type?: 'image' | 'text' | 'both' | 'none'
+}
+
+export interface RepresentativeLetterFooterSummary {
+    type: 'image' | 'text' | 'both' | 'none'
+    image_url?: string | null
+    url?: string | null
+    text?: string | null
 }
 
 export interface RepresentativeLetterDocumentSettings {
@@ -50,6 +64,7 @@ export interface RepresentativeLetterDocumentSettings {
         margin_right: number
         margin_bottom: number
         margin_left: number
+        background_image_url?: string | null
     }
     header: {
         enabled: boolean
@@ -61,7 +76,125 @@ export interface RepresentativeLetterDocumentSettings {
         enabled: boolean
         opacity: number
         width: number
+        image_url?: string | null
     }
+    header_footer?: {
+        header_enabled?: boolean
+        footer_enabled?: boolean
+        header_image_url?: string | null
+        footer_image_url?: string | null
+        footer_text?: string | null
+        footer_type?: 'image' | 'text' | 'both' | 'none'
+    }
+}
+
+export interface AvailableProgressReportTaskNote {
+    id: number
+    catatan: string
+}
+
+export interface AvailableProgressReportTask {
+    id: number
+    progress_report_detail_id: number
+    als_progress_report_id: number
+    task_name: string
+    parent_task_name?: string | null
+    parent_id?: number | null
+    status: string
+    source_type?: 'master' | 'additional'
+    notes: AvailableProgressReportTaskNote[]
+}
+
+export interface AvailableProgressReport {
+    id: number
+    nomor: string
+    tanggal: string
+    task_name: string
+    status: string
+    temuans_count: number
+    ringkasan: string
+    tasks?: AvailableProgressReportTask[]
+}
+
+export interface AvailableProgressReportFilters {
+    spk_id?: number
+    als_spk_id?: number
+    client_code?: string
+    job_id?: number
+    als_job_id?: number
+    start_date?: string
+    end_date?: string
+    tanggal_awal?: string
+    tanggal_akhir?: string
+    bulan?: number
+    tahun?: number
+}
+
+export interface AvailableProgressReportsResponse {
+    success: boolean
+    status?: boolean
+    message?: string
+    data: AvailableProgressReport[]
+}
+
+export interface GenerateDraftPayload {
+    spk_id?: number
+    als_spk_id?: number
+    client_code?: string
+    client_name?: string
+    job_id?: number
+    als_job_id?: number
+    start_date?: string
+    end_date?: string
+    tanggal_awal?: string
+    tanggal_akhir?: string
+    progress_report_ids?: number[]
+    progress_report_detail_ids?: number[]
+    template_id?: number
+    header_id?: number
+    title?: string
+}
+
+export interface GeneratedDraftDocument {
+    title: string
+    nomor_surat: string | null
+    client_code: string
+    client_name?: string | null
+    created_by?: string | null
+    created_by_name?: string | null
+    spk_id?: number | null
+    job_id?: number | null
+    job_description?: string | null
+    tanggal_awal?: string | null
+    tanggal_akhir?: string | null
+    periode_label?: string | null
+    header_id: number | null
+    header: RepresentativeLetterHeaderSummary | null
+    footer?: RepresentativeLetterFooterSummary | null
+    settings: RepresentativeLetterDocumentSettings
+    content:
+        | {
+              format?: string
+              version?: string
+              html?: string
+              sections?: Array<{
+                  id: string
+                  type: string
+                  content?: string
+                  html?: string
+                  items?: unknown[]
+              }>
+          }
+        | string
+    status: string
+    selected_progress_reports: AvailableProgressReport[]
+}
+
+export interface GenerateDraftResponse {
+    success: boolean
+    status: boolean
+    message: string
+    data: GeneratedDraftDocument
 }
 
 export interface RepresentativeLetterProgressReportRef {
@@ -89,12 +222,18 @@ export interface RepresentativeLetterDetail {
 export interface RepresentativeLetter {
     id: number
     nomor: string
+    nomor_surat?: string | null
+    status: 'draft' | 'final' | string
+    tanggal_awal?: string | null
+    tanggal_akhir?: string | null
     header: RepresentativeLetterHeaderSummary | null
-    spk: RepresentativeLetterSpk
+    spk?: RepresentativeLetterSpk | null
     job: RepresentativeLetterJob
     periode: RepresentativeLetterPeriode
     created_by: string
+    created_by_name?: string | null
     created_by_level: number | null
+    client_name?: string | null
     content: string | null
     content_format: RepresentativeLetterContentFormat
     document_settings: RepresentativeLetterDocumentSettings | null
@@ -106,12 +245,17 @@ export interface RepresentativeLetter {
 export interface RepresentativeLetterListItem {
     id: number
     nomor: string
-    spk: RepresentativeLetterSpk
+    status: 'draft' | 'final' | string
+    tanggal_awal?: string | null
+    tanggal_akhir?: string | null
+    spk?: RepresentativeLetterSpk | null
     job: RepresentativeLetterJob
     periode: RepresentativeLetterPeriode
     total_detail: number
     created_by: string
+    created_by_name?: string | null
     created_by_level: number | null
+    client_name?: string | null
     created_at: string | null
 }
 
@@ -146,6 +290,7 @@ export interface RepresentativeLetterPreview {
         total_employee: number
     }
     tasks: RepresentativeLetterPreviewTask[]
+    client_name?: string | null
 }
 
 export interface RepresentativeLetterHeaderImage {
@@ -159,6 +304,13 @@ export interface RepresentativeLetterHeader {
     name: string
     is_active: boolean
     image: RepresentativeLetterHeaderImage
+    header?: RepresentativeLetterHeaderImage
+    footer?: {
+        type: 'image' | 'text' | 'both' | 'none'
+        path?: string | null
+        url?: string | null
+        text?: string | null
+    }
     created_by: string
     created_at: string | null
     updated_at: string | null
@@ -179,9 +331,28 @@ export interface RepresentativeLetterPreviewFilters {
 }
 
 export interface CreateRepresentativeLetterRequest {
-    als_spk_id: number
-    bulan: number
-    tahun: number
+    als_spk_id?: number
+    spk_id?: number
+    client_code?: string
+    client_name?: string
+    job_id?: number
+    als_job_id?: number
+    start_date?: string
+    end_date?: string
+    tanggal_awal?: string
+    tanggal_akhir?: string
+    bulan?: number
+    tahun?: number
+    header_id?: number
+    template_id?: number
+    progress_report_ids?: number[]
+    progress_report_detail_ids?: number[]
+    title?: string
+    created_by_name?: string
+    content?: unknown
+    content_format?: RepresentativeLetterContentFormat
+    document_settings?: RepresentativeLetterDocumentSettings
+    settings?: RepresentativeLetterDocumentSettings
 }
 
 export interface UpdateRepresentativeLetterRequest {
@@ -200,6 +371,63 @@ export interface RepresentativeLetterHeaderFormPayload {
     name?: string
     is_active?: boolean
     header_image?: File
+    footer_image?: File
+    footer_text?: string
+    footer_type?: 'image' | 'text' | 'both' | 'none'
+}
+
+export interface RepresentativeLetterTemplate {
+    id: number
+    name: string
+    default_header_id: number | null
+    default_header?: RepresentativeLetterHeaderSummary | null
+    default_watermark_url: string | null
+    opening_template?: string | null
+    closing_template?: string | null
+    body_template?: string | null
+    settings?: RepresentativeLetterDocumentSettings | null
+    is_active: boolean
+    created_by?: string | null
+    updated_by?: string | null
+    created_at?: string | null
+    updated_at?: string | null
+}
+
+export interface RepresentativeLetterTemplateFilters {
+    search?: string
+    is_active?: boolean
+    page?: number
+    per_page?: number
+}
+
+export interface RepresentativeLetterTemplateFormPayload {
+    name: string
+    default_header_id?: number | null
+    default_watermark_url?: string | null
+    opening_template?: string | null
+    closing_template?: string | null
+    body_template?: string | null
+    settings?: RepresentativeLetterDocumentSettings
+    is_active?: boolean
+}
+
+export interface RepresentativeLetterTemplateListResponse {
+    status: true
+    message: string
+    data: RepresentativeLetterTemplate[]
+    meta: RepresentativeLetterMeta
+}
+
+export interface RepresentativeLetterTemplateDetailResponse {
+    status: true
+    message: string
+    data: RepresentativeLetterTemplate
+}
+
+export interface RepresentativeLetterTemplateMutationResponse {
+    status: true
+    message: string
+    data: RepresentativeLetterTemplate
 }
 
 export interface RepresentativeLetterListResponse {
@@ -264,4 +492,10 @@ export interface RepresentativeLetterApiResult<T> {
     data?: T
     meta?: RepresentativeLetterMeta
     errors?: Record<string, string[]>
+}
+
+export interface MasterJob {
+    id: number
+    job_code: string
+    description: string
 }

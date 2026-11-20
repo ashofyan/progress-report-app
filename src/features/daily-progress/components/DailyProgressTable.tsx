@@ -200,7 +200,9 @@ const DailyProgressTable = ({
                             <td>
                                 <span className="daily-progress-badge client">
                                     <i className="bi bi-buildings me-1" />
-                                    {progress.client_code}
+                                    {progress.client_name
+                                        ? `${progress.client_name} (${progress.client_code})`
+                                        : progress.client_code}
                                 </span>
                             </td>
 

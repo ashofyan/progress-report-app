@@ -11,8 +11,9 @@ import {
 
 import { representativeLetterApi } from '@/features/representative-letter/api/representativeLetterApi'
 import RepresentativeLetterDocumentWorkspace from '@/features/representative-letter/components/RepresentativeLetterDocumentWorkspace'
-import RepresentativeLetterSaveStatus from '@/features/representative-letter/components/RepresentativeLetterSaveStatus'
 import RepresentativeLetterSourceDrawer from '@/features/representative-letter/components/RepresentativeLetterSourceDrawer'
+import { saveAs } from 'file-saver'
+import DocumentEditorTopBar from '@/features/representative-letter/components/editor/DocumentEditorTopBar'
 import type {
     RepresentativeLetter,
     RepresentativeLetterDocumentSettings,
@@ -32,6 +33,8 @@ const RepresentativeLetterEditorPage = () => {
 
     const [letter, setLetter] =
         useState<RepresentativeLetter | null>(null)
+    const [title, setTitle] =
+        useState<string>('')
     const [content, setContent] =
         useState<string>('')
     const [settings, setSettings] =
@@ -47,6 +50,10 @@ const RepresentativeLetterEditorPage = () => {
     const [isDirty, setIsDirty] =
         useState<boolean>(false)
     const [isSourceOpen, setIsSourceOpen] =
+        useState<boolean>(false)
+    const [isPresentationMode, setIsPresentationMode] =
+        useState<boolean>(false)
+    const [isExportingPdf, setIsExportingPdf] =
         useState<boolean>(false)
 
     const saveRequestIdRef = useRef<number>(0)
@@ -75,6 +82,7 @@ const RepresentativeLetterEditorPage = () => {
                     result.data !== undefined
                 ) {
                     setLetter(result.data)
+                    setTitle(result.data.nomor || 'Representative Letter')
                     setContent(result.data.content ?? '')
                     setSettings(
                         resolveRepresentativeLetterDocumentSettings(
@@ -142,6 +150,19 @@ const RepresentativeLetterEditorPage = () => {
         settings,
     ])
 
+    // Keyboard shortcut: Ctrl+S / Cmd+S
+    useEffect(() => {
+        const handleKeyDown = (e: globalThis.KeyboardEvent) => {
+            if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') {
+                e.preventDefault()
+                void save()
+            }
+        }
+        window.addEventListener('keydown', handleKeyDown)
+        return () => window.removeEventListener('keydown', handleKeyDown)
+    }, [save])
+
+    // Autosave after 2.5s of inactivity
     useEffect(() => {
         if (!isDirty || letter === null) {
             return
@@ -149,7 +170,7 @@ const RepresentativeLetterEditorPage = () => {
 
         const timeoutId = window.setTimeout(() => {
             void save()
-        }, 1500)
+        }, 2500)
 
         return () => {
             window.clearTimeout(timeoutId)
@@ -176,11 +197,50 @@ const RepresentativeLetterEditorPage = () => {
         setErrorMessage(null)
     }
 
+    const handleExportPdf = async (): Promise<void> => {
+        if (!letter) return
+        setIsExportingPdf(true)
+        setErrorMessage(null)
+
+        try {
+            const blob = await representativeLetterApi.exportPdf(letter.id)
+            const cleanNomor = (letter.nomor_surat || letter.nomor || title || 'Representative-Letter')
+                .replace(/[/\\?%*:|"<>]/g, '-')
+            saveAs(blob, `${cleanNomor}.pdf`)
+        } catch {
+            setErrorMessage('Gagal mengunduh file PDF dari server.')
+        } finally {
+            setIsExportingPdf(false)
+        }
+    }
+
+    const handleDelete = async (): Promise<void> => {
+        if (!letter || letter.status !== 'draft') return
+        const confirmed = window.confirm(`Apakah Anda yakin ingin menghapus Representative Letter ${letter.nomor}?`)
+        if (!confirmed) return
+
+        setIsLoading(true)
+        const result = await representativeLetterApi.delete(letter.id)
+        if (result.success) {
+            navigate('/representative-letter')
+        } else {
+            setIsLoading(false)
+            setErrorMessage(result.message || 'Gagal menghapus Representative Letter.')
+        }
+    }
+
+    const handleShare = (): void => {
+        if (navigator.clipboard) {
+            navigator.clipboard.writeText(window.location.href)
+            window.alert('Tautan dokumen berhasil disalin ke clipboard!')
+        }
+    }
+
     if (isLoading) {
         return (
             <div className="representative-letter-page-shell">
                 <div className="representative-letter-state">
-                    <div className="spinner-border" />
+                    <div className="spinner-border text-primary" />
                     <span>Memuat Representative Letter...</span>
                 </div>
             </div>
@@ -210,80 +270,59 @@ const RepresentativeLetterEditorPage = () => {
     }
 
     return (
-        <div className="representative-letter-page-shell representative-letter-editor">
-            <div className="representative-letter-editor-toolbar">
-                <div>
-                    <button
-                        type="button"
-                        className="representative-letter-icon-button"
-                        title="Kembali"
-                        onClick={() =>
-                            navigate('/representative-letter')
-                        }
-                    >
-                        <i className="bi bi-arrow-left" />
-                    </button>
-                    <div>
-                        <h1 className="representative-letter-title">
-                            {letter.nomor}
-                        </h1>
-                        <span>
-                            {letter.spk.no_spk} /{' '}
-                            {letter.periode.label}
+        <div className={`representative-letter-page-shell representative-letter-editor ${isPresentationMode ? 'presentation-mode' : ''}`}>
+            {/* Top Action Bar (like Screenshot) */}
+            <DocumentEditorTopBar
+                title={title}
+                onTitleChange={setTitle}
+                onSave={() => void save()}
+                isSaving={saveState === 'saving'}
+                isDirty={isDirty}
+                isReadOnly={letter?.status !== 'draft'}
+                isExportingPdf={isExportingPdf}
+                onExportPdf={() => void handleExportPdf()}
+                onPresentationMode={() => setIsPresentationMode(!isPresentationMode)}
+                onShare={handleShare}
+                onDelete={letter?.status === 'draft' ? () => void handleDelete() : undefined}
+            />
+
+            {/* Sub-header info & Source PR toggle button */}
+            <div className="doc-meta-bar">
+                <div className="doc-meta-info">
+                    {letter.spk?.no_spk && (
+                        <span className="badge bg-light text-dark border me-2">
+                            {letter.spk.no_spk}
                         </span>
-                    </div>
+                    )}
+                    <span className="text-muted small">
+                        Klien: <strong>{letter.client_name ? `${letter.client_name}${letter.spk?.client_code ? ` (${letter.spk.client_code})` : ""}` : (letter.spk?.client_code ?? "-")}</strong> | Periode: <strong>{letter.periode.label}</strong>
+                    </span>
                 </div>
-
-                <div className="representative-letter-toolbar-actions">
-                    <RepresentativeLetterSaveStatus
-                        state={saveState}
-                    />
-
-                    <button
-                        type="button"
-                        className="btn btn-outline-secondary"
-                        onClick={() => setIsSourceOpen(true)}
-                    >
-                        <i className="bi bi-list-check me-1" />
-                        Source Progress Report
-                    </button>
-
-                    <button
-                        type="button"
-                        className="btn btn-outline-secondary"
-                        disabled
-                        title="Export PDF belum tersedia."
-                    >
-                        <i className="bi bi-filetype-pdf me-1" />
-                        Export PDF
-                    </button>
-
-                    <button
-                        type="button"
-                        className="btn btn-primary"
-                        disabled={saveState === 'saving' || !isDirty}
-                        onClick={() => void save()}
-                    >
-                        {saveState === 'saving' && (
-                            <span className="spinner-border spinner-border-sm me-2" />
-                        )}
-                        Simpan
-                    </button>
-                </div>
+                <button
+                    type="button"
+                    className="btn btn-sm btn-outline-secondary"
+                    onClick={() => setIsSourceOpen(true)}
+                >
+                    <i className="bi bi-list-check me-1" />
+                    Source Progress Report ({letter.details.length})
+                </button>
             </div>
 
             {errorMessage !== null && (
-                <div className="alert alert-danger">
+                <div className="alert alert-danger mx-3 mt-2">
                     {errorMessage}
                 </div>
             )}
 
+            {/* Document Workspace with Ribbon Toolbar and A4 Canvas */}
             <RepresentativeLetterDocumentWorkspace
                 letter={letter}
                 content={content}
                 settings={settings}
                 onContentChange={handleContentChange}
                 onSettingsChange={handleSettingsChange}
+                isDirty={isDirty}
+                isSaving={saveState === 'saving'}
             />
 
             <RepresentativeLetterSourceDrawer
