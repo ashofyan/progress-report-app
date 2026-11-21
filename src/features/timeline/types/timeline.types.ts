@@ -6,6 +6,7 @@ export interface TimelineSpkItem {
     id: number
     no_spk: string
     kode_klien: string
+    client_name?: string | null
     jenis: string
     periode_awal?: string | null
     periode_akhir?: string | null
@@ -27,6 +28,7 @@ export interface TimelineCurrentSpk {
     no_spk: string
     source_pt?: string
     kode_klien: string
+    client_name?: string | null
     jenis: string
     periode_awal?: string | null
     periode_akhir?: string | null
@@ -103,6 +105,7 @@ export interface TimelineGeneralNote {
 export interface TimelineClientSpkItem {
     id: number
     no_spk: string
+    client_name?: string | null
     job_description?: string | null
     total_daily_progress: number
     total_progress_report: number
@@ -110,6 +113,7 @@ export interface TimelineClientSpkItem {
 
 export interface TimelineClientItem {
     kode_klien: string
+    client_name?: string | null
     total_spk: number
     total_daily_progress: number
     total_progress_report: number
@@ -120,6 +124,7 @@ export interface TimelineFeedSpk {
     id: number
     no_spk: string
     kode_klien: string
+    client_name?: string | null
     job_description?: string | null
 }
 
@@ -138,6 +143,10 @@ export interface TimelineFeedItem {
         employee_name?: string
         tingkat?: number
     } | null
+    has_paired_dp?: boolean
+    paired_daily_progress?: TimelineFeedItem | null
+    is_collapsed_into_pr?: boolean
+    resolved_by_pr_id?: number | null
     tasks?: TimelineTask[]
     findings?: TimelineFinding[]
     notes?: TimelineGeneralNote[]
@@ -146,6 +155,7 @@ export interface TimelineFeedItem {
 
 export interface TimelineData {
     current_client?: string | null
+    current_client_name?: string | null
     current_spk: TimelineCurrentSpk | null
     available_clients?: TimelineClientItem[]
     available_spks: TimelineSpkItem[]
@@ -187,4 +197,3 @@ export interface TimelineApiResult<T> {
     message: string
     data?: T
 }
-

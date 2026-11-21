@@ -24,7 +24,8 @@ export const TimelineClientSidebar = ({
             return clients
         }
         return clients.filter((client) =>
-            client.kode_klien.toLowerCase().includes(query),
+            client.kode_klien.toLowerCase().includes(query) ||
+            (client.client_name && client.client_name.toLowerCase().includes(query)),
         )
     }, [clients, searchQuery])
 
@@ -47,7 +48,7 @@ export const TimelineClientSidebar = ({
                 <input
                     type="text"
                     value={searchQuery}
-                    placeholder="Cari Client..."
+                    placeholder="Cari Client / Kode..."
                     onChange={handleSearchChange}
                 />
             </div>
@@ -70,6 +71,7 @@ export const TimelineClientSidebar = ({
                 {filteredClients.map((client) => {
                     const avatarStyle = getAvatarStyle(client.kode_klien)
                     const isSelected = selectedClientCode === client.kode_klien
+                    const displayName = client.client_name || client.kode_klien
 
                     return (
                         <button
@@ -79,6 +81,7 @@ export const TimelineClientSidebar = ({
                                 isSelected ? 'active' : ''
                             }`}
                             onClick={() => onSelectClient(client.kode_klien)}
+                            title={`${displayName} (#${client.kode_klien})`}
                         >
                             <div
                                 className="timeline-spk-avatar"
@@ -88,21 +91,21 @@ export const TimelineClientSidebar = ({
                                     border: `1px solid ${avatarStyle.border}`,
                                 }}
                             >
-                                {getInitials(client.kode_klien)}
+                                {getInitials(displayName)}
                             </div>
 
                             <div className="timeline-spk-info">
                                 <div className="timeline-spk-name-row">
                                     <span
                                         className="timeline-spk-name"
-                                        title={client.kode_klien}
+                                        title={displayName}
                                     >
-                                        {client.kode_klien}
+                                        {displayName}
                                     </span>
                                 </div>
 
                                 <p className="timeline-spk-desc">
-                                    {client.total_spk} SPK
+                                    <span className="text-secondary fw-semibold">#{client.kode_klien}</span> • {client.total_spk} SPK
                                 </p>
 
                                 <div className="timeline-spk-badges">
