@@ -98,6 +98,8 @@ const DocumentEditorTopBar = ({
                     <span>Bagikan</span>
                 </button>
 
+                
+
                 <button
                     type="button"
                     className="doc-action-btn doc-btn-outline-primary"

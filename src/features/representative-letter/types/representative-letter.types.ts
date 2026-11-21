@@ -181,6 +181,7 @@ export interface GenerateDraftRepresentativeLetterPayload {
     template_id?: number | null
     header_id?: number | null
     title?: string
+    use_ai_notes?: boolean
 }
 
 export type GenerateDraftPayload = GenerateDraftRepresentativeLetterPayload
@@ -538,4 +539,28 @@ export interface MasterJob {
     id: number
     job_code: string
     description: string
+}
+
+export type AiNarrativeType = 'executive_summary' | 'opening_closing' | 'findings_summary' | 'full_narrative'
+export type AiNarrativeTone = 'formal' | 'ringkas' | 'detail'
+
+export interface GenerateAiNarrativePayload {
+    type?: AiNarrativeType
+    tone?: AiNarrativeTone
+    custom_instruction?: string
+    client_name?: string
+    no_spk?: string
+    job_description?: string
+    periode?: string
+    tasks?: string[]
+    findings?: Array<string | { note?: string; solution?: string }>
+}
+
+export interface GenerateAiNarrativeResult {
+    success: boolean
+    narrative_html: string
+    provider: string
+    model: string
+    type: string
+    note?: string
 }

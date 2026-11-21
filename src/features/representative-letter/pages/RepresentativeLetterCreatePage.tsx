@@ -82,6 +82,7 @@ const RepresentativeLetterCreatePage = (): ReactElement => {
     const [expandedPrIds, setExpandedPrIds] = useState<number[]>([])
     const [taskFilter, setTaskFilter] = useState<'all' | 'selesai' | 'pending'>('all')
     const [isCustomizingTasks, setIsCustomizingTasks] = useState<boolean>(false)
+    const [useAiNotes, setUseAiNotes] = useState<boolean>(true)
 
     // Loading states
     const [isLoadingJobs, setIsLoadingJobs] = useState<boolean>(false)
@@ -393,6 +394,7 @@ const RepresentativeLetterCreatePage = (): ReactElement => {
             progress_report_detail_ids?: number[]
             template_id?: number
             header_id?: number
+            use_ai_notes?: boolean
         } = {
             client_code: clientCode || undefined,
             client_name: clientFullName,
@@ -402,6 +404,7 @@ const RepresentativeLetterCreatePage = (): ReactElement => {
                 selectedDetailIds.length > 0 ? selectedDetailIds : undefined,
             template_id: selectedTemplateId === '' ? undefined : selectedTemplateId,
             header_id: selectedHeaderId === '' ? undefined : selectedHeaderId,
+            use_ai_notes: useAiNotes,
         }
 
         if (dateFilterType === 'range') {
@@ -1258,7 +1261,44 @@ const RepresentativeLetterCreatePage = (): ReactElement => {
             )}
         </div>
 
-        {/* Global Unified Action Footer (Always visible) */}
+        
+                {/* AI Assistant Option for initial Task Notes */}
+                <div className="card border shadow-sm p-3 mb-2 bg-white">
+                    <div className="d-flex flex-wrap align-items-center justify-content-between gap-3">
+                        <div className="d-flex align-items-center gap-3">
+                            <div
+                                className="rounded-circle d-flex align-items-center justify-content-center"
+                                style={{ width: '38px', height: '38px', background: 'rgba(234, 179, 8, 0.15)' }}
+                            >
+                                <i className="bi bi-stars text-warning fs-5" />
+                            </div>
+                            <div>
+                                <div className="fw-semibold text-dark d-flex align-items-center gap-2">
+                                    <span>Bantu Generate Catatan Setiap Task dengan AI</span>
+                                    <span className="badge bg-success-subtle text-success border border-success-subtle" style={{ fontSize: '11px' }}>
+                                        Format Asli RL Terjaga 100%
+                                    </span>
+                                </div>
+                                <div className="text-muted small" style={{ fontSize: '12px' }}>
+                                    AI akan otomatis menyusun kalimat catatan formal dan profesional untuk setiap task pada tabel draf RL awal.
+                                </div>
+                            </div>
+                        </div>
+                        <div className="form-check form-switch m-0">
+                            <input
+                                className="form-check-input"
+                                type="checkbox"
+                                role="switch"
+                                id="useAiNotesSwitch"
+                                checked={useAiNotes}
+                                onChange={(e) => setUseAiNotes(e.target.checked)}
+                                style={{ cursor: 'pointer', width: '2.5em', height: '1.25em' }}
+                            />
+                        </div>
+                    </div>
+                </div>
+
+                {/* Global Unified Action Footer (Always visible) */}
         <div className="card border-0 shadow-sm bg-white p-3 mt-1">
             <div className="d-flex flex-wrap align-items-center justify-content-between gap-3">
                 <button

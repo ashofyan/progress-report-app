@@ -37,7 +37,10 @@ import type {
     RepresentativeLetterTemplateFormPayload,
     RepresentativeLetterTemplateListResponse,
     RepresentativeLetterTemplateMutationResponse,
-    UpdateRepresentativeLetterRequest,} from '@/features/representative-letter/types/representative-letter.types'
+    UpdateRepresentativeLetterRequest,
+    GenerateAiNarrativePayload,
+    GenerateAiNarrativeResult,
+} from '@/features/representative-letter/types/representative-letter.types'
 
 type RepresentativeLetterError =
     | RepresentativeLetterErrorResponse
@@ -767,7 +770,81 @@ const getSpks = async (
         }))
 }
 
+
+const generateAiNarrative = async (
+    letterId: number,
+    payload: GenerateAiNarrativePayload,
+): Promise<RepresentativeLetterApiResult<GenerateAiNarrativeResult>> => {
+    return httpClient
+        .post<{ success: boolean; status: boolean; message: string; data: GenerateAiNarrativeResult } | RepresentativeLetterError>(
+            `/representative-letters/${letterId}/generate-ai`,
+            payload,
+        )
+        .then((response) => {
+            const data = response.data
+            if (
+                ('success' in data && data.success) ||
+                ('status' in data && data.status)
+            ) {
+                return {
+                    success: true,
+                    status: response.status,
+                    message: ('message' in data && typeof data.message === 'string')
+                        ? data.message
+                        : 'Narasi AI berhasil dibuat.',
+                    data: ('data' in data) ? (data.data as GenerateAiNarrativeResult) : undefined,
+                }
+            }
+
+            return getErrorResult(
+                response as AxiosResponse<RepresentativeLetterError>,
+            )
+        })
+        .catch(() => ({
+            success: false,
+            status: 0,
+            message: 'Tidak dapat terhubung ke server.',
+        }))
+}
+
+const generateAiNarrativeAdHoc = async (
+    payload: GenerateAiNarrativePayload,
+): Promise<RepresentativeLetterApiResult<GenerateAiNarrativeResult>> => {
+    return httpClient
+        .post<{ success: boolean; status: boolean; message: string; data: GenerateAiNarrativeResult } | RepresentativeLetterError>(
+            '/representative-letters/generate-ai',
+            payload,
+        )
+        .then((response) => {
+            const data = response.data
+            if (
+                ('success' in data && data.success) ||
+                ('status' in data && data.status)
+            ) {
+                return {
+                    success: true,
+                    status: response.status,
+                    message: ('message' in data && typeof data.message === 'string')
+                        ? data.message
+                        : 'Narasi AI berhasil dibuat.',
+                    data: ('data' in data) ? (data.data as GenerateAiNarrativeResult) : undefined,
+                }
+            }
+
+            return getErrorResult(
+                response as AxiosResponse<RepresentativeLetterError>,
+            )
+        })
+        .catch(() => ({
+            success: false,
+            status: 0,
+            message: 'Tidak dapat terhubung ke server.',
+        }))
+}
+
 export const representativeLetterApi = {
+    generateAiNarrative,
+    generateAiNarrativeAdHoc,
     getAll,
     preview,
     create,

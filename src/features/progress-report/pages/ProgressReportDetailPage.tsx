@@ -7,6 +7,7 @@ import { useNavigate, useParams } from 'react-router-dom'
 
 import { useMarketingClients } from '@/features/additional-task/hooks/useMarketingClients'
 import { useAuth } from '@/features/auth/hooks/useAuth'
+import { getPeriodeLabel } from '@/features/daily-progress/utils/dailyProgressPeriod'
 import { progressReportApi } from '@/features/progress-report/api/progressReportApi'
 import type {
     ProgressReport,
@@ -44,28 +45,6 @@ const formatIndoDate = (dateStr?: string | null): string => {
         }
     }
     return dateStr
-}
-
-const formatIndoPeriode = (
-    dateStr?: string | null,
-    periodeAwal?: string | null,
-    periodeAkhir?: string | null,
-): string => {
-    const target = periodeAwal || dateStr
-    if (target) {
-        const parts = target.slice(0, 10).split('-')
-        if (parts.length >= 2) {
-            const year = parts[0]
-            const month = Number(parts[1]) - 1
-            if (month >= 0 && month < 12) {
-                return `${INDO_MONTHS[month]} - ${year}`
-            }
-        }
-    }
-    if (periodeAwal && periodeAkhir) {
-        return `${periodeAwal} s/d ${periodeAkhir}`
-    }
-    return '-'
 }
 
 const getDocumentName = (
@@ -695,10 +674,10 @@ const ProgressReportDetailPage = () => {
                             Periode
                         </span>
                         <span className="metadata-value">
-                            {formatIndoPeriode(
+                            {getPeriodeLabel(
+                                detail.bulan,
+                                detail.tahun,
                                 detail.tanggal,
-                                null,
-                                null,
                             )}
                         </span>
                     </div>
